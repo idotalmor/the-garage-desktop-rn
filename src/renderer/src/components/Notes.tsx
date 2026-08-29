@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Button, Card, Input, Label, TextField } from '@heroui/react'
 import { NotesChannel } from '../../../shared/notes/channels'
 
@@ -13,33 +13,36 @@ function useNotes() {
   const [notes, setNotes] = useState<Note[]>([])
   const [input, setInput] = useState('')
 
-  const refresh = async (): Promise<void> => {
-    const list = (await window.electron.ipcRenderer.invoke(NotesChannel.List, {
-      done: false
-    })) as Note[]
-    setNotes(list)
-  }
+  const loadNotes = useCallback(() => {
+    let cancelled = false
+    window.electron.ipcRenderer.invoke(NotesChannel.List, { done: false }).then((list) => {
+      if (!cancelled) setNotes(list as Note[])
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   useEffect(() => {
-    refresh()
-  }, [])
+    return loadNotes()
+  }, [loadNotes])
 
   const add = async (body: string): Promise<void> => {
     const trimmed = body.trim()
     if (!trimmed) return
     await window.electron.ipcRenderer.invoke(NotesChannel.Add, trimmed)
     setInput('')
-    await refresh()
+    loadNotes()
   }
 
   const toggle = async (id: string): Promise<void> => {
     await window.electron.ipcRenderer.invoke(NotesChannel.Toggle, id)
-    await refresh()
+    loadNotes()
   }
 
   const remove = async (id: string): Promise<void> => {
     await window.electron.ipcRenderer.invoke(NotesChannel.Delete, id)
-    await refresh()
+    loadNotes()
   }
 
   return { notes, input, setInput, add, toggle, remove }
