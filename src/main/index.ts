@@ -2,6 +2,7 @@ import { app, shell, BrowserWindow, ipcMain, Tray, nativeImage, screen } from 'e
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
+import { initNotesIpc } from './notes'
 
 let mainWindow: BrowserWindow | null = null
 let popoverWindow: BrowserWindow | null = null
@@ -136,6 +137,8 @@ app.whenReady().then(() => {
     popoverWindow?.hide()
     if (process.platform === 'darwin') app.dock?.show()
   })
+
+  initNotesIpc()
 
   createTray()
   createMainWindow()

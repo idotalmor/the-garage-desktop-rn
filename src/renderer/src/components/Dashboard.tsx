@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Button, Card } from '@heroui/react'
+import { Notes } from './Notes'
 
 function openMain(): void {
   window.electron.ipcRenderer.send('app:open-main')
@@ -18,8 +19,28 @@ function useCompact(): boolean {
   return isCompact
 }
 
+function Home(): React.JSX.Element {
+  return (
+    <main className="p-4 sm:p-6">
+      <Card className="w-full max-w-3xl mx-auto p-4 sm:p-6">
+        <h1 className="text-xl font-semibold sm:text-2xl">Welcome to DevFlow</h1>
+        <p className="mt-2 text-muted">Your mission control for AI-driven development.</p>
+        <div className="mt-6 flex flex-wrap gap-3">
+          <Button variant="primary" onPress={() => {}}>
+            Get Started
+          </Button>
+          <Button variant="outline" onPress={() => {}}>
+            Documentation
+          </Button>
+        </div>
+      </Card>
+    </main>
+  )
+}
+
 export function Dashboard(): React.JSX.Element {
   const isCompact = useCompact()
+  const [view, setView] = useState<'home' | 'notes'>('home')
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -34,13 +55,21 @@ export function Dashboard(): React.JSX.Element {
             </Button>
           ) : (
             <>
-              <Button variant="ghost" size="sm">
+              <Button
+                variant={view === 'home' ? 'primary' : 'ghost'}
+                size="sm"
+                onPress={() => setView('home')}
+              >
                 Dashboard
               </Button>
-              <Button variant="ghost" size="sm">
+              <Button
+                variant={view === 'notes' ? 'primary' : 'ghost'}
+                size="sm"
+                onPress={() => setView('notes')}
+              >
                 Notes
               </Button>
-              <Button variant="ghost" size="sm">
+              <Button variant="ghost" size="sm" onPress={() => {}}>
                 Settings
               </Button>
             </>
@@ -48,20 +77,7 @@ export function Dashboard(): React.JSX.Element {
         </div>
       </nav>
 
-      <main className="p-4 sm:p-6">
-        <Card className="w-full max-w-3xl mx-auto p-4 sm:p-6">
-          <h1 className="text-xl font-semibold sm:text-2xl">Welcome to DevFlow</h1>
-          <p className="mt-2 text-muted">Your mission control for AI-driven development.</p>
-          <div className="mt-6 flex flex-wrap gap-3">
-            <Button variant="primary" onPress={() => {}}>
-              Get Started
-            </Button>
-            <Button variant="outline" onPress={() => {}}>
-              Documentation
-            </Button>
-          </div>
-        </Card>
-      </main>
+      {view === 'home' ? <Home /> : <Notes />}
     </div>
   )
 }
