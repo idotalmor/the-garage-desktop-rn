@@ -9,8 +9,7 @@ let db: Database.Database | null = null
 function getDb(): Database.Database {
   if (db) return db
 
-  const userData = app.getPath('userData')
-  const dbDir = join(userData, 'databases')
+  const dbDir = join(app.getPath('home'), '.devflow')
   if (!existsSync(dbDir)) {
     mkdirSync(dbDir, { recursive: true })
   }
