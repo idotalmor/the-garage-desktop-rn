@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Button, Card, Input } from '@heroui/react'
+import { Button, Card, Input, Label, TextField } from '@heroui/react'
 import { NotesChannel } from '../../../shared/notes/channels'
 
 type Note = {
@@ -50,41 +50,53 @@ export function Notes(): React.JSX.Element {
 
   return (
     <main className="p-4 sm:p-6">
-      <Card className="w-full max-w-3xl mx-auto p-4 sm:p-6">
-        <h1 className="text-xl font-semibold sm:text-2xl">Notes</h1>
-        <div className="mt-4 flex items-start gap-2">
-          <Input
-            aria-label="Note"
-            placeholder="Write a note..."
-            value={input}
-            onChange={(event: React.ChangeEvent<HTMLInputElement>) => setInput(event.target.value)}
-            className="flex-1"
-          />
-          <Button isDisabled={!input.trim()} onPress={() => add(input)}>
-            Add
-          </Button>
-        </div>
-        <ul className="mt-6 space-y-3">
-          {notes.length === 0 && (
-            <li className="text-sm text-muted">No undone notes. Add one above.</li>
-          )}
-          {notes.map((note) => (
-            <li
-              key={note.id}
-              className="flex items-center justify-between gap-3 rounded-lg border border-border p-3"
+      <Card className="w-full max-w-3xl mx-auto">
+        <Card.Header>
+          <Card.Title className="text-xl sm:text-2xl">Notes</Card.Title>
+          <Card.Description>Capture quick thoughts and mark them done.</Card.Description>
+        </Card.Header>
+        <Card.Content className="space-y-6">
+          <div className="flex items-end gap-3">
+            <TextField
+              value={input}
+              onChange={(value: string) => setInput(value)}
+              className="flex-1"
             >
-              <span className="text-sm">{note.body}</span>
-              <div className="flex items-center gap-2">
-                <Button size="sm" variant="outline" onPress={() => toggle(note.id)}>
-                  Done
-                </Button>
-                <Button size="sm" variant="ghost" onPress={() => remove(note.id)}>
-                  Delete
-                </Button>
-              </div>
-            </li>
-          ))}
-        </ul>
+              <Label>New note</Label>
+              <Input placeholder="What do you want to remember?" />
+            </TextField>
+            <Button isDisabled={!input.trim()} onPress={() => add(input)}>
+              Add
+            </Button>
+          </div>
+
+          {notes.length === 0 ? (
+            <p className="text-center text-sm text-muted">No undone notes. Add one above.</p>
+          ) : (
+            <div className="space-y-3">
+              {notes.map((note) => (
+                <Card key={note.id} className="w-full">
+                  <Card.Content className="flex items-center justify-between gap-3 py-3">
+                    <span className="text-sm">{note.body}</span>
+                    <div className="flex shrink-0 items-center gap-2">
+                      <Button size="sm" variant="outline" onPress={() => toggle(note.id)}>
+                        Done
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="text-(--danger)"
+                        onPress={() => remove(note.id)}
+                      >
+                        Delete
+                      </Button>
+                    </div>
+                  </Card.Content>
+                </Card>
+              ))}
+            </div>
+          )}
+        </Card.Content>
       </Card>
     </main>
   )

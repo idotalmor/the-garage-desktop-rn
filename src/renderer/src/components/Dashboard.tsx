@@ -1,6 +1,9 @@
 import { useEffect, useState } from 'react'
+import { useTheme } from 'next-themes'
 import { Button, Card } from '@heroui/react'
+import { Navbar } from '@heroui-pro/react'
 import { Notes } from './Notes'
+import { Reader } from './Reader'
 
 function openMain(): void {
   window.electron.ipcRenderer.send('app:open-main')
@@ -22,62 +25,106 @@ function useCompact(): boolean {
 function Home(): React.JSX.Element {
   return (
     <main className="p-4 sm:p-6">
-      <Card className="w-full max-w-3xl mx-auto p-4 sm:p-6">
-        <h1 className="text-xl font-semibold sm:text-2xl">Welcome to DevFlow</h1>
-        <p className="mt-2 text-muted">Your mission control for AI-driven development.</p>
-        <div className="mt-6 flex flex-wrap gap-3">
+      <Card className="w-full max-w-3xl mx-auto">
+        <Card.Header>
+          <Card.Title className="text-xl sm:text-2xl">Welcome to DevFlow</Card.Title>
+          <Card.Description>Your mission control for AI-driven development.</Card.Description>
+        </Card.Header>
+        <Card.Content>
+          <p className="text-muted">
+            Track tasks, pull requests, notes, and agent workflows from one place.
+          </p>
+        </Card.Content>
+        <Card.Footer>
           <Button variant="primary" onPress={() => {}}>
             Get Started
           </Button>
           <Button variant="outline" onPress={() => {}}>
             Documentation
           </Button>
-        </div>
+        </Card.Footer>
       </Card>
     </main>
   )
 }
 
+function ThemeToggle(): React.JSX.Element {
+  const { theme, setTheme } = useTheme()
+
+  const label =
+    theme === 'system'
+      ? 'System'
+      : theme === 'dark'
+        ? 'Dark'
+        : theme === 'light'
+          ? 'Light'
+          : 'System'
+
+  const cycle = (): void => {
+    if (theme === 'dark') {
+      setTheme('light')
+    } else if (theme === 'light') {
+      setTheme('system')
+    } else {
+      setTheme('dark')
+    }
+  }
+
+  return (
+    <Button variant="ghost" size="sm" onPress={cycle}>
+      {label}
+    </Button>
+  )
+}
+
 export function Dashboard(): React.JSX.Element {
   const isCompact = useCompact()
-  const [view, setView] = useState<'home' | 'notes'>('home')
+  const [view, setView] = useState<'home' | 'notes' | 'reader'>('home')
+
+  const navButton = (target: 'home' | 'notes' | 'reader', label: string): React.JSX.Element => (
+    <Button
+      variant={view === target ? 'primary' : 'ghost'}
+      size="sm"
+      onPress={() => setView(target)}
+    >
+      {label}
+    </Button>
+  )
+
+  if (isCompact) {
+    return (
+      <div className="min-h-screen bg-background text-foreground p-4">
+        <div className="flex h-12 items-center justify-between">
+          <span className="text-lg font-semibold">DevFlow</span>
+          <Button variant="primary" size="sm" onPress={() => openMain()}>
+            Open DevFlow
+          </Button>
+        </div>
+        {view === 'home' ? <Home /> : view === 'notes' ? <Notes /> : <Reader />}
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <nav className="flex h-16 items-center justify-between border-b border-border px-4 sm:px-6">
-        <div className="flex items-center gap-2">
-          <span className="text-lg font-semibold sm:text-xl">DevFlow</span>
-        </div>
-        <div className="flex items-center gap-2 sm:gap-4">
-          {isCompact ? (
-            <Button variant="primary" size="sm" onPress={() => openMain()}>
-              Open DevFlow
+      <Navbar className="border-b border-(--border)" position="static">
+        <Navbar.Header>
+          <Navbar.Brand className="font-bold text-lg">DevFlow</Navbar.Brand>
+          <Navbar.Content className="hidden sm:flex">
+            {navButton('home', 'Dashboard')}
+            {navButton('notes', 'Notes')}
+            {navButton('reader', 'Reader')}
+            <Button variant="ghost" size="sm" onPress={() => {}}>
+              Settings
             </Button>
-          ) : (
-            <>
-              <Button
-                variant={view === 'home' ? 'primary' : 'ghost'}
-                size="sm"
-                onPress={() => setView('home')}
-              >
-                Dashboard
-              </Button>
-              <Button
-                variant={view === 'notes' ? 'primary' : 'ghost'}
-                size="sm"
-                onPress={() => setView('notes')}
-              >
-                Notes
-              </Button>
-              <Button variant="ghost" size="sm" onPress={() => {}}>
-                Settings
-              </Button>
-            </>
-          )}
-        </div>
-      </nav>
+          </Navbar.Content>
+          <Navbar.Content className="ml-auto">
+            <ThemeToggle />
+          </Navbar.Content>
+        </Navbar.Header>
+      </Navbar>
 
-      {view === 'home' ? <Home /> : <Notes />}
+      {view === 'home' ? <Home /> : view === 'notes' ? <Notes /> : <Reader />}
     </div>
   )
 }

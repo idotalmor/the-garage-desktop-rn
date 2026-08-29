@@ -3,6 +3,7 @@ import { electronApp, optimizer } from '@electron-toolkit/utils'
 import { createMainWindow } from './main-window'
 import { createTray, focusMainOrCreate, hidePopover } from './popover'
 import { initNotesIpc } from './notes'
+import { initFilesIpc } from './files'
 
 app.whenReady().then(() => {
   electronApp.setAppUserModelId('com.electron')
@@ -20,6 +21,7 @@ app.whenReady().then(() => {
   })
 
   initNotesIpc()
+  initFilesIpc()
   createTray()
   createMainWindow()
 })
