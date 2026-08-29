@@ -15,7 +15,11 @@ function getDb(): Database.Database {
     mkdirSync(dbDir, { recursive: true })
   }
 
-  db = new Database(join(dbDir, 'notes.db'))
+  const dbPath = join(dbDir, 'notes.db')
+  console.log('[notes] opening database at', dbPath)
+
+  db = new Database(dbPath)
+  db.pragma('journal_mode = DELETE')
   db.exec(`
     CREATE TABLE IF NOT EXISTS notes (
       id TEXT PRIMARY KEY,
@@ -25,6 +29,11 @@ function getDb(): Database.Database {
     );
     CREATE INDEX IF NOT EXISTS idx_notes_done ON notes(done);
   `)
+
+  app.on('before-quit', () => {
+    console.log('[notes] closing database')
+    db?.close()
+  })
 
   return db
 }
