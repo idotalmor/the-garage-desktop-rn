@@ -48,10 +48,12 @@ function Home(): React.JSX.Element {
   )
 }
 
-function ThemeToggle(): React.JSX.Element {
+export function Dashboard(): React.JSX.Element {
+  const isCompact = useCompact()
+  const [view, setView] = useState<'home' | 'notes' | 'reader'>('home')
   const { theme, setTheme } = useTheme()
 
-  const label =
+  const themeLabel =
     theme === 'system'
       ? 'System'
       : theme === 'dark'
@@ -60,7 +62,7 @@ function ThemeToggle(): React.JSX.Element {
           ? 'Light'
           : 'System'
 
-  const cycle = (): void => {
+  const cycleTheme = (): void => {
     if (theme === 'dark') {
       setTheme('light')
     } else if (theme === 'light') {
@@ -69,27 +71,6 @@ function ThemeToggle(): React.JSX.Element {
       setTheme('dark')
     }
   }
-
-  return (
-    <Button variant="ghost" size="sm" onPress={cycle}>
-      {label}
-    </Button>
-  )
-}
-
-export function Dashboard(): React.JSX.Element {
-  const isCompact = useCompact()
-  const [view, setView] = useState<'home' | 'notes' | 'reader'>('home')
-
-  const navButton = (target: 'home' | 'notes' | 'reader', label: string): React.JSX.Element => (
-    <Button
-      variant={view === target ? 'primary' : 'ghost'}
-      size="sm"
-      onPress={() => setView(target)}
-    >
-      {label}
-    </Button>
-  )
 
   if (isCompact) {
     return (
@@ -109,17 +90,31 @@ export function Dashboard(): React.JSX.Element {
     <div className="min-h-screen bg-background text-foreground">
       <Navbar className="border-b border-(--border)" position="static">
         <Navbar.Header>
-          <Navbar.Brand className="font-bold text-lg">DevFlow</Navbar.Brand>
-          <Navbar.Content className="hidden sm:flex">
-            {navButton('home', 'Dashboard')}
-            {navButton('notes', 'Notes')}
-            {navButton('reader', 'Reader')}
-            <Button variant="ghost" size="sm" onPress={() => {}}>
-              Settings
-            </Button>
+          <Navbar.Brand>
+            <span className="font-bold text-lg">DevFlow</span>
+            <span className="sr-only">DevFlow</span>
+          </Navbar.Brand>
+
+          <Navbar.Spacer />
+
+          <Navbar.Content>
+            <Navbar.Item onClick={() => setView('home')} isCurrent={view === 'home'}>
+              Dashboard
+            </Navbar.Item>
+            <Navbar.Item onClick={() => setView('notes')} isCurrent={view === 'notes'}>
+              Notes
+            </Navbar.Item>
+            <Navbar.Item onClick={() => setView('reader')} isCurrent={view === 'reader'}>
+              Reader
+            </Navbar.Item>
+            <Navbar.Item onClick={() => {}}>Settings</Navbar.Item>
           </Navbar.Content>
-          <Navbar.Content className="ml-auto">
-            <ThemeToggle />
+
+          <Navbar.Spacer />
+
+          <Navbar.Content>
+            <Navbar.Separator />
+            <Navbar.Item onClick={cycleTheme}>{themeLabel}</Navbar.Item>
           </Navbar.Content>
         </Navbar.Header>
       </Navbar>
