@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Button, Card, Input } from '@heroui/react'
+import { NotesChannel } from '../../../shared/notes/channels'
 
 type Note = {
   id: string
@@ -13,7 +14,9 @@ function useNotes() {
   const [input, setInput] = useState('')
 
   const refresh = async (): Promise<void> => {
-    const list = (await window.electron.ipcRenderer.invoke('notes:list', { done: false })) as Note[]
+    const list = (await window.electron.ipcRenderer.invoke(NotesChannel.List, {
+      done: false
+    })) as Note[]
     setNotes(list)
   }
 
@@ -24,18 +27,18 @@ function useNotes() {
   const add = async (body: string): Promise<void> => {
     const trimmed = body.trim()
     if (!trimmed) return
-    await window.electron.ipcRenderer.invoke('notes:add', trimmed)
+    await window.electron.ipcRenderer.invoke(NotesChannel.Add, trimmed)
     setInput('')
     await refresh()
   }
 
   const toggle = async (id: string): Promise<void> => {
-    await window.electron.ipcRenderer.invoke('notes:toggle', id)
+    await window.electron.ipcRenderer.invoke(NotesChannel.Toggle, id)
     await refresh()
   }
 
   const remove = async (id: string): Promise<void> => {
-    await window.electron.ipcRenderer.invoke('notes:delete', id)
+    await window.electron.ipcRenderer.invoke(NotesChannel.Delete, id)
     await refresh()
   }
 
