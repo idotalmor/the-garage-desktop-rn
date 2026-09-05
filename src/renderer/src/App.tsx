@@ -1,7 +1,7 @@
-import { Dashboard } from './components/Dashboard'
+import { AppShell } from './app/AppShell'
 
 function App(): React.JSX.Element {
-  return <Dashboard />
+  return <AppShell />
 }
 
 export default App
