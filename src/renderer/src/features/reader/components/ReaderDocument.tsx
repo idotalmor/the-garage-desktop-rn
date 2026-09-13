@@ -13,7 +13,6 @@ type ReaderDocumentProps = {
   onCancel: () => void
   onChange: (content: string) => void
   onExpand: () => void
-  onCloseWindow: () => void
 }
 
 export function ReaderDocument({
@@ -25,8 +24,7 @@ export function ReaderDocument({
   onSave,
   onCancel,
   onChange,
-  onExpand,
-  onCloseWindow
+  onExpand
 }: ReaderDocumentProps): React.JSX.Element {
   if (!file) {
     return (
@@ -77,18 +75,6 @@ export function ReaderDocument({
               aria-label="Open reader in a new window"
             >
               <Maximize2 size={14} aria-hidden="true" />
-            </Button>
-          )}
-          {isStandalone && (
-            <Button
-              isIconOnly
-              size="sm"
-              variant="ghost"
-              className="rounded-lg"
-              onPress={onCloseWindow}
-              aria-label="Close reader window"
-            >
-              <X size={14} aria-hidden="true" />
             </Button>
           )}
         </div>

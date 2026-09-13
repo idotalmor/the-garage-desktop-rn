@@ -17,6 +17,7 @@ import { ReaderDocument } from './ReaderDocument'
 import { FileGroupSection } from './FileGroupSection'
 import { TagFilterChip } from './TagFilterChip'
 import { ReaderWindowChrome } from './ReaderWindowChrome'
+import { SplitView } from './SplitView'
 
 const FILTER_ALL = 'all'
 
@@ -37,8 +38,19 @@ function getFolderName(path: string): string {
 }
 
 export function ReaderPage(): React.JSX.Element {
-  const { files, active, activeFile, openFile, importFiles, saveFile, closeFile, setActive, tags } =
-    useFiles()
+  const {
+    files,
+    openFiles,
+    active,
+    activeFile,
+    openFile,
+    importFiles,
+    saveFile,
+    closeFile,
+    openPath,
+    setActive,
+    tags
+  } = useFiles()
   const [isEditing, setIsEditing] = useState(false)
   const [isSidebarOpen, setIsSidebarOpen] = useState(true)
   const [drafts, setDrafts] = useState<Record<string, string>>({})
@@ -47,7 +59,7 @@ export function ReaderPage(): React.JSX.Element {
   const [showImport, setShowImport] = useState(false)
   const [filterTag, setFilterTag] = useState<FilterValue>(FILTER_ALL)
   const [groupBy, setGroupBy] = useState<GroupBy>('folder')
-  const [splitFile, setSplitFile] = useState<string | null>(null)
+  const [split, setSplit] = useState<{ left: string; right: string } | null>(null)
   const [contextMenu, setContextMenu] = useState<{
     x: number
     y: number
@@ -63,9 +75,15 @@ export function ReaderPage(): React.JSX.Element {
     }
   }, [contextMenu])
 
-  const splitFileData = useMemo(
-    () => files.find((file) => file.path === splitFile) ?? null,
-    [files, splitFile]
+  const splitFiles = useMemo(
+    () =>
+      split
+        ? {
+            left: files.find((file) => file.path === split.left) ?? null,
+            right: files.find((file) => file.path === split.right) ?? null
+          }
+        : null,
+    [files, split]
   )
 
   const filteredFiles = useMemo(() => {
@@ -168,8 +186,8 @@ export function ReaderPage(): React.JSX.Element {
 
   const handleCloseFile = (path: string): void => {
     closeFile(path)
-    if (splitFile === path) {
-      setSplitFile(null)
+    if (split?.left === path || split?.right === path) {
+      setSplit(null)
     }
     if (contextMenu?.path === path) {
       setContextMenu(null)
@@ -177,10 +195,10 @@ export function ReaderPage(): React.JSX.Element {
   }
 
   const renderTabs = (): React.JSX.Element | null => {
-    if (files.length === 0) return null
+    if (openFiles.length === 0) return null
     return (
       <div className="flex items-center gap-1 border-b border-separator px-2 py-1.5">
-        {files.map((file) => (
+        {openFiles.map((file) => (
           <div
             key={file.path}
             role="button"
@@ -222,38 +240,35 @@ export function ReaderPage(): React.JSX.Element {
   }
 
   const renderSplitView = (): React.JSX.Element => (
-    <div className="flex min-h-0 flex-1 overflow-hidden">
-      <div className="flex min-w-0 flex-1 flex-col border-r border-separator">
+    <SplitView
+      onClose={() => setSplit(null)}
+      left={
         <ReaderDocument
-          file={activeFile}
-          content={activeContent}
+          file={splitFiles?.left ?? null}
+          content={splitFiles?.left?.content ?? ''}
           isEditing={false}
           isStandalone={false}
-          onEdit={handleEdit}
-          onSave={handleSave}
-          onCancel={handleCancel}
-          onChange={(content) => {
-            if (activeFile) setDrafts((current) => ({ ...current, [activeFile.path]: content }))
-          }}
-          onExpand={() => window.electron.ipcRenderer.send('files:expand')}
-          onCloseWindow={() => window.close()}
-        />
-      </div>
-      <div className="flex min-w-0 flex-1 flex-col">
-        <ReaderDocument
-          file={splitFileData}
-          content={splitFileData?.content ?? ''}
-          isEditing={false}
-          isStandalone={false}
-          onEdit={() => setActive(splitFileData?.path ?? null)}
+          onEdit={() => openPath(splitFiles?.left?.path ?? '')}
           onSave={handleSave}
           onCancel={handleCancel}
           onChange={() => {}}
           onExpand={() => window.electron.ipcRenderer.send('files:expand')}
-          onCloseWindow={() => setSplitFile(null)}
         />
-      </div>
-    </div>
+      }
+      right={
+        <ReaderDocument
+          file={splitFiles?.right ?? null}
+          content={splitFiles?.right?.content ?? ''}
+          isEditing={false}
+          isStandalone={false}
+          onEdit={() => openPath(splitFiles?.right?.path ?? '')}
+          onSave={handleSave}
+          onCancel={handleCancel}
+          onChange={() => {}}
+          onExpand={() => window.electron.ipcRenderer.send('files:expand')}
+        />
+      }
+    />
   )
 
   return (
@@ -369,7 +384,7 @@ export function ReaderPage(): React.JSX.Element {
                       key={group.name}
                       group={group}
                       active={active}
-                      onSelect={setActive}
+                      onSelect={openPath}
                     />
                   ))}
                 </div>
@@ -401,9 +416,8 @@ export function ReaderPage(): React.JSX.Element {
                 }
               }}
               onExpand={() => window.electron.ipcRenderer.send('files:expand')}
-              onCloseWindow={() => window.close()}
             />
-          ) : splitFileData ? (
+          ) : splitFiles ? (
             renderSplitView()
           ) : (
             <ReaderDocument
@@ -416,7 +430,6 @@ export function ReaderPage(): React.JSX.Element {
               onCancel={handleCancel}
               onChange={() => {}}
               onExpand={() => window.electron.ipcRenderer.send('files:expand')}
-              onCloseWindow={() => window.close()}
             />
           )}
         </section>
@@ -426,7 +439,7 @@ export function ReaderPage(): React.JSX.Element {
         <div
           ref={menuRef}
           tabIndex={-1}
-          onBlur={() => setContextMenu(null)}
+          onBlur={() => window.setTimeout(() => setContextMenu(null), 0)}
           className="fixed z-50 w-52 rounded-lg border border-border bg-surface p-1 shadow-overlay"
           style={{ top: contextMenu.y, left: contextMenu.x }}
         >
@@ -443,21 +456,34 @@ export function ReaderPage(): React.JSX.Element {
             Split with
           </p>
           <div className="max-h-40 overflow-y-auto">
-            {files
+            {openFiles
               .filter((file) => file.path !== contextMenu.path)
               .map((file) => (
-                <button
-                  key={file.path}
-                  type="button"
-                  className="flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-xs text-foreground hover:bg-surface-secondary"
-                  onClick={() => {
-                    setSplitFile(file.path)
-                    setContextMenu(null)
-                  }}
-                >
-                  <FileText size={12} aria-hidden="true" />
-                  <span className="truncate">{file.name}</span>
-                </button>
+                <div key={file.path} className="flex items-center gap-1">
+                  <span className="min-w-0 flex-1 truncate px-2.5 py-1.5 text-xs text-foreground">
+                    {file.name}
+                  </span>
+                  <button
+                    type="button"
+                    className="rounded px-1.5 py-1 text-[10px] text-muted hover:bg-surface-secondary hover:text-foreground"
+                    onClick={() => {
+                      setSplit({ left: contextMenu.path, right: file.path })
+                      setContextMenu(null)
+                    }}
+                  >
+                    Right
+                  </button>
+                  <button
+                    type="button"
+                    className="rounded px-1.5 py-1 text-[10px] text-muted hover:bg-surface-secondary hover:text-foreground"
+                    onClick={() => {
+                      setSplit({ left: file.path, right: contextMenu.path })
+                      setContextMenu(null)
+                    }}
+                  >
+                    Left
+                  </button>
+                </div>
               ))}
           </div>
         </div>

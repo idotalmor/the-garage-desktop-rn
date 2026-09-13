@@ -4,7 +4,7 @@ import { is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 
 let mainWindow: BrowserWindow | null = null
-let readerWindow: BrowserWindow | null = null
+const readerWindows = new Set<BrowserWindow>()
 
 function configureWindow(window: BrowserWindow): BrowserWindow {
   window.webContents.setWindowOpenHandler((details) => {
@@ -61,12 +61,7 @@ export function getMainWindow(): BrowserWindow | null {
 }
 
 export function createReaderWindow(): BrowserWindow {
-  if (readerWindow && !readerWindow.isDestroyed()) {
-    readerWindow.focus()
-    return readerWindow
-  }
-
-  readerWindow = new BrowserWindow({
+  const readerWindow = new BrowserWindow({
     width: 1200,
     height: 800,
     title: 'Reader',
@@ -83,8 +78,9 @@ export function createReaderWindow(): BrowserWindow {
 
   configureWindow(readerWindow)
   loadRenderer(readerWindow, '?readerWindow=1')
+  readerWindows.add(readerWindow)
   readerWindow.on('closed', () => {
-    readerWindow = null
+    readerWindows.delete(readerWindow)
   })
   return readerWindow
 }

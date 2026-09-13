@@ -4,6 +4,7 @@ import type { ImportMode, MdFile, Tag } from '../../../../../shared/reader/types
 
 export function useFiles(): {
   files: MdFile[]
+  openFiles: MdFile[]
   active: string | null
   activeFile: MdFile | null
   openFile: () => Promise<void>
@@ -14,11 +15,19 @@ export function useFiles(): {
   }) => Promise<MdFile[] | undefined>
   saveFile: (file: MdFile, content: string) => Promise<void>
   closeFile: (path: string) => void
+  openPath: (path: string) => void
   setActive: (value: string | null) => void
   tags: Tag[]
 } {
   const [files, setFiles] = useState<MdFile[]>([])
+  const [openPaths, setOpenPaths] = useState<string[]>([])
   const [active, setActive] = useState<string | null>(null)
+
+  const openFiles = useMemo(
+    () =>
+      openPaths.map((path) => files.find((file) => file.path === path)).filter(Boolean) as MdFile[],
+    [files, openPaths]
+  )
 
   const activeFile = useMemo(
     () => files.find((file) => file.path === active) ?? null,
@@ -31,6 +40,7 @@ export function useFiles(): {
       if (cancelled) return
       const stored = loaded as MdFile[]
       setFiles(stored)
+      setOpenPaths(stored.map((file) => file.path))
       setActive(stored[0]?.path ?? null)
     })
     return () => {
@@ -42,6 +52,7 @@ export function useFiles(): {
     const file = (await window.electron.ipcRenderer.invoke(ReaderChannel.Open)) as MdFile | null
     if (!file) return
     setFiles((prev) => (prev.some((item) => item.path === file.path) ? prev : [...prev, file]))
+    setOpenPaths((prev) => (prev.includes(file.path) ? prev : [...prev, file.path]))
     setActive(file.path)
   }, [])
 
@@ -63,6 +74,10 @@ export function useFiles(): {
         return [...prev, ...added]
       })
 
+      setOpenPaths((current) => [
+        ...current,
+        ...imported.map((file) => file.path).filter((path) => !current.includes(path))
+      ])
       setActive((current) => current ?? imported[0].path)
       return imported
     },
@@ -79,16 +94,19 @@ export function useFiles(): {
 
   const closeFile = useCallback(
     (path: string): void => {
-      setFiles((prev) => {
-        const next = prev.filter((item) => item.path !== path)
-        if (active === path) {
-          setActive(next[0]?.path ?? null)
-        }
+      setOpenPaths((current) => {
+        const next = current.filter((item) => item !== path)
+        if (active === path) setActive(next[next.length - 1] ?? null)
         return next
       })
     },
     [active]
   )
+
+  const openPath = useCallback((path: string): void => {
+    setOpenPaths((current) => (current.includes(path) ? current : [...current, path]))
+    setActive(path)
+  }, [])
 
   const tags = useMemo(() => {
     const registry = new Map<string, Tag>()
@@ -102,12 +120,14 @@ export function useFiles(): {
 
   return {
     files,
+    openFiles,
     active,
     activeFile,
     openFile,
     importFiles,
     saveFile,
     closeFile,
+    openPath,
     setActive,
     tags
   }
