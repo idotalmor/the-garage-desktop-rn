@@ -2,28 +2,31 @@ import {
   FileText,
   Folder,
   FolderOpen,
-  Maximize2,
   PanelLeftClose,
   PanelLeftOpen,
-  Pencil,
-  Save,
   Tag,
   UploadCloud,
   X
 } from 'lucide-react'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import { Button } from '@heroui/react'
 import { useFiles } from '../hooks/useFiles'
 import type { MdFile, Tag as TagType } from '../../../../../shared/reader/types'
 import { ImportFilesModal } from './ImportFilesModal'
-import { MarkdownPreview } from './MarkdownPreview'
+import { ReaderDocument } from './ReaderDocument'
 import { FileGroupSection } from './FileGroupSection'
 import { TagFilterChip } from './TagFilterChip'
+import { ReaderWindowChrome } from './ReaderWindowChrome'
 
 const FILTER_ALL = 'all'
-const FILTER_UNTAGGED = 'untagged'
 
-type FilterValue = typeof FILTER_ALL | typeof FILTER_UNTAGGED | string
+type FilterValue = typeof FILTER_ALL | string
+
+type FilterItem = {
+  id: FilterValue
+  label: string
+  color?: string
+}
 
 type GroupBy = 'folder' | 'tag'
 
@@ -67,7 +70,6 @@ export function ReaderPage(): React.JSX.Element {
 
   const filteredFiles = useMemo(() => {
     if (filterTag === FILTER_ALL) return files
-    if (filterTag === FILTER_UNTAGGED) return files.filter((file) => file.tags.length === 0)
     return files.filter((file) => file.tags.some((tag) => tag.name === filterTag))
   }, [files, filterTag])
 
@@ -95,18 +97,21 @@ export function ReaderPage(): React.JSX.Element {
     return sorted.map((name) => ({ name, files: groups.get(name) ?? [] }))
   }, [filteredFiles, groupBy])
 
-  const filterItems = useMemo(() => {
-    const items: { id: FilterValue; label: string; color?: string }[] = [
-      { id: FILTER_ALL, label: 'All' },
-      { id: FILTER_UNTAGGED, label: 'Untagged' },
-      ...tags.map((tag) => ({ id: tag.name, label: tag.name, color: tag.color }))
-    ]
-    const selectedIndex = items.findIndex((item) => item.id === filterTag)
-    if (selectedIndex > 0) {
-      const [selected] = items.splice(selectedIndex, 1)
-      items.unshift(selected)
-    }
-    return items
+  const filterItems = useMemo<FilterItem[]>(() => {
+    const tagItems: FilterItem[] = tags.map((tag) => ({
+      id: tag.name,
+      label: tag.name,
+      color: tag.color
+    }))
+    if (filterTag === FILTER_ALL) return [{ id: FILTER_ALL, label: 'All' }, ...tagItems]
+    const selected = tagItems.find((item) => item.id === filterTag)
+    return selected
+      ? [
+          { id: FILTER_ALL, label: 'All' },
+          selected,
+          ...tagItems.filter((item) => item.id !== filterTag)
+        ]
+      : [{ id: FILTER_ALL, label: 'All' }, ...tagItems]
   }, [tags, filterTag])
 
   const activeContent = activeFile ? (drafts[activeFile.path] ?? activeFile.content) : ''
@@ -216,157 +221,40 @@ export function ReaderPage(): React.JSX.Element {
     )
   }
 
-  const renderEmpty = (): React.JSX.Element => (
-    <div className="flex min-h-64 flex-col items-center justify-center text-center">
-      <FileText size={24} className="text-muted" aria-hidden="true" />
-      <p className="mt-3 text-sm font-medium">Nothing to preview</p>
-      <p className="mt-1 text-xs text-muted">Choose a Markdown file from the sidebar.</p>
+  const renderSplitView = (): React.JSX.Element => (
+    <div className="flex min-h-0 flex-1 overflow-hidden">
+      <div className="flex min-w-0 flex-1 flex-col border-r border-separator">
+        <ReaderDocument
+          file={activeFile}
+          content={activeContent}
+          isEditing={false}
+          isStandalone={false}
+          onEdit={handleEdit}
+          onSave={handleSave}
+          onCancel={handleCancel}
+          onChange={(content) => {
+            if (activeFile) setDrafts((current) => ({ ...current, [activeFile.path]: content }))
+          }}
+          onExpand={() => window.electron.ipcRenderer.send('files:expand')}
+          onCloseWindow={() => window.close()}
+        />
+      </div>
+      <div className="flex min-w-0 flex-1 flex-col">
+        <ReaderDocument
+          file={splitFileData}
+          content={splitFileData?.content ?? ''}
+          isEditing={false}
+          isStandalone={false}
+          onEdit={() => setActive(splitFileData?.path ?? null)}
+          onSave={handleSave}
+          onCancel={handleCancel}
+          onChange={() => {}}
+          onExpand={() => window.electron.ipcRenderer.send('files:expand')}
+          onCloseWindow={() => setSplitFile(null)}
+        />
+      </div>
     </div>
   )
-
-  const renderEditor = (): React.JSX.Element => {
-    if (!activeFile) return renderEmpty()
-    return (
-      <div className="flex min-h-0 flex-1 flex-col">
-        <header className="flex min-h-12 items-center justify-between gap-3 border-b border-separator px-4">
-          <div className="min-w-0">
-            <p className="truncate text-sm font-medium">{activeFile.name}</p>
-            <p className="truncate text-[11px] text-muted">{activeFile.path}</p>
-          </div>
-          <div className="flex shrink-0 items-center gap-1">
-            <Button size="sm" variant="primary" className="rounded-lg text-xs" onPress={handleSave}>
-              <Save size={14} aria-hidden="true" />
-              Save
-            </Button>
-            <Button
-              size="sm"
-              variant="danger-soft"
-              className="rounded-lg text-xs"
-              onPress={handleCancel}
-            >
-              <X size={14} aria-hidden="true" />
-              Cancel
-            </Button>
-            {isStandaloneReader && (
-              <Button
-                isIconOnly
-                size="sm"
-                variant="ghost"
-                className="rounded-lg"
-                onPress={() => window.close()}
-                aria-label="Close reader window"
-              >
-                <X size={14} aria-hidden="true" />
-              </Button>
-            )}
-          </div>
-        </header>
-
-        <div className="grid min-h-0 flex-1 grid-cols-2 overflow-hidden">
-          <div className="min-h-0 overflow-y-auto border-r border-separator px-4 py-5">
-            <MarkdownPreview content={activeContent} />
-          </div>
-          <div className="min-h-0 flex-1 bg-surface-secondary">
-            <textarea
-              value={activeContent}
-              onChange={(event) =>
-                setDrafts((current) => ({
-                  ...current,
-                  [activeFile.path]: event.target.value
-                }))
-              }
-              aria-label={`Edit ${activeFile.name}`}
-              className="h-full w-full resize-none bg-transparent p-4 font-mono text-sm leading-6 text-foreground outline-none"
-            />
-          </div>
-        </div>
-      </div>
-    )
-  }
-
-  const renderActivePreview = (): React.JSX.Element => {
-    if (!activeFile) return renderEmpty()
-    return (
-      <div className="flex min-h-0 flex-1 flex-col">
-        <header className="flex min-h-12 items-center justify-between gap-3 border-b border-separator px-4">
-          <div className="min-w-0">
-            <p className="truncate text-sm font-medium">{activeFile.name}</p>
-            <p className="truncate text-[11px] text-muted">{activeFile.path}</p>
-          </div>
-          <div className="flex shrink-0 items-center gap-1">
-            <Button
-              size="sm"
-              variant="secondary"
-              className="rounded-lg text-xs"
-              onPress={handleEdit}
-            >
-              <Pencil size={14} aria-hidden="true" />
-              Edit
-            </Button>
-            {!isStandaloneReader && (
-              <Button
-                isIconOnly
-                size="sm"
-                variant="ghost"
-                className="rounded-lg"
-                onPress={() => window.electron.ipcRenderer.send('files:expand')}
-                aria-label="Open reader in a new window"
-              >
-                <Maximize2 size={14} aria-hidden="true" />
-              </Button>
-            )}
-            {isStandaloneReader && (
-              <Button
-                isIconOnly
-                size="sm"
-                variant="ghost"
-                className="rounded-lg"
-                onPress={() => window.close()}
-                aria-label="Close reader window"
-              >
-                <X size={14} aria-hidden="true" />
-              </Button>
-            )}
-          </div>
-        </header>
-        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-6 sm:px-8">
-          <MarkdownPreview content={activeContent} />
-        </div>
-      </div>
-    )
-  }
-
-  const renderSplitView = (): React.JSX.Element => {
-    if (!activeFile || !splitFileData) return renderEmpty()
-    return (
-      <div className="flex min-h-0 flex-1 overflow-hidden">
-        <div className="flex min-w-0 flex-1 flex-col border-r border-separator">
-          {renderActivePreview()}
-        </div>
-        <div className="flex min-w-0 flex-1 flex-col">
-          <header className="flex min-h-12 items-center justify-between gap-3 border-b border-separator px-4">
-            <div className="min-w-0">
-              <p className="truncate text-sm font-medium">{splitFileData.name}</p>
-              <p className="truncate text-[11px] text-muted">{splitFileData.path}</p>
-            </div>
-            <Button
-              isIconOnly
-              size="sm"
-              variant="ghost"
-              className="rounded-lg"
-              onPress={() => setSplitFile(null)}
-              aria-label="Close split view"
-            >
-              <X size={14} aria-hidden="true" />
-            </Button>
-          </header>
-          <div className="min-h-0 flex-1 overflow-y-auto px-5 py-6 sm:px-8">
-            <MarkdownPreview content={splitFileData.content} />
-          </div>
-        </div>
-      </div>
-    )
-  }
 
   return (
     <main
@@ -378,6 +266,7 @@ export function ReaderPage(): React.JSX.Element {
       onDragLeave={() => setIsDragging(false)}
       onDrop={handleDrop}
     >
+      {isStandaloneReader && <ReaderWindowChrome />}
       <div className="flex min-h-0 flex-1 overflow-hidden border-y border-separator">
         <aside
           className={`flex shrink-0 flex-col border-r border-separator py-3 transition-[width,padding] duration-200 ${isSidebarOpen ? 'w-52' : 'w-12'}`}
@@ -447,14 +336,21 @@ export function ReaderPage(): React.JSX.Element {
                     <Tag size={14} aria-hidden="true" />
                   </Button>
 
-                  {filterItems.map((item) => (
-                    <TagFilterChip
-                      key={item.id}
-                      label={item.label}
-                      color={item.color}
-                      selected={filterTag === item.id}
-                      onPress={() => setFilterTag(item.id)}
-                    />
+                  {filterItems.map((item, index) => (
+                    <Fragment key={item.id}>
+                      {index === 1 && (
+                        <span
+                          className="mx-0.5 h-5 w-px shrink-0 bg-separator"
+                          aria-hidden="true"
+                        />
+                      )}
+                      <TagFilterChip
+                        label={item.label}
+                        color={item.color}
+                        selected={filterTag === item.id}
+                        onPress={() => setFilterTag(item.id)}
+                      />
+                    </Fragment>
                   ))}
                 </div>
               </div>
@@ -490,7 +386,39 @@ export function ReaderPage(): React.JSX.Element {
         <section className="flex min-w-0 flex-1 flex-col" aria-label="Markdown preview">
           {renderTabs()}
 
-          {isEditing ? renderEditor() : splitFileData ? renderSplitView() : renderActivePreview()}
+          {isEditing ? (
+            <ReaderDocument
+              file={activeFile}
+              content={activeContent}
+              isEditing
+              isStandalone={isStandaloneReader}
+              onEdit={handleEdit}
+              onSave={handleSave}
+              onCancel={handleCancel}
+              onChange={(content) => {
+                if (activeFile) {
+                  setDrafts((current) => ({ ...current, [activeFile.path]: content }))
+                }
+              }}
+              onExpand={() => window.electron.ipcRenderer.send('files:expand')}
+              onCloseWindow={() => window.close()}
+            />
+          ) : splitFileData ? (
+            renderSplitView()
+          ) : (
+            <ReaderDocument
+              file={activeFile}
+              content={activeContent}
+              isEditing={false}
+              isStandalone={isStandaloneReader}
+              onEdit={handleEdit}
+              onSave={handleSave}
+              onCancel={handleCancel}
+              onChange={() => {}}
+              onExpand={() => window.electron.ipcRenderer.send('files:expand')}
+              onCloseWindow={() => window.close()}
+            />
+          )}
         </section>
       </div>
 
