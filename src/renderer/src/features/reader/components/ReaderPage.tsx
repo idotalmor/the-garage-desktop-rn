@@ -443,48 +443,34 @@ export function ReaderPage(): React.JSX.Element {
           className="fixed z-50 w-52 rounded-lg border border-border bg-surface p-1 shadow-overlay"
           style={{ top: contextMenu.y, left: contextMenu.x }}
         >
-          <button
-            type="button"
-            className="flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-xs text-foreground hover:bg-surface-secondary"
-            onClick={() => handleCloseFile(contextMenu.path)}
-          >
-            <X size={12} aria-hidden="true" />
-            Close
-          </button>
-          <div className="my-1 h-px bg-border" />
           <p className="px-2.5 py-1 text-[10px] font-medium uppercase tracking-wide text-muted">
-            Split with
+            Split active tab with {files.find((file) => file.path === contextMenu.path)?.name}
           </p>
-          <div className="max-h-40 overflow-y-auto">
-            {openFiles
-              .filter((file) => file.path !== contextMenu.path)
-              .map((file) => (
-                <div key={file.path} className="flex items-center gap-1">
-                  <span className="min-w-0 flex-1 truncate px-2.5 py-1.5 text-xs text-foreground">
-                    {file.name}
-                  </span>
-                  <button
-                    type="button"
-                    className="rounded px-1.5 py-1 text-[10px] text-muted hover:bg-surface-secondary hover:text-foreground"
-                    onClick={() => {
-                      setSplit({ left: contextMenu.path, right: file.path })
-                      setContextMenu(null)
-                    }}
-                  >
-                    Right
-                  </button>
-                  <button
-                    type="button"
-                    className="rounded px-1.5 py-1 text-[10px] text-muted hover:bg-surface-secondary hover:text-foreground"
-                    onClick={() => {
-                      setSplit({ left: file.path, right: contextMenu.path })
-                      setContextMenu(null)
-                    }}
-                  >
-                    Left
-                  </button>
-                </div>
-              ))}
+          <div className="flex gap-1">
+            <button
+              type="button"
+              className="flex-1 rounded-md px-2 py-1.5 text-left text-xs text-foreground hover:bg-surface-secondary"
+              onClick={() => {
+                if (active && active !== contextMenu.path) {
+                  setSplit({ left: active, right: contextMenu.path })
+                }
+                setContextMenu(null)
+              }}
+            >
+              Split right
+            </button>
+            <button
+              type="button"
+              className="flex-1 rounded-md px-2 py-1.5 text-left text-xs text-foreground hover:bg-surface-secondary"
+              onClick={() => {
+                if (active && active !== contextMenu.path) {
+                  setSplit({ left: contextMenu.path, right: active })
+                }
+                setContextMenu(null)
+              }}
+            >
+              Split left
+            </button>
           </div>
         </div>
       )}
