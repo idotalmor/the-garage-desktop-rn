@@ -1,7 +1,8 @@
-import { ExternalLink, GitPullRequest } from 'lucide-react'
+import { ExternalLink, FolderOpen, GitPullRequest } from 'lucide-react'
 import { Button } from '@heroui/react'
+import { ReaderChannel } from '../../../../../shared/reader/channels'
 
-export function DocumentConnections(): React.JSX.Element {
+export function DocumentConnections({ path }: { path: string }): React.JSX.Element {
   return (
     <div className="mt-2 flex items-center gap-1" aria-label="Connected work items">
       <div className="flex items-center overflow-hidden rounded-md border border-border">
@@ -19,7 +20,7 @@ export function DocumentConnections(): React.JSX.Element {
         <Button
           size="sm"
           variant="ghost"
-          className="h-6 min-h-6 rounded-none px-2 text-[11px] text-muted hover:text-foreground"
+          className="h-6 min-h-6 rounded-none border-r border-border px-2 text-[11px] text-muted hover:text-foreground"
           onPress={() => window.open('https://github.com', '_blank')}
         >
           <GitPullRequest size={13} aria-hidden="true" />
@@ -28,6 +29,15 @@ export function DocumentConnections(): React.JSX.Element {
             2
           </span>
           <ExternalLink size={11} aria-hidden="true" />
+        </Button>
+        <Button
+          size="sm"
+          variant="ghost"
+          className="h-6 min-h-6 rounded-none px-2 text-[11px] text-muted hover:text-foreground"
+          onPress={() => window.electron.ipcRenderer.invoke(ReaderChannel.ShowInFolder, path)}
+        >
+          <FolderOpen size={13} aria-hidden="true" />
+          Show in Finder
         </Button>
       </div>
     </div>

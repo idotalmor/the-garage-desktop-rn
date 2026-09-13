@@ -1,4 +1,4 @@
-import { app, dialog, ipcMain } from 'electron'
+import { app, dialog, ipcMain, shell } from 'electron'
 import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'fs'
 import { basename, extname, join } from 'path'
 import { ReaderChannel } from '../shared/reader/channels'
@@ -93,4 +93,8 @@ export function initFilesIpc(): void {
       return { path: payload.path }
     }
   )
+
+  ipcMain.handle(ReaderChannel.ShowInFolder, (_, path: string): void => {
+    shell.showItemInFolder(path)
+  })
 }

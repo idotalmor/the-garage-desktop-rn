@@ -42,7 +42,7 @@ export function ReaderDocument({
         <div className="min-w-0">
           <p className="truncate text-sm font-medium">{file.name}</p>
           <p className="truncate text-[11px] text-muted">{file.path}</p>
-          <DocumentConnections />
+          <DocumentConnections path={file.path} />
         </div>
         <div className="flex shrink-0 items-center gap-1">
           {isEditing ? (
