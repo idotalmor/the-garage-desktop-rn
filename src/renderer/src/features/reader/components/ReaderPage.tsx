@@ -211,56 +211,63 @@ export function ReaderPage(): React.JSX.Element {
   const renderTabs = (): React.JSX.Element | null => {
     if (openFiles.length === 0) return null
 
-    const renderTab = (file: MdFile): React.JSX.Element => (
-      <div
-        key={file.path}
-        role="button"
-        tabIndex={0}
-        aria-selected={active === file.path}
-        className={`group flex h-7 max-w-[10rem] shrink-0 cursor-pointer items-center gap-1.5 rounded-md border px-2 text-[11px] transition-colors ${
-          active === file.path
-            ? 'border-border bg-surface text-foreground'
-            : 'border-transparent text-muted hover:bg-surface hover:text-foreground'
-        }`}
-        onClick={() => setActive(file.path)}
-        onKeyDown={(event) => {
-          if (event.key === 'Enter' || event.key === ' ') setActive(file.path)
-        }}
-        onContextMenu={(event) => {
-          event.preventDefault()
-          setContextMenu({ x: event.clientX, y: event.clientY, path: file.path })
-        }}
-      >
-        <FileText size={12} aria-hidden="true" />
-        <span className="truncate">{file.name}</span>
-        <button
-          type="button"
-          className={`rounded p-0.5 text-muted hover:text-foreground ${pinnedPaths.includes(file.path) ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
-          onClick={(event) => {
-            event.stopPropagation()
-            togglePin(file.path)
+    const renderTab = (file: MdFile): React.JSX.Element => {
+      const pinned = pinnedPaths.includes(file.path)
+      return (
+        <div
+          key={file.path}
+          role="button"
+          tabIndex={0}
+          aria-selected={active === file.path}
+          className={`group flex h-7 max-w-[10rem] shrink-0 cursor-pointer items-center gap-1.5 rounded-md border px-2 text-[11px] transition-colors ${
+            pinned
+              ? active === file.path
+                ? 'border-violet-400/60 bg-violet-500/25 text-foreground'
+                : 'border-violet-400/40 bg-violet-500/15 text-foreground hover:bg-violet-500/25'
+              : active === file.path
+                ? 'border-border bg-surface text-foreground'
+                : 'border-transparent text-muted hover:bg-surface hover:text-foreground'
+          }`}
+          onClick={() => setActive(file.path)}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter' || event.key === ' ') setActive(file.path)
           }}
-          aria-label={pinnedPaths.includes(file.path) ? `Unpin ${file.name}` : `Pin ${file.name}`}
-        >
-          {pinnedPaths.includes(file.path) ? (
-            <Pin size={12} aria-hidden="true" />
-          ) : (
-            <PinOff size={12} aria-hidden="true" />
-          )}
-        </button>
-        <button
-          type="button"
-          className="rounded p-0.5 text-muted opacity-0 hover:text-foreground group-hover:opacity-100"
-          onClick={(event) => {
-            event.stopPropagation()
-            handleCloseFile(file.path)
+          onContextMenu={(event) => {
+            event.preventDefault()
+            setContextMenu({ x: event.clientX, y: event.clientY, path: file.path })
           }}
-          aria-label={`Close ${file.name}`}
         >
-          <X size={12} aria-hidden="true" />
-        </button>
-      </div>
-    )
+          <FileText size={12} aria-hidden="true" />
+          <span className="truncate">{file.name}</span>
+          <button
+            type="button"
+            className={`rounded p-0.5 hover:text-foreground ${pinned ? 'text-violet-300 opacity-100' : 'text-muted opacity-0 group-hover:opacity-100'}`}
+            onClick={(event) => {
+              event.stopPropagation()
+              togglePin(file.path)
+            }}
+            aria-label={pinned ? `Unpin ${file.name}` : `Pin ${file.name}`}
+          >
+            {pinned ? (
+              <Pin size={12} aria-hidden="true" />
+            ) : (
+              <PinOff size={12} aria-hidden="true" />
+            )}
+          </button>
+          <button
+            type="button"
+            className="rounded p-0.5 text-muted opacity-0 hover:text-foreground group-hover:opacity-100"
+            onClick={(event) => {
+              event.stopPropagation()
+              handleCloseFile(file.path)
+            }}
+            aria-label={`Close ${file.name}`}
+          >
+            <X size={12} aria-hidden="true" />
+          </button>
+        </div>
+      )
+    }
 
     const splitPaths = split ? new Set([split.left, split.right]) : new Set<string>()
     const orderedFiles = [...openFiles].sort(
@@ -275,7 +282,9 @@ export function ReaderPage(): React.JSX.Element {
 
     const renderSplitTabs = (): React.JSX.Element | null =>
       splitTabs.length > 0 ? (
-        <div className="flex items-center gap-0.5 rounded-lg border border-border bg-surface-secondary p-0.5">
+        <div
+          className={`flex items-center gap-0.5 rounded-lg border p-0.5 ${splitIsPinned ? 'border-violet-400/60 bg-violet-500/15' : 'border-border bg-surface-secondary'}`}
+        >
           {splitTabs.map(renderTab)}
         </div>
       ) : null
