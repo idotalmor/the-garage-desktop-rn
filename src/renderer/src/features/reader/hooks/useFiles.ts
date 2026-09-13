@@ -12,6 +12,8 @@ export function useFiles(): {
     mode: ImportMode
     tag?: Tag
   }) => Promise<MdFile[] | undefined>
+  saveFile: (file: MdFile, content: string) => Promise<void>
+  closeFile: (path: string) => void
   setActive: (value: string | null) => void
   tags: Tag[]
 } {
@@ -54,6 +56,27 @@ export function useFiles(): {
     []
   )
 
+  const saveFile = useCallback(async (file: MdFile, content: string): Promise<void> => {
+    await window.electron.ipcRenderer.invoke(ReaderChannel.Save, {
+      path: file.path,
+      content
+    })
+    setFiles((prev) => prev.map((item) => (item.path === file.path ? { ...item, content } : item)))
+  }, [])
+
+  const closeFile = useCallback(
+    (path: string): void => {
+      setFiles((prev) => {
+        const next = prev.filter((item) => item.path !== path)
+        if (active === path) {
+          setActive(next[0]?.path ?? null)
+        }
+        return next
+      })
+    },
+    [active]
+  )
+
   const tags = useMemo(() => {
     const registry = new Map<string, Tag>()
     for (const file of files) {
@@ -70,6 +93,8 @@ export function useFiles(): {
     activeFile,
     openFile,
     importFiles,
+    saveFile,
+    closeFile,
     setActive,
     tags
   }

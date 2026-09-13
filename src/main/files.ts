@@ -1,5 +1,5 @@
 import { app, dialog, ipcMain } from 'electron'
-import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, statSync } from 'fs'
+import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'fs'
 import { basename, extname, join } from 'path'
 import { ReaderChannel } from '../shared/reader/channels'
 import type { ImportMode, MdFile, Tag } from '../shared/reader/types'
@@ -78,6 +78,14 @@ export function initFilesIpc(): void {
       }
 
       return imported
+    }
+  )
+
+  ipcMain.handle(
+    ReaderChannel.Save,
+    async (_, payload: { path: string; content: string }): Promise<{ path: string }> => {
+      writeFileSync(payload.path, payload.content, 'utf-8')
+      return { path: payload.path }
     }
   )
 }

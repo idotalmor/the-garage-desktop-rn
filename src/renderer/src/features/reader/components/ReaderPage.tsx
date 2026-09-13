@@ -1,19 +1,19 @@
 import {
-  Eye,
   FileText,
   Folder,
   FolderOpen,
-  Hash,
   PanelLeftClose,
   PanelLeftOpen,
   Pencil,
   Save,
-  UploadCloud
+  Tag,
+  UploadCloud,
+  X
 } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Button } from '@heroui/react'
 import { useFiles } from '../hooks/useFiles'
-import type { MdFile, Tag } from '../../../../../shared/reader/types'
+import type { MdFile, Tag as TagType } from '../../../../../shared/reader/types'
 import { ImportFilesModal } from './ImportFilesModal'
 import { MarkdownPreview } from './MarkdownPreview'
 
@@ -97,11 +97,17 @@ function TagFilterChip({
   selected: boolean
   onPress: () => void
 }): React.JSX.Element {
+  const inactive = !selected
+    ? color
+      ? 'opacity-40 grayscale hover:opacity-100 hover:grayscale-0'
+      : 'opacity-60 hover:opacity-100'
+    : ''
+
   return (
     <Button
       size="sm"
       variant="ghost"
-      className="h-7 gap-1 rounded-full border px-2.5 text-[11px]"
+      className={`h-7 gap-1 rounded-full border px-2.5 text-[11px] transition-all ${inactive}`}
       style={
         color
           ? {
@@ -109,7 +115,10 @@ function TagFilterChip({
               backgroundColor: selected ? color : undefined,
               color: selected ? '#ffffff' : color
             }
-          : undefined
+          : {
+              backgroundColor: selected ? 'var(--accent)' : undefined,
+              color: selected ? '#ffffff' : undefined
+            }
       }
       onPress={onPress}
     >
@@ -126,7 +135,8 @@ function TagFilterChip({
 }
 
 export function ReaderPage(): React.JSX.Element {
-  const { files, active, activeFile, openFile, importFiles, setActive, tags } = useFiles()
+  const { files, active, activeFile, openFile, importFiles, saveFile, closeFile, setActive, tags } =
+    useFiles()
   const [isEditing, setIsEditing] = useState(false)
   const [isSidebarOpen, setIsSidebarOpen] = useState(true)
   const [drafts, setDrafts] = useState<Record<string, string>>({})
@@ -135,6 +145,25 @@ export function ReaderPage(): React.JSX.Element {
   const [showImport, setShowImport] = useState(false)
   const [filterTag, setFilterTag] = useState<FilterValue>(FILTER_ALL)
   const [groupBy, setGroupBy] = useState<GroupBy>('folder')
+  const [splitFile, setSplitFile] = useState<string | null>(null)
+  const [contextMenu, setContextMenu] = useState<{
+    x: number
+    y: number
+    path: string
+  } | null>(null)
+
+  const menuRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (contextMenu) {
+      menuRef.current?.focus()
+    }
+  }, [contextMenu])
+
+  const splitFileData = useMemo(
+    () => files.find((file) => file.path === splitFile) ?? null,
+    [files, splitFile]
+  )
 
   const filteredFiles = useMemo(() => {
     if (filterTag === FILTER_ALL) return files
@@ -166,7 +195,21 @@ export function ReaderPage(): React.JSX.Element {
     return sorted.map((name) => ({ name, files: groups.get(name) ?? [] }))
   }, [filteredFiles, groupBy])
 
-  const content = activeFile ? (drafts[activeFile.path] ?? activeFile.content) : ''
+  const filterItems = useMemo(() => {
+    const items: { id: FilterValue; label: string; color?: string }[] = [
+      { id: FILTER_ALL, label: 'All' },
+      { id: FILTER_UNTAGGED, label: 'Untagged' },
+      ...tags.map((tag) => ({ id: tag.name, label: tag.name, color: tag.color }))
+    ]
+    const selectedIndex = items.findIndex((item) => item.id === filterTag)
+    if (selectedIndex > 0) {
+      const [selected] = items.splice(selectedIndex, 1)
+      items.unshift(selected)
+    }
+    return items
+  }, [tags, filterTag])
+
+  const activeContent = activeFile ? (drafts[activeFile.path] ?? activeFile.content) : ''
 
   const handleDrop = (event: React.DragEvent<HTMLElement>): void => {
     event.preventDefault()
@@ -183,11 +226,210 @@ export function ReaderPage(): React.JSX.Element {
 
   const handleImport = async (
     mode: 'copy' | 'copy-and-delete' | 'reference',
-    tag?: Tag
+    tag?: TagType
   ): Promise<void> => {
     await importFiles({ paths: droppedPaths, mode, tag })
     setShowImport(false)
     setDroppedPaths([])
+  }
+
+  const handleEdit = (): void => {
+    if (!activeFile) return
+    setIsSidebarOpen(false)
+    setIsEditing(true)
+  }
+
+  const handleSave = async (): Promise<void> => {
+    if (!activeFile) return
+    const content = drafts[activeFile.path] ?? activeFile.content
+    await saveFile(activeFile, content)
+    setDrafts((current) => {
+      const next = { ...current }
+      delete next[activeFile.path]
+      return next
+    })
+    setIsEditing(false)
+  }
+
+  const handleCancel = (): void => {
+    if (!activeFile) return
+    setDrafts((current) => {
+      const next = { ...current }
+      delete next[activeFile.path]
+      return next
+    })
+    setIsEditing(false)
+  }
+
+  const handleCloseFile = (path: string): void => {
+    closeFile(path)
+    if (splitFile === path) {
+      setSplitFile(null)
+    }
+    if (contextMenu?.path === path) {
+      setContextMenu(null)
+    }
+  }
+
+  const renderTabs = (): React.JSX.Element | null => {
+    if (files.length === 0) return null
+    return (
+      <div className="flex items-center gap-1 border-b border-separator px-2 py-1.5">
+        {files.map((file) => (
+          <div
+            key={file.path}
+            role="button"
+            tabIndex={0}
+            aria-selected={active === file.path}
+            className={`group flex h-7 max-w-[10rem] shrink-0 cursor-pointer items-center gap-1.5 rounded-lg border px-2 text-[11px] transition-colors ${
+              active === file.path
+                ? 'border-border bg-surface-secondary text-foreground'
+                : 'border-transparent text-muted hover:bg-surface-secondary hover:text-foreground'
+            }`}
+            onClick={() => setActive(file.path)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' || event.key === ' ') {
+                setActive(file.path)
+              }
+            }}
+            onContextMenu={(event) => {
+              event.preventDefault()
+              setContextMenu({ x: event.clientX, y: event.clientY, path: file.path })
+            }}
+          >
+            <FileText size={12} aria-hidden="true" />
+            <span className="truncate">{file.name}</span>
+            <button
+              type="button"
+              className="rounded p-0.5 text-muted opacity-0 hover:text-foreground group-hover:opacity-100"
+              onClick={(event) => {
+                event.stopPropagation()
+                handleCloseFile(file.path)
+              }}
+              aria-label={`Close ${file.name}`}
+            >
+              <X size={12} aria-hidden="true" />
+            </button>
+          </div>
+        ))}
+      </div>
+    )
+  }
+
+  const renderEmpty = (): React.JSX.Element => (
+    <div className="flex min-h-64 flex-col items-center justify-center text-center">
+      <FileText size={24} className="text-muted" aria-hidden="true" />
+      <p className="mt-3 text-sm font-medium">Nothing to preview</p>
+      <p className="mt-1 text-xs text-muted">Choose a Markdown file from the sidebar.</p>
+    </div>
+  )
+
+  const renderEditor = (): React.JSX.Element => {
+    if (!activeFile) return renderEmpty()
+    return (
+      <div className="flex min-h-0 flex-1 flex-col">
+        <header className="flex min-h-12 items-center justify-between gap-3 border-b border-separator px-4">
+          <div className="min-w-0">
+            <p className="truncate text-sm font-medium">{activeFile.name}</p>
+            <p className="truncate text-[11px] text-muted">{activeFile.path}</p>
+          </div>
+          <div className="flex shrink-0 items-center gap-1">
+            <Button size="sm" variant="primary" className="rounded-lg text-xs" onPress={handleSave}>
+              <Save size={14} aria-hidden="true" />
+              Save
+            </Button>
+            <Button
+              size="sm"
+              variant="danger-soft"
+              className="rounded-lg text-xs"
+              onPress={handleCancel}
+            >
+              <X size={14} aria-hidden="true" />
+              Cancel
+            </Button>
+          </div>
+        </header>
+
+        <div className="grid min-h-0 flex-1 grid-cols-2 overflow-hidden">
+          <div className="min-h-0 overflow-y-auto border-r border-separator px-4 py-5">
+            <MarkdownPreview content={activeContent} />
+          </div>
+          <div className="min-h-0 flex-1 bg-surface-secondary">
+            <textarea
+              value={activeContent}
+              onChange={(event) =>
+                setDrafts((current) => ({
+                  ...current,
+                  [activeFile.path]: event.target.value
+                }))
+              }
+              aria-label={`Edit ${activeFile.name}`}
+              className="h-full w-full resize-none bg-transparent p-4 font-mono text-sm leading-6 text-foreground outline-none"
+            />
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  const renderActivePreview = (): React.JSX.Element => {
+    if (!activeFile) return renderEmpty()
+    return (
+      <div className="flex min-h-0 flex-1 flex-col">
+        <header className="flex min-h-12 items-center justify-between gap-3 border-b border-separator px-4">
+          <div className="min-w-0">
+            <p className="truncate text-sm font-medium">{activeFile.name}</p>
+            <p className="truncate text-[11px] text-muted">{activeFile.path}</p>
+          </div>
+          <div className="flex shrink-0 items-center gap-1">
+            <Button
+              size="sm"
+              variant="secondary"
+              className="rounded-lg text-xs"
+              onPress={handleEdit}
+            >
+              <Pencil size={14} aria-hidden="true" />
+              Edit
+            </Button>
+          </div>
+        </header>
+        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-6 sm:px-8">
+          <MarkdownPreview content={activeContent} />
+        </div>
+      </div>
+    )
+  }
+
+  const renderSplitView = (): React.JSX.Element => {
+    if (!activeFile || !splitFileData) return renderEmpty()
+    return (
+      <div className="flex min-h-0 flex-1 overflow-hidden">
+        <div className="flex min-w-0 flex-1 flex-col border-r border-separator">
+          {renderActivePreview()}
+        </div>
+        <div className="flex min-w-0 flex-1 flex-col">
+          <header className="flex min-h-12 items-center justify-between gap-3 border-b border-separator px-4">
+            <div className="min-w-0">
+              <p className="truncate text-sm font-medium">{splitFileData.name}</p>
+              <p className="truncate text-[11px] text-muted">{splitFileData.path}</p>
+            </div>
+            <Button
+              isIconOnly
+              size="sm"
+              variant="ghost"
+              className="rounded-lg"
+              onPress={() => setSplitFile(null)}
+              aria-label="Close split view"
+            >
+              <X size={14} aria-hidden="true" />
+            </Button>
+          </header>
+          <div className="min-h-0 flex-1 overflow-y-auto px-5 py-6 sm:px-8">
+            <MarkdownPreview content={splitFileData.content} />
+          </div>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -246,48 +488,36 @@ export function ReaderPage(): React.JSX.Element {
 
           {isSidebarOpen && (
             <div className="mt-4 min-h-0 flex-1 overflow-y-auto pr-1">
-              <div className="mb-3 space-y-2">
-                <div className="flex items-center gap-1 px-2">
-                  <Hash size={12} className="text-muted" aria-hidden="true" />
-                  <span className="text-[11px] font-medium text-muted">Group by</span>
-                </div>
-                <div className="flex gap-1 px-2">
+              <div className="mb-3">
+                <div className="flex items-center gap-1 overflow-x-auto px-2 py-1">
                   <Button
+                    isIconOnly
                     size="sm"
                     variant={groupBy === 'folder' ? 'secondary' : 'ghost'}
-                    className="h-6 rounded-md px-2 text-[11px]"
+                    className="size-7 rounded-md"
                     onPress={() => setGroupBy('folder')}
+                    aria-label="Group by folder"
                   >
-                    Folder
+                    <Folder size={14} aria-hidden="true" />
                   </Button>
                   <Button
+                    isIconOnly
                     size="sm"
                     variant={groupBy === 'tag' ? 'secondary' : 'ghost'}
-                    className="h-6 rounded-md px-2 text-[11px]"
+                    className="size-7 rounded-md"
                     onPress={() => setGroupBy('tag')}
+                    aria-label="Group by tag"
                   >
-                    Tag
+                    <Tag size={14} aria-hidden="true" />
                   </Button>
-                </div>
 
-                <div className="flex flex-wrap gap-1 px-2 pt-1">
-                  <TagFilterChip
-                    label="All"
-                    selected={filterTag === FILTER_ALL}
-                    onPress={() => setFilterTag(FILTER_ALL)}
-                  />
-                  <TagFilterChip
-                    label="Untagged"
-                    selected={filterTag === FILTER_UNTAGGED}
-                    onPress={() => setFilterTag(FILTER_UNTAGGED)}
-                  />
-                  {tags.map((tag) => (
+                  {filterItems.map((item) => (
                     <TagFilterChip
-                      key={tag.name}
-                      label={tag.name}
-                      color={tag.color}
-                      selected={filterTag === tag.name}
-                      onPress={() => setFilterTag(tag.name)}
+                      key={item.id}
+                      label={item.label}
+                      color={item.color}
+                      selected={filterTag === item.id}
+                      onPress={() => setFilterTag(item.id)}
                     />
                   ))}
                 </div>
@@ -322,68 +552,52 @@ export function ReaderPage(): React.JSX.Element {
         </aside>
 
         <section className="flex min-w-0 flex-1 flex-col" aria-label="Markdown preview">
-          <header className="flex min-h-12 items-center justify-between gap-3 border-b border-separator px-4">
-            <div className="min-w-0">
-              <p className="truncate text-sm font-medium">{activeFile?.name ?? 'Preview'}</p>
-              {activeFile && <p className="truncate text-[11px] text-muted">{activeFile.path}</p>}
-            </div>
-            <div className="flex shrink-0 items-center gap-1">
-              <Button
-                size="sm"
-                variant={!isEditing ? 'secondary' : 'ghost'}
-                className="rounded-lg text-xs"
-                onPress={() => setIsEditing(false)}
-              >
-                <Eye size={14} aria-hidden="true" />
-                Preview
-              </Button>
-              <Button
-                size="sm"
-                variant={isEditing ? 'secondary' : 'ghost'}
-                className="rounded-lg text-xs"
-                onPress={() => setIsEditing(true)}
-              >
-                <Pencil size={14} aria-hidden="true" />
-                Edit
-              </Button>
-              {isEditing && (
-                <Button
-                  size="sm"
-                  variant="primary"
-                  className="rounded-lg text-xs"
-                  onPress={() => {}}
-                >
-                  <Save size={14} aria-hidden="true" />
-                  Save
-                </Button>
-              )}
-            </div>
-          </header>
+          {renderTabs()}
 
-          <div className="min-h-0 flex-1 overflow-y-auto px-5 py-6 sm:px-8">
-            {activeFile ? (
-              isEditing ? (
-                <textarea
-                  value={content}
-                  onChange={(event) =>
-                    setDrafts((current) => ({ ...current, [activeFile.path]: event.target.value }))
-                  }
-                  aria-label={`Edit ${activeFile.name}`}
-                  className="min-h-[26rem] w-full resize-none bg-transparent font-mono text-sm leading-6 text-foreground outline-none"
-                />
-              ) : (
-                <MarkdownPreview content={content} />
-              )
-            ) : (
-              <div className="flex min-h-64 flex-col items-center justify-center text-center">
-                <FileText size={24} className="text-muted" aria-hidden="true" />
-                <p className="mt-3 text-sm font-medium">Nothing to preview</p>
-                <p className="mt-1 text-xs text-muted">Choose a Markdown file from the sidebar.</p>
-              </div>
-            )}
-          </div>
+          {isEditing ? renderEditor() : splitFileData ? renderSplitView() : renderActivePreview()}
         </section>
       </div>
+
+      {contextMenu && (
+        <div
+          ref={menuRef}
+          tabIndex={-1}
+          onBlur={() => setContextMenu(null)}
+          className="fixed z-50 w-52 rounded-lg border border-border bg-surface p-1 shadow-overlay"
+          style={{ top: contextMenu.y, left: contextMenu.x }}
+        >
+          <button
+            type="button"
+            className="flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-xs text-foreground hover:bg-surface-secondary"
+            onClick={() => handleCloseFile(contextMenu.path)}
+          >
+            <X size={12} aria-hidden="true" />
+            Close
+          </button>
+          <div className="my-1 h-px bg-border" />
+          <p className="px-2.5 py-1 text-[10px] font-medium uppercase tracking-wide text-muted">
+            Split with
+          </p>
+          <div className="max-h-40 overflow-y-auto">
+            {files
+              .filter((file) => file.path !== contextMenu.path)
+              .map((file) => (
+                <button
+                  key={file.path}
+                  type="button"
+                  className="flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-xs text-foreground hover:bg-surface-secondary"
+                  onClick={() => {
+                    setSplitFile(file.path)
+                    setContextMenu(null)
+                  }}
+                >
+                  <FileText size={12} aria-hidden="true" />
+                  <span className="truncate">{file.name}</span>
+                </button>
+              ))}
+          </div>
+        </div>
+      )}
 
       <ImportFilesModal
         isOpen={showImport}
