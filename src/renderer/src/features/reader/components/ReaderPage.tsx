@@ -196,45 +196,55 @@ export function ReaderPage(): React.JSX.Element {
 
   const renderTabs = (): React.JSX.Element | null => {
     if (openFiles.length === 0) return null
+
+    const renderTab = (file: MdFile): React.JSX.Element => (
+      <div
+        key={file.path}
+        role="button"
+        tabIndex={0}
+        aria-selected={active === file.path}
+        className={`group flex h-7 max-w-[10rem] shrink-0 cursor-pointer items-center gap-1.5 rounded-md border px-2 text-[11px] transition-colors ${
+          active === file.path
+            ? 'border-border bg-surface text-foreground'
+            : 'border-transparent text-muted hover:bg-surface hover:text-foreground'
+        }`}
+        onClick={() => setActive(file.path)}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter' || event.key === ' ') setActive(file.path)
+        }}
+        onContextMenu={(event) => {
+          event.preventDefault()
+          setContextMenu({ x: event.clientX, y: event.clientY, path: file.path })
+        }}
+      >
+        <FileText size={12} aria-hidden="true" />
+        <span className="truncate">{file.name}</span>
+        <button
+          type="button"
+          className="rounded p-0.5 text-muted opacity-0 hover:text-foreground group-hover:opacity-100"
+          onClick={(event) => {
+            event.stopPropagation()
+            handleCloseFile(file.path)
+          }}
+          aria-label={`Close ${file.name}`}
+        >
+          <X size={12} aria-hidden="true" />
+        </button>
+      </div>
+    )
+
+    const splitPaths = split ? new Set([split.left, split.right]) : new Set<string>()
+    const splitTabs = openFiles.filter((file) => splitPaths.has(file.path))
+    const regularTabs = openFiles.filter((file) => !splitPaths.has(file.path))
+
     return (
       <div className="flex items-center gap-1 border-b border-separator px-2 py-1.5">
-        {openFiles.map((file) => (
-          <div
-            key={file.path}
-            role="button"
-            tabIndex={0}
-            aria-selected={active === file.path}
-            className={`group flex h-7 max-w-[10rem] shrink-0 cursor-pointer items-center gap-1.5 rounded-lg border px-2 text-[11px] transition-colors ${
-              active === file.path
-                ? 'border-border bg-surface-secondary text-foreground'
-                : 'border-transparent text-muted hover:bg-surface-secondary hover:text-foreground'
-            }`}
-            onClick={() => setActive(file.path)}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter' || event.key === ' ') {
-                setActive(file.path)
-              }
-            }}
-            onContextMenu={(event) => {
-              event.preventDefault()
-              setContextMenu({ x: event.clientX, y: event.clientY, path: file.path })
-            }}
-          >
-            <FileText size={12} aria-hidden="true" />
-            <span className="truncate">{file.name}</span>
-            <button
-              type="button"
-              className="rounded p-0.5 text-muted opacity-0 hover:text-foreground group-hover:opacity-100"
-              onClick={(event) => {
-                event.stopPropagation()
-                handleCloseFile(file.path)
-              }}
-              aria-label={`Close ${file.name}`}
-            >
-              <X size={12} aria-hidden="true" />
-            </button>
+        {regularTabs.map(renderTab)}
+        {splitTabs.length > 0 && (
+          <div className="flex items-center gap-0.5 rounded-lg border border-border bg-surface-secondary p-0.5">
+            {splitTabs.map(renderTab)}
           </div>
-        ))}
+        )}
       </div>
     )
   }
@@ -443,13 +453,28 @@ export function ReaderPage(): React.JSX.Element {
           className="fixed z-50 w-52 rounded-lg border border-border bg-surface p-1 shadow-overlay"
           style={{ top: contextMenu.y, left: contextMenu.x }}
         >
+          {split && (split.left === contextMenu.path || split.right === contextMenu.path) && (
+            <>
+              <button
+                type="button"
+                className="flex w-full items-center rounded-md px-2.5 py-1.5 text-left text-xs text-foreground hover:bg-surface-secondary"
+                onClick={() => {
+                  setSplit(null)
+                  setContextMenu(null)
+                }}
+              >
+                Unsplit
+              </button>
+              <div className="my-1 h-px bg-border" />
+            </>
+          )}
           <p className="px-2.5 py-1 text-[10px] font-medium uppercase tracking-wide text-muted">
             Split active tab with {files.find((file) => file.path === contextMenu.path)?.name}
           </p>
-          <div className="flex gap-1">
+          <div className="space-y-0.5">
             <button
               type="button"
-              className="flex-1 rounded-md px-2 py-1.5 text-left text-xs text-foreground hover:bg-surface-secondary"
+              className="flex w-full items-center rounded-md px-2.5 py-1.5 text-left text-xs text-foreground hover:bg-surface-secondary"
               onClick={() => {
                 if (active && active !== contextMenu.path) {
                   setSplit({ left: active, right: contextMenu.path })
@@ -457,11 +482,11 @@ export function ReaderPage(): React.JSX.Element {
                 setContextMenu(null)
               }}
             >
-              Split right
+              Split to the right
             </button>
             <button
               type="button"
-              className="flex-1 rounded-md px-2 py-1.5 text-left text-xs text-foreground hover:bg-surface-secondary"
+              className="flex w-full items-center rounded-md px-2.5 py-1.5 text-left text-xs text-foreground hover:bg-surface-secondary"
               onClick={() => {
                 if (active && active !== contextMenu.path) {
                   setSplit({ left: contextMenu.path, right: active })
@@ -469,7 +494,7 @@ export function ReaderPage(): React.JSX.Element {
                 setContextMenu(null)
               }}
             >
-              Split left
+              Split to the left
             </button>
           </div>
         </div>
