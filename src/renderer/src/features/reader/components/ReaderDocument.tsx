@@ -2,6 +2,7 @@ import { Maximize2, Pencil, Save, X } from 'lucide-react'
 import { Button } from '@heroui/react'
 import type { MdFile } from '../../../../../shared/reader/types'
 import { MarkdownPreview } from './MarkdownPreview'
+import { DocumentConnections } from './DocumentConnections'
 
 type ReaderDocumentProps = {
   file: MdFile | null
@@ -41,6 +42,7 @@ export function ReaderDocument({
         <div className="min-w-0">
           <p className="truncate text-sm font-medium">{file.name}</p>
           <p className="truncate text-[11px] text-muted">{file.path}</p>
+          <DocumentConnections />
         </div>
         <div className="flex shrink-0 items-center gap-1">
           {isEditing ? (
