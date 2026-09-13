@@ -1,5 +1,1 @@
-export type MdFile = {
-  path: string
-  name: string
-  content: string
-}
+export type { MdFile } from '../../../../../shared/reader/types'

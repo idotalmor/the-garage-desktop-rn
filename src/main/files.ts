@@ -1,12 +1,41 @@
-import { ipcMain, dialog } from 'electron'
-import { readFileSync } from 'fs'
-import { basename } from 'path'
+import { app, dialog, ipcMain } from 'electron'
+import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, statSync } from 'fs'
+import { basename, extname, join } from 'path'
 import { ReaderChannel } from '../shared/reader/channels'
+import type { ImportMode, MdFile } from '../shared/reader/types'
 
-export type MarkdownFile = {
-  path: string
-  name: string
-  content: string
+const READER_DIR = join(app.getPath('home'), '.devflow', 'reader')
+
+function ensureReaderDir(): void {
+  if (!existsSync(READER_DIR)) {
+    mkdirSync(READER_DIR, { recursive: true })
+  }
+}
+
+function uniqueTargetPath(sourcePath: string): string {
+  const name = basename(sourcePath)
+  const base = name.slice(0, -extname(name).length) || name
+  const suffix = extname(name)
+  let target = join(READER_DIR, name)
+  let i = 1
+  while (existsSync(target)) {
+    target = join(READER_DIR, `${base} (${i})${suffix}`)
+    i++
+  }
+  return target
+}
+
+function readMarkdownContent(path: string): string {
+  try {
+    const stats = statSync(path)
+    if (!stats.isFile()) return ''
+    if (path.toLowerCase().endsWith('.md') || path.toLowerCase().endsWith('.markdown')) {
+      return readFileSync(path, 'utf-8')
+    }
+    return ''
+  } catch {
+    return ''
+  }
 }
 
 export function initFilesIpc(): void {
@@ -19,6 +48,36 @@ export function initFilesIpc(): void {
 
     const path = result.filePaths[0]
     const content = readFileSync(path, 'utf-8')
-    return { path, name: basename(path), content } as MarkdownFile
+    return { path, name: basename(path), content, tags: [] } as MdFile
   })
+
+  ipcMain.handle(
+    ReaderChannel.Import,
+    async (_, payload: { paths: string[]; mode: ImportMode; tag?: string }): Promise<MdFile[]> => {
+      ensureReaderDir()
+      const imported: MdFile[] = []
+
+      for (const sourcePath of payload.paths) {
+        if (!existsSync(sourcePath)) continue
+
+        let targetPath = sourcePath
+        if (payload.mode !== 'reference') {
+          targetPath = uniqueTargetPath(sourcePath)
+          cpSync(sourcePath, targetPath, { recursive: true })
+          if (payload.mode === 'copy-and-delete') {
+            rmSync(sourcePath, { recursive: true, force: true })
+          }
+        }
+
+        imported.push({
+          path: targetPath,
+          name: basename(targetPath),
+          content: readMarkdownContent(targetPath),
+          tags: payload.tag ? [payload.tag] : []
+        })
+      }
+
+      return imported
+    }
+  )
 }
