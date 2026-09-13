@@ -7,18 +7,15 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Pencil,
-  Plus,
   Save,
-  Tag,
-  UploadCloud,
-  X
+  UploadCloud
 } from 'lucide-react'
 import { useMemo, useState } from 'react'
-import { Button, Card } from '@heroui/react'
-import ReactMarkdown from 'react-markdown'
+import { Button } from '@heroui/react'
 import { useFiles } from '../hooks/useFiles'
-import type { MdFile } from '../types/md-file'
-import type { ImportMode } from '../../../../../shared/reader/types'
+import type { MdFile, Tag } from '../../../../../shared/reader/types'
+import { ImportFilesModal } from './ImportFilesModal'
+import { MarkdownPreview } from './MarkdownPreview'
 
 type FileGroup = {
   name: string
@@ -32,20 +29,20 @@ type FilterValue = typeof FILTER_ALL | typeof FILTER_UNTAGGED | string
 
 type GroupBy = 'folder' | 'tag'
 
-const modeOptions: { id: ImportMode; label: string }[] = [
-  { id: 'copy', label: 'Copy' },
-  { id: 'copy-and-delete', label: 'Copy & delete' },
-  { id: 'reference', label: 'Use original' }
-]
-
 function getFolderName(path: string): string {
   const parts = path.split('/').filter(Boolean)
   if (parts.length < 2) return 'Workspace'
   return parts[parts.length - 2]
 }
 
-function fileName(path: string): string {
-  return path.split('/').pop() || path
+function TagDot({ color }: { color: string }): React.JSX.Element {
+  return (
+    <span
+      className="size-2 shrink-0 rounded-full border border-white/20"
+      style={{ backgroundColor: color }}
+      aria-hidden="true"
+    />
+  )
 }
 
 function FileGroupSection({
@@ -74,11 +71,57 @@ function FileGroupSection({
             onPress={() => onSelect(file.path)}
           >
             <FileText size={14} className="shrink-0 text-muted" aria-hidden="true" />
-            <span className="truncate">{file.name}</span>
+            <span className="min-w-0 flex-1 truncate">{file.name}</span>
+            {file.tags.length > 0 && (
+              <div className="ml-1.5 flex items-center gap-1">
+                {file.tags.map((tag) => (
+                  <TagDot key={tag.name} color={tag.color} />
+                ))}
+              </div>
+            )}
           </Button>
         ))}
       </div>
     </div>
+  )
+}
+
+function TagFilterChip({
+  label,
+  color,
+  selected,
+  onPress
+}: {
+  label: string
+  color?: string
+  selected: boolean
+  onPress: () => void
+}): React.JSX.Element {
+  return (
+    <Button
+      size="sm"
+      variant="ghost"
+      className="h-7 gap-1 rounded-full border px-2.5 text-[11px]"
+      style={
+        color
+          ? {
+              borderColor: color,
+              backgroundColor: selected ? color : undefined,
+              color: selected ? '#ffffff' : color
+            }
+          : undefined
+      }
+      onPress={onPress}
+    >
+      {color && (
+        <span
+          className="size-2.5 rounded-full"
+          style={{ backgroundColor: selected ? '#ffffff' : color }}
+          aria-hidden="true"
+        />
+      )}
+      {label}
+    </Button>
   )
 }
 
@@ -90,16 +133,13 @@ export function ReaderPage(): React.JSX.Element {
   const [isDragging, setIsDragging] = useState(false)
   const [droppedPaths, setDroppedPaths] = useState<string[]>([])
   const [showImport, setShowImport] = useState(false)
-  const [importMode, setImportMode] = useState<ImportMode>('copy')
-  const [selectedTag, setSelectedTag] = useState<string>('')
-  const [newTag, setNewTag] = useState('')
   const [filterTag, setFilterTag] = useState<FilterValue>(FILTER_ALL)
   const [groupBy, setGroupBy] = useState<GroupBy>('folder')
 
   const filteredFiles = useMemo(() => {
     if (filterTag === FILTER_ALL) return files
     if (filterTag === FILTER_UNTAGGED) return files.filter((file) => file.tags.length === 0)
-    return files.filter((file) => file.tags.includes(filterTag))
+    return files.filter((file) => file.tags.some((tag) => tag.name === filterTag))
   }, [files, filterTag])
 
   const fileGroups = useMemo(() => {
@@ -115,7 +155,7 @@ export function ReaderPage(): React.JSX.Element {
           groups.set('Untagged', [...(groups.get('Untagged') ?? []), file])
           return
         }
-        file.tags.forEach((tag) => groups.set(tag, [...(groups.get(tag) ?? []), file]))
+        file.tags.forEach((tag) => groups.set(tag.name, [...(groups.get(tag.name) ?? []), file]))
       })
     }
     const sorted = [...groups.keys()].sort((a, b) => {
@@ -138,28 +178,16 @@ export function ReaderPage(): React.JSX.Element {
       .filter((path) => path.length > 0)
     if (paths.length === 0) return
     setDroppedPaths(paths)
-    setImportMode('copy')
-    setSelectedTag('')
-    setNewTag('')
     setShowImport(true)
   }
 
-  const submitImport = async (): Promise<void> => {
-    await importFiles({
-      paths: droppedPaths,
-      mode: importMode,
-      tag: selectedTag || undefined
-    })
+  const handleImport = async (
+    mode: 'copy' | 'copy-and-delete' | 'reference',
+    tag?: Tag
+  ): Promise<void> => {
+    await importFiles({ paths: droppedPaths, mode, tag })
     setShowImport(false)
     setDroppedPaths([])
-    setNewTag('')
-  }
-
-  const addNewTag = (): void => {
-    const trimmed = newTag.trim()
-    if (!trimmed) return
-    setSelectedTag(trimmed)
-    setNewTag('')
   }
 
   return (
@@ -243,32 +271,24 @@ export function ReaderPage(): React.JSX.Element {
                 </div>
 
                 <div className="flex flex-wrap gap-1 px-2 pt-1">
-                  <Button
-                    size="sm"
-                    variant={filterTag === FILTER_ALL ? 'secondary' : 'ghost'}
-                    className="h-6 rounded-full px-2.5 text-[11px]"
+                  <TagFilterChip
+                    label="All"
+                    selected={filterTag === FILTER_ALL}
                     onPress={() => setFilterTag(FILTER_ALL)}
-                  >
-                    All
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant={filterTag === FILTER_UNTAGGED ? 'secondary' : 'ghost'}
-                    className="h-6 rounded-full px-2.5 text-[11px]"
+                  />
+                  <TagFilterChip
+                    label="Untagged"
+                    selected={filterTag === FILTER_UNTAGGED}
                     onPress={() => setFilterTag(FILTER_UNTAGGED)}
-                  >
-                    Untagged
-                  </Button>
+                  />
                   {tags.map((tag) => (
-                    <Button
-                      key={tag}
-                      size="sm"
-                      variant={filterTag === tag ? 'secondary' : 'ghost'}
-                      className="h-6 rounded-full px-2.5 text-[11px]"
-                      onPress={() => setFilterTag(tag)}
-                    >
-                      {tag}
-                    </Button>
+                    <TagFilterChip
+                      key={tag.name}
+                      label={tag.name}
+                      color={tag.color}
+                      selected={filterTag === tag.name}
+                      onPress={() => setFilterTag(tag.name)}
+                    />
                   ))}
                 </div>
               </div>
@@ -352,9 +372,7 @@ export function ReaderPage(): React.JSX.Element {
                   className="min-h-[26rem] w-full resize-none bg-transparent font-mono text-sm leading-6 text-foreground outline-none"
                 />
               ) : (
-                <article className="prose max-w-3xl">
-                  <ReactMarkdown>{content}</ReactMarkdown>
-                </article>
+                <MarkdownPreview content={content} />
               )
             ) : (
               <div className="flex min-h-64 flex-col items-center justify-center text-center">
@@ -367,141 +385,16 @@ export function ReaderPage(): React.JSX.Element {
         </section>
       </div>
 
-      {showImport && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
-          onClick={() => setShowImport(false)}
-          role="dialog"
-          aria-modal="true"
-        >
-          <Card
-            className="w-full max-w-md border border-border bg-surface p-0"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <Card.Header className="flex items-center justify-between border-b border-separator px-4 py-3">
-              <div className="flex items-center gap-2">
-                <Tag size={16} className="text-accent" aria-hidden="true" />
-                <h3 className="text-sm font-semibold">Import files</h3>
-              </div>
-              <Button
-                isIconOnly
-                size="sm"
-                variant="ghost"
-                className="size-6 rounded-full"
-                onPress={() => setShowImport(false)}
-                aria-label="Close"
-              >
-                <X size={14} aria-hidden="true" />
-              </Button>
-            </Card.Header>
-            <Card.Content className="space-y-4 p-4">
-              <div>
-                <p className="mb-2 text-[11px] font-medium text-muted uppercase tracking-wide">
-                  Dropped files
-                </p>
-                <ul className="max-h-32 space-y-1 overflow-y-auto rounded-lg border border-border p-2 text-xs">
-                  {droppedPaths.map((path) => (
-                    <li key={path} className="flex items-center gap-1.5 text-muted">
-                      <FileText size={12} aria-hidden="true" />
-                      <span className="truncate">{fileName(path)}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-
-              <div>
-                <p className="mb-2 text-[11px] font-medium text-muted uppercase tracking-wide">
-                  Import action
-                </p>
-                <div className="flex gap-1">
-                  {modeOptions.map(({ id, label }) => (
-                    <Button
-                      key={id}
-                      size="sm"
-                      fullWidth
-                      variant={importMode === id ? 'secondary' : 'ghost'}
-                      className="rounded-md text-[11px]"
-                      onPress={() => setImportMode(id)}
-                    >
-                      {label}
-                    </Button>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <p className="mb-2 text-[11px] font-medium text-muted uppercase tracking-wide">
-                  Tag
-                </p>
-                <div className="mb-2 flex flex-wrap gap-1.5">
-                  <Button
-                    size="sm"
-                    variant={selectedTag === '' ? 'secondary' : 'ghost'}
-                    className="h-6 rounded-full px-2.5 text-[11px]"
-                    onPress={() => setSelectedTag('')}
-                  >
-                    No tag
-                  </Button>
-                  {tags.map((tag) => (
-                    <Button
-                      key={tag}
-                      size="sm"
-                      variant={selectedTag === tag ? 'secondary' : 'ghost'}
-                      className="h-6 rounded-full px-2.5 text-[11px]"
-                      onPress={() => setSelectedTag(tag)}
-                    >
-                      {tag}
-                    </Button>
-                  ))}
-                </div>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={newTag}
-                    onChange={(event) => setNewTag(event.target.value)}
-                    onKeyDown={(event) => event.key === 'Enter' && addNewTag()}
-                    placeholder="Create a new tag..."
-                    className="min-w-0 flex-1 rounded-lg border border-border bg-surface-secondary px-3 py-2 text-xs text-foreground outline-none placeholder:text-muted"
-                  />
-                  <Button
-                    isIconOnly
-                    size="sm"
-                    variant="ghost"
-                    className="rounded-lg"
-                    onPress={addNewTag}
-                    aria-label="Add new tag"
-                  >
-                    <Plus size={14} aria-hidden="true" />
-                  </Button>
-                </div>
-                {selectedTag && (
-                  <p className="mt-2 text-[11px] text-muted">
-                    Selected tag: <span className="text-foreground">{selectedTag}</span>
-                  </p>
-                )}
-              </div>
-            </Card.Content>
-            <Card.Footer className="flex justify-end gap-2 border-t border-separator px-4 py-3">
-              <Button
-                size="sm"
-                variant="ghost"
-                className="rounded-lg text-xs"
-                onPress={() => setShowImport(false)}
-              >
-                Cancel
-              </Button>
-              <Button
-                size="sm"
-                variant="primary"
-                className="rounded-lg text-xs"
-                onPress={submitImport}
-              >
-                Import
-              </Button>
-            </Card.Footer>
-          </Card>
-        </div>
-      )}
+      <ImportFilesModal
+        isOpen={showImport}
+        onClose={() => {
+          setShowImport(false)
+          setDroppedPaths([])
+        }}
+        paths={droppedPaths}
+        existingTags={tags}
+        onConfirm={handleImport}
+      />
     </main>
   )
 }

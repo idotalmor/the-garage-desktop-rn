@@ -2,7 +2,7 @@ import { app, dialog, ipcMain } from 'electron'
 import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, statSync } from 'fs'
 import { basename, extname, join } from 'path'
 import { ReaderChannel } from '../shared/reader/channels'
-import type { ImportMode, MdFile } from '../shared/reader/types'
+import type { ImportMode, MdFile, Tag } from '../shared/reader/types'
 
 const READER_DIR = join(app.getPath('home'), '.devflow', 'reader')
 
@@ -53,7 +53,7 @@ export function initFilesIpc(): void {
 
   ipcMain.handle(
     ReaderChannel.Import,
-    async (_, payload: { paths: string[]; mode: ImportMode; tag?: string }): Promise<MdFile[]> => {
+    async (_, payload: { paths: string[]; mode: ImportMode; tag?: Tag }): Promise<MdFile[]> => {
       ensureReaderDir()
       const imported: MdFile[] = []
 

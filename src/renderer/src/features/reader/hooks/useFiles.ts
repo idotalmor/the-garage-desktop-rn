@@ -1,7 +1,6 @@
 import { useCallback, useMemo, useState } from 'react'
 import { ReaderChannel } from '../../../../../shared/reader/channels'
-import type { ImportMode } from '../../../../../shared/reader/types'
-import type { MdFile } from '../types/md-file'
+import type { ImportMode, MdFile, Tag } from '../../../../../shared/reader/types'
 
 export function useFiles(): {
   files: MdFile[]
@@ -11,10 +10,10 @@ export function useFiles(): {
   importFiles: (payload: {
     paths: string[]
     mode: ImportMode
-    tag?: string
+    tag?: Tag
   }) => Promise<MdFile[] | undefined>
   setActive: (value: string | null) => void
-  tags: string[]
+  tags: Tag[]
 } {
   const [files, setFiles] = useState<MdFile[]>([])
   const [active, setActive] = useState<string | null>(null)
@@ -35,7 +34,7 @@ export function useFiles(): {
     async (payload: {
       paths: string[]
       mode: ImportMode
-      tag?: string
+      tag?: Tag
     }): Promise<MdFile[] | undefined> => {
       const imported = (await window.electron.ipcRenderer.invoke(
         ReaderChannel.Import,
@@ -55,10 +54,15 @@ export function useFiles(): {
     []
   )
 
-  const tags = useMemo(
-    () => Array.from(new Set(files.flatMap((file) => file.tags))).sort(),
-    [files]
-  )
+  const tags = useMemo(() => {
+    const registry = new Map<string, Tag>()
+    for (const file of files) {
+      for (const tag of file.tags) {
+        registry.set(tag.name, tag)
+      }
+    }
+    return Array.from(registry.values()).sort((a, b) => a.name.localeCompare(b.name))
+  }, [files])
 
   return {
     files,
