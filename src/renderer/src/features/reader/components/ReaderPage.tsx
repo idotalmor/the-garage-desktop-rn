@@ -4,6 +4,8 @@ import {
   FolderOpen,
   PanelLeftClose,
   PanelLeftOpen,
+  Pin,
+  PinOff,
   Tag,
   UploadCloud,
   X
@@ -60,6 +62,7 @@ export function ReaderPage(): React.JSX.Element {
   const [filterTag, setFilterTag] = useState<FilterValue>(FILTER_ALL)
   const [groupBy, setGroupBy] = useState<GroupBy>('folder')
   const [split, setSplit] = useState<{ left: string; right: string } | null>(null)
+  const [pinnedPaths, setPinnedPaths] = useState<string[]>([])
   const [contextMenu, setContextMenu] = useState<{
     x: number
     y: number
@@ -194,6 +197,17 @@ export function ReaderPage(): React.JSX.Element {
     }
   }
 
+  const togglePin = (path: string): void => {
+    const splitPaths =
+      split && (split.left === path || split.right === path) ? [split.left, split.right] : [path]
+    const isPinned = splitPaths.every((item) => pinnedPaths.includes(item))
+    setPinnedPaths((current) =>
+      isPinned
+        ? current.filter((item) => !splitPaths.includes(item))
+        : Array.from(new Set([...current, ...splitPaths]))
+    )
+  }
+
   const renderTabs = (): React.JSX.Element | null => {
     if (openFiles.length === 0) return null
 
@@ -221,6 +235,21 @@ export function ReaderPage(): React.JSX.Element {
         <span className="truncate">{file.name}</span>
         <button
           type="button"
+          className={`rounded p-0.5 text-muted hover:text-foreground ${pinnedPaths.includes(file.path) ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
+          onClick={(event) => {
+            event.stopPropagation()
+            togglePin(file.path)
+          }}
+          aria-label={pinnedPaths.includes(file.path) ? `Unpin ${file.name}` : `Pin ${file.name}`}
+        >
+          {pinnedPaths.includes(file.path) ? (
+            <Pin size={12} aria-hidden="true" />
+          ) : (
+            <PinOff size={12} aria-hidden="true" />
+          )}
+        </button>
+        <button
+          type="button"
           className="rounded p-0.5 text-muted opacity-0 hover:text-foreground group-hover:opacity-100"
           onClick={(event) => {
             event.stopPropagation()
@@ -234,17 +263,29 @@ export function ReaderPage(): React.JSX.Element {
     )
 
     const splitPaths = split ? new Set([split.left, split.right]) : new Set<string>()
-    const splitTabs = openFiles.filter((file) => splitPaths.has(file.path))
-    const regularTabs = openFiles.filter((file) => !splitPaths.has(file.path))
+    const orderedFiles = [...openFiles].sort(
+      (a, b) => Number(pinnedPaths.includes(b.path)) - Number(pinnedPaths.includes(a.path))
+    )
+    const splitTabs = orderedFiles.filter((file) => splitPaths.has(file.path))
+    const regularTabs = orderedFiles.filter((file) => !splitPaths.has(file.path))
+    const splitIsPinned =
+      splitTabs.length > 0 && splitTabs.every((file) => pinnedPaths.includes(file.path))
+    const pinnedRegularTabs = regularTabs.filter((file) => pinnedPaths.includes(file.path))
+    const unpinnedRegularTabs = regularTabs.filter((file) => !pinnedPaths.includes(file.path))
+
+    const renderSplitTabs = (): React.JSX.Element | null =>
+      splitTabs.length > 0 ? (
+        <div className="flex items-center gap-0.5 rounded-lg border border-border bg-surface-secondary p-0.5">
+          {splitTabs.map(renderTab)}
+        </div>
+      ) : null
 
     return (
       <div className="flex items-center gap-1 border-b border-separator px-2 py-1.5">
-        {regularTabs.map(renderTab)}
-        {splitTabs.length > 0 && (
-          <div className="flex items-center gap-0.5 rounded-lg border border-border bg-surface-secondary p-0.5">
-            {splitTabs.map(renderTab)}
-          </div>
-        )}
+        {pinnedRegularTabs.map(renderTab)}
+        {splitIsPinned && renderSplitTabs()}
+        {unpinnedRegularTabs.map(renderTab)}
+        {!splitIsPinned && renderSplitTabs()}
       </div>
     )
   }
