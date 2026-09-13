@@ -1,5 +1,7 @@
 export const ReaderChannel = {
   Open: 'files:open',
   Import: 'files:import',
-  Save: 'files:save'
+  List: 'files:list',
+  Save: 'files:save',
+  Expand: 'files:expand'
 } as const

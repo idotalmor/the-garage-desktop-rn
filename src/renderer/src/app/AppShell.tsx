@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Moon, Settings, Sparkles, Sun, X } from 'lucide-react'
+import { Brain, Moon, Settings, Sun, X } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import { Button } from '@heroui/react'
 import { PromptInput } from '@heroui-pro/react'
@@ -8,8 +8,11 @@ import { navItems, type AppView } from '../shared/components/appNavigation'
 import { useCompact } from '../shared/hooks/useCompact'
 import { DashboardHome } from '../features/dashboard/components/DashboardHome'
 import { GitHubPage } from '../features/github/components/GitHubPage'
+import { ArtifactoryWindow } from '../features/github/components/ArtifactoryWindow'
 import { NotesPage } from '../features/notes/components/NotesPage'
-import { ReaderPage } from '../features/reader/components/ReaderPage'
+import { NewsletterPage } from '../features/newsletter/components/NewsletterPage'
+import { CodeExplorerPage } from '../features/code-explorer/components/CodeExplorerPage'
+import { ReaderPage } from '../features/reader/ReaderPage'
 
 function openMain(): void {
   window.electron.ipcRenderer.send('app:open-main')
@@ -23,7 +26,8 @@ const promptExamples = [
 
 export function AppShell(): React.JSX.Element {
   const isCompact = useCompact()
-  const [view, setView] = useState<AppView>('github')
+  const isArtifactory = new URLSearchParams(window.location.search).get('view') === 'artifactory'
+  const [view, setView] = useState<AppView>('home')
   const { theme, setTheme } = useTheme()
   const themeLabel = theme === 'dark' ? 'Dark' : theme === 'light' ? 'Light' : 'System'
   const ThemeIcon = themeLabel === 'Dark' ? Moon : Sun
@@ -53,9 +57,18 @@ export function AppShell(): React.JSX.Element {
       <NotesPage />
     ) : view === 'reader' ? (
       <ReaderPage />
+    ) : view === 'newsletter' ? (
+      <NewsletterPage />
+    ) : view === 'code-explorer' ? (
+      <CodeExplorerPage />
     ) : (
       <DashboardHome />
     )
+
+  if (isArtifactory) return <ArtifactoryWindow />
+  if (new URLSearchParams(window.location.search).get('readerWindow') === '1') {
+    return <ReaderPage />
+  }
 
   if (isCompact) {
     return (
@@ -63,9 +76,9 @@ export function AppShell(): React.JSX.Element {
         <header className="flex items-center justify-between border-b border-separator px-4 py-3">
           <div className="flex items-center gap-2">
             <div className="flex size-8 items-center justify-center rounded-xl bg-accent text-accent-foreground">
-              <span className="text-sm font-bold">D</span>
+              <Brain size={17} aria-hidden="true" />
             </div>
-            <span className="text-sm font-semibold">DevFlow</span>
+            <span className="text-sm font-semibold">The Orchestrator</span>
           </div>
           <Button variant="outline" size="sm" onPress={openMain}>
             Open app
@@ -114,7 +127,7 @@ export function AppShell(): React.JSX.Element {
             if (event.key === 'Enter' || event.key === ' ') setIsPromptOpen(true)
           }}
         >
-          <Sparkles size={13} className="shrink-0 text-foreground/60" aria-hidden={true} />
+          <Brain size={13} className="shrink-0 text-foreground/60" aria-hidden={true} />
           <span key={promptIndex} className="prompt-example min-w-0 truncate text-xs text-muted">
             {prompt || promptExamples[promptIndex]}
           </span>

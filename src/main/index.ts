@@ -1,14 +1,38 @@
-import { app, ipcMain, BrowserWindow } from 'electron'
+import { app, ipcMain, BrowserWindow, Menu } from 'electron'
 import { electronApp, optimizer } from '@electron-toolkit/utils'
-import { createMainWindow } from './main-window'
+import { createMainWindow, createReaderWindow } from './main-window'
 import { createTray, focusMainOrCreate, hidePopover } from './popover'
 import { initNotesIpc } from './notes'
 import { initFilesIpc } from './files'
 
+const APP_NAME = 'The Orchestrator'
+app.setName(APP_NAME)
+
 app.whenReady().then(() => {
   electronApp.setAppUserModelId('com.electron')
 
-  if (process.platform === 'darwin') app.dock?.hide()
+  if (process.platform === 'darwin') {
+    Menu.setApplicationMenu(
+      Menu.buildFromTemplate([
+        {
+          label: APP_NAME,
+          submenu: [
+            { role: 'about' },
+            { type: 'separator' },
+            { role: 'hide' },
+            { role: 'hideOthers' },
+            { role: 'unhide' },
+            { type: 'separator' },
+            { role: 'quit' }
+          ]
+        },
+        { role: 'editMenu' },
+        { role: 'viewMenu' },
+        { role: 'windowMenu' }
+      ])
+    )
+    app.dock?.hide()
+  }
 
   app.on('browser-window-created', (_, window) => {
     optimizer.watchWindowShortcuts(window)
@@ -18,6 +42,10 @@ app.whenReady().then(() => {
     focusMainOrCreate()
     hidePopover()
     if (process.platform === 'darwin') app.dock?.show()
+  })
+
+  ipcMain.on('files:expand', () => {
+    createReaderWindow()
   })
 
   initNotesIpc()

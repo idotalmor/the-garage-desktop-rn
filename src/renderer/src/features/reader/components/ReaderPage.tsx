@@ -2,6 +2,7 @@ import {
   FileText,
   Folder,
   FolderOpen,
+  Maximize2,
   PanelLeftClose,
   PanelLeftOpen,
   Pencil,
@@ -16,11 +17,8 @@ import { useFiles } from '../hooks/useFiles'
 import type { MdFile, Tag as TagType } from '../../../../../shared/reader/types'
 import { ImportFilesModal } from './ImportFilesModal'
 import { MarkdownPreview } from './MarkdownPreview'
-
-type FileGroup = {
-  name: string
-  files: MdFile[]
-}
+import { FileGroupSection } from './FileGroupSection'
+import { TagFilterChip } from './TagFilterChip'
 
 const FILTER_ALL = 'all'
 const FILTER_UNTAGGED = 'untagged'
@@ -33,105 +31,6 @@ function getFolderName(path: string): string {
   const parts = path.split('/').filter(Boolean)
   if (parts.length < 2) return 'Workspace'
   return parts[parts.length - 2]
-}
-
-function TagDot({ color }: { color: string }): React.JSX.Element {
-  return (
-    <span
-      className="size-2 shrink-0 rounded-full border border-white/20"
-      style={{ backgroundColor: color }}
-      aria-hidden="true"
-    />
-  )
-}
-
-function FileGroupSection({
-  group,
-  active,
-  onSelect
-}: {
-  group: FileGroup
-  active: string | null
-  onSelect: (path: string) => void
-}): React.JSX.Element {
-  return (
-    <div className="space-y-1">
-      <div className="flex items-center gap-1.5 px-2 text-[11px] font-medium text-muted">
-        <Folder size={13} aria-hidden="true" />
-        {group.name}
-      </div>
-      <div className="space-y-0.5">
-        {group.files.map((file) => (
-          <Button
-            key={file.path}
-            fullWidth
-            size="sm"
-            variant={active === file.path ? 'secondary' : 'ghost'}
-            className="justify-start rounded-lg px-2 text-xs"
-            onPress={() => onSelect(file.path)}
-          >
-            <FileText size={14} className="shrink-0 text-muted" aria-hidden="true" />
-            <span className="min-w-0 flex-1 truncate">{file.name}</span>
-            {file.tags.length > 0 && (
-              <div className="ml-1.5 flex items-center gap-1">
-                {file.tags.map((tag) => (
-                  <TagDot key={tag.name} color={tag.color} />
-                ))}
-              </div>
-            )}
-          </Button>
-        ))}
-      </div>
-    </div>
-  )
-}
-
-function TagFilterChip({
-  label,
-  color,
-  selected,
-  onPress
-}: {
-  label: string
-  color?: string
-  selected: boolean
-  onPress: () => void
-}): React.JSX.Element {
-  const inactive = !selected
-    ? color
-      ? 'opacity-40 grayscale hover:opacity-100 hover:grayscale-0'
-      : 'opacity-60 hover:opacity-100'
-    : ''
-
-  return (
-    <Button
-      size="sm"
-      variant="ghost"
-      className={`h-7 gap-1 rounded-full border px-2.5 text-[11px] transition-all ${inactive}`}
-      style={
-        color
-          ? {
-              borderColor: color,
-              backgroundColor: selected ? color : undefined,
-              color: selected ? '#ffffff' : color
-            }
-          : {
-              backgroundColor: selected ? 'var(--accent)' : undefined,
-              color: selected ? '#ffffff' : undefined
-            }
-      }
-      onPress={onPress}
-    >
-      {color && (
-        <span
-          className="size-2.5 rounded-full"
-          style={{ backgroundColor: selected ? '#ffffff' : color }}
-          aria-hidden="true"
-        />
-      )}
-      {label}
-    </Button>
-  )
 }
 
 export function ReaderPage(): React.JSX.Element {
@@ -151,6 +50,7 @@ export function ReaderPage(): React.JSX.Element {
     y: number
     path: string
   } | null>(null)
+  const isStandaloneReader = new URLSearchParams(window.location.search).get('readerWindow') === '1'
 
   const menuRef = useRef<HTMLDivElement>(null)
 
@@ -347,6 +247,18 @@ export function ReaderPage(): React.JSX.Element {
               <X size={14} aria-hidden="true" />
               Cancel
             </Button>
+            {isStandaloneReader && (
+              <Button
+                isIconOnly
+                size="sm"
+                variant="ghost"
+                className="rounded-lg"
+                onPress={() => window.close()}
+                aria-label="Close reader window"
+              >
+                <X size={14} aria-hidden="true" />
+              </Button>
+            )}
           </div>
         </header>
 
@@ -391,6 +303,30 @@ export function ReaderPage(): React.JSX.Element {
               <Pencil size={14} aria-hidden="true" />
               Edit
             </Button>
+            {!isStandaloneReader && (
+              <Button
+                isIconOnly
+                size="sm"
+                variant="ghost"
+                className="rounded-lg"
+                onPress={() => window.electron.ipcRenderer.send('files:expand')}
+                aria-label="Open reader in a new window"
+              >
+                <Maximize2 size={14} aria-hidden="true" />
+              </Button>
+            )}
+            {isStandaloneReader && (
+              <Button
+                isIconOnly
+                size="sm"
+                variant="ghost"
+                className="rounded-lg"
+                onPress={() => window.close()}
+                aria-label="Close reader window"
+              >
+                <X size={14} aria-hidden="true" />
+              </Button>
+            )}
           </div>
         </header>
         <div className="min-h-0 flex-1 overflow-y-auto px-5 py-6 sm:px-8">
@@ -434,7 +370,7 @@ export function ReaderPage(): React.JSX.Element {
 
   return (
     <main
-      className="mx-auto flex h-screen w-full max-w-[1600px] flex-col px-4 pb-4 pt-10 sm:px-6 lg:px-8"
+      className="mx-auto flex h-screen w-full max-w-[1600px] flex-col px-1 pb-4 pt-10"
       onDragOver={(event) => {
         event.preventDefault()
         setIsDragging(true)
@@ -444,7 +380,7 @@ export function ReaderPage(): React.JSX.Element {
     >
       <div className="flex min-h-0 flex-1 overflow-hidden border-y border-separator">
         <aside
-          className={`flex shrink-0 flex-col border-r border-separator py-3 transition-[width,padding] duration-200 ${isSidebarOpen ? 'w-60 pr-3' : 'w-12 pr-0'}`}
+          className={`flex shrink-0 flex-col border-r border-separator py-3 transition-[width,padding] duration-200 ${isSidebarOpen ? 'w-52' : 'w-12'}`}
           aria-label="Markdown files"
         >
           <div

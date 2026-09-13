@@ -3,13 +3,12 @@ import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFil
 import { basename, extname, join } from 'path'
 import { ReaderChannel } from '../shared/reader/channels'
 import type { ImportMode, MdFile, Tag } from '../shared/reader/types'
+import { listReaderFiles, saveReaderFile } from './reader/repository'
 
 const READER_DIR = join(app.getPath('home'), '.devflow', 'reader')
 
 function ensureReaderDir(): void {
-  if (!existsSync(READER_DIR)) {
-    mkdirSync(READER_DIR, { recursive: true })
-  }
+  if (!existsSync(READER_DIR)) mkdirSync(READER_DIR, { recursive: true })
 }
 
 function uniqueTargetPath(sourcePath: string): string {
@@ -29,16 +28,17 @@ function readMarkdownContent(path: string): string {
   try {
     const stats = statSync(path)
     if (!stats.isFile()) return ''
-    if (path.toLowerCase().endsWith('.md') || path.toLowerCase().endsWith('.markdown')) {
-      return readFileSync(path, 'utf-8')
-    }
-    return ''
+    return path.toLowerCase().endsWith('.md') || path.toLowerCase().endsWith('.markdown')
+      ? readFileSync(path, 'utf-8')
+      : ''
   } catch {
     return ''
   }
 }
 
 export function initFilesIpc(): void {
+  ipcMain.handle(ReaderChannel.List, () => listReaderFiles())
+
   ipcMain.handle(ReaderChannel.Open, async () => {
     const result = await dialog.showOpenDialog({
       properties: ['openFile'],
@@ -47,8 +47,14 @@ export function initFilesIpc(): void {
     if (result.canceled || result.filePaths.length === 0) return null
 
     const path = result.filePaths[0]
-    const content = readFileSync(path, 'utf-8')
-    return { path, name: basename(path), content, tags: [] } as MdFile
+    const stored = listReaderFiles().find((file) => file.path === path)
+    if (stored) return stored
+    return saveReaderFile({
+      path,
+      name: basename(path),
+      content: readFileSync(path, 'utf-8'),
+      tags: []
+    })
   })
 
   ipcMain.handle(
@@ -56,27 +62,24 @@ export function initFilesIpc(): void {
     async (_, payload: { paths: string[]; mode: ImportMode; tag?: Tag }): Promise<MdFile[]> => {
       ensureReaderDir()
       const imported: MdFile[] = []
-
       for (const sourcePath of payload.paths) {
         if (!existsSync(sourcePath)) continue
-
         let targetPath = sourcePath
         if (payload.mode !== 'reference') {
           targetPath = uniqueTargetPath(sourcePath)
           cpSync(sourcePath, targetPath, { recursive: true })
-          if (payload.mode === 'copy-and-delete') {
+          if (payload.mode === 'copy-and-delete')
             rmSync(sourcePath, { recursive: true, force: true })
-          }
         }
-
-        imported.push({
-          path: targetPath,
-          name: basename(targetPath),
-          content: readMarkdownContent(targetPath),
-          tags: payload.tag ? [payload.tag] : []
-        })
+        imported.push(
+          saveReaderFile({
+            path: targetPath,
+            name: basename(targetPath),
+            content: readMarkdownContent(targetPath),
+            tags: payload.tag ? [payload.tag] : []
+          })
+        )
       }
-
       return imported
     }
   )
@@ -85,6 +88,8 @@ export function initFilesIpc(): void {
     ReaderChannel.Save,
     async (_, payload: { path: string; content: string }): Promise<{ path: string }> => {
       writeFileSync(payload.path, payload.content, 'utf-8')
+      const current = listReaderFiles().find((file) => file.path === payload.path)
+      if (current) saveReaderFile({ ...current, content: payload.content })
       return { path: payload.path }
     }
   )

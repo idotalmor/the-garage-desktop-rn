@@ -4,12 +4,33 @@ import { is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 
 let mainWindow: BrowserWindow | null = null
+let readerWindow: BrowserWindow | null = null
+
+function configureWindow(window: BrowserWindow): BrowserWindow {
+  window.webContents.setWindowOpenHandler((details) => {
+    shell.openExternal(details.url)
+    return { action: 'deny' }
+  })
+  return window
+}
+
+function loadRenderer(window: BrowserWindow, query = ''): void {
+  if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
+    window.loadURL(`${process.env['ELECTRON_RENDERER_URL']}${query}`)
+  } else {
+    const params = new URLSearchParams(query)
+    window.loadFile(join(__dirname, '../renderer/index.html'), {
+      query: Object.fromEntries(params.entries())
+    })
+  }
+}
 
 export function createMainWindow(): BrowserWindow {
   mainWindow = new BrowserWindow({
     width: 900,
     height: 670,
     show: false,
+    title: 'The Orchestrator',
     autoHideMenuBar: true,
     ...(process.platform === 'darwin'
       ? {
@@ -24,16 +45,8 @@ export function createMainWindow(): BrowserWindow {
     }
   })
 
-  mainWindow.webContents.setWindowOpenHandler((details) => {
-    shell.openExternal(details.url)
-    return { action: 'deny' }
-  })
-
-  if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
-    mainWindow.loadURL(process.env['ELECTRON_RENDERER_URL'])
-  } else {
-    mainWindow.loadFile(join(__dirname, '../renderer/index.html'))
-  }
+  configureWindow(mainWindow)
+  loadRenderer(mainWindow)
 
   mainWindow.on('closed', () => {
     mainWindow = null
@@ -45,4 +58,33 @@ export function createMainWindow(): BrowserWindow {
 
 export function getMainWindow(): BrowserWindow | null {
   return mainWindow
+}
+
+export function createReaderWindow(): BrowserWindow {
+  if (readerWindow && !readerWindow.isDestroyed()) {
+    readerWindow.focus()
+    return readerWindow
+  }
+
+  readerWindow = new BrowserWindow({
+    width: 1200,
+    height: 800,
+    title: 'Reader',
+    autoHideMenuBar: true,
+    ...(process.platform === 'darwin'
+      ? { titleBarStyle: 'hidden', trafficLightPosition: { x: 14, y: 14 } }
+      : {}),
+    ...(process.platform === 'linux' ? { icon } : {}),
+    webPreferences: {
+      preload: join(__dirname, '../preload/index.js'),
+      sandbox: false
+    }
+  })
+
+  configureWindow(readerWindow)
+  loadRenderer(readerWindow, '?readerWindow=1')
+  readerWindow.on('closed', () => {
+    readerWindow = null
+  })
+  return readerWindow
 }

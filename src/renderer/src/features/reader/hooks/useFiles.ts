@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { ReaderChannel } from '../../../../../shared/reader/channels'
 import type { ImportMode, MdFile, Tag } from '../../../../../shared/reader/types'
 
@@ -24,6 +24,19 @@ export function useFiles(): {
     () => files.find((file) => file.path === active) ?? null,
     [files, active]
   )
+
+  useEffect(() => {
+    let cancelled = false
+    void window.electron.ipcRenderer.invoke(ReaderChannel.List).then((loaded) => {
+      if (cancelled) return
+      const stored = loaded as MdFile[]
+      setFiles(stored)
+      setActive(stored[0]?.path ?? null)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   const openFile = useCallback(async (): Promise<void> => {
     const file = (await window.electron.ipcRenderer.invoke(ReaderChannel.Open)) as MdFile | null
