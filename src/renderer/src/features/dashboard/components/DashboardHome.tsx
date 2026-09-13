@@ -1,6 +1,16 @@
-import { ArrowUpRight, Bot, CheckCircle2, GitPullRequest, StickyNote } from 'lucide-react'
+import {
+  ArrowUp,
+  ArrowUpRight,
+  Bot,
+  Brain,
+  CheckCircle2,
+  GitPullRequest,
+  Sparkles,
+  StickyNote
+} from 'lucide-react'
+import { useState } from 'react'
 import { Button, Card } from '@heroui/react'
-import { PageHeader } from '../../../shared/components/PageHeader'
+import { PromptInput } from '@heroui-pro/react'
 
 type MetricProps = {
   label: string
@@ -27,13 +37,85 @@ function Metric({ label, value, detail, icon: Icon }: MetricProps): React.JSX.El
 }
 
 export function DashboardHome(): React.JSX.Element {
+  const [prompt, setPrompt] = useState('')
+  const [submittedPrompt, setSubmittedPrompt] = useState('')
+
+  const promptSuggestions = [
+    'Summarize what changed across my repos',
+    'Find the PRs that need my attention',
+    'Draft a release update for the team'
+  ]
+
   return (
     <main className="mx-auto w-full max-w-7xl px-4 pb-10 pt-14 sm:px-6 lg:pt-16">
-      <PageHeader
-        eyebrow="Saturday, August 29"
-        title="Your development cockpit."
-        description="Keep your tasks, notes, pull requests, and agent workflows moving from one calm workspace."
-      />
+      <section
+        className="mx-auto flex max-w-3xl flex-col items-center text-center"
+        aria-labelledby="orchestrator-title"
+      >
+        <div className="flex size-11 items-center justify-center rounded-2xl bg-accent/10 text-accent">
+          <Brain size={22} aria-hidden="true" />
+        </div>
+        <h1
+          id="orchestrator-title"
+          className="mt-5 text-4xl font-semibold tracking-tight sm:text-5xl"
+        >
+          The Orchestrator
+        </h1>
+        <p className="mt-4 max-w-2xl text-base leading-7 text-muted">
+          Bring your repos, decisions, and next actions into one calm workspace.
+        </p>
+
+        <PromptInput
+          value={prompt}
+          onValueChange={setPrompt}
+          onSubmit={() => {
+            if (prompt.trim()) setSubmittedPrompt(prompt.trim())
+          }}
+          className="mt-8 w-full text-start"
+        >
+          <PromptInput.Shell className="border border-border shadow-surface">
+            <PromptInput.Content>
+              <PromptInput.TextArea
+                className="min-h-28"
+                placeholder="What should we move forward?"
+                aria-label="Ask The Orchestrator"
+              />
+            </PromptInput.Content>
+            <PromptInput.Toolbar>
+              <PromptInput.ToolbarStart>
+                <span className="flex items-center gap-1.5 text-xs text-muted">
+                  <Sparkles size={13} aria-hidden="true" />
+                  Ask across your workspace
+                </span>
+              </PromptInput.ToolbarStart>
+              <PromptInput.ToolbarEnd>
+                <PromptInput.Send isDisabled={!prompt.trim()} aria-label="Send prompt">
+                  <ArrowUp size={16} aria-hidden="true" />
+                </PromptInput.Send>
+              </PromptInput.ToolbarEnd>
+            </PromptInput.Toolbar>
+          </PromptInput.Shell>
+        </PromptInput>
+
+        <div className="mt-3 flex flex-wrap justify-center gap-2" aria-label="Prompt suggestions">
+          {promptSuggestions.map((suggestion) => (
+            <Button
+              key={suggestion}
+              size="sm"
+              variant="ghost"
+              className="rounded-full border border-border text-xs text-muted"
+              onPress={() => setPrompt(suggestion)}
+            >
+              {suggestion}
+            </Button>
+          ))}
+        </div>
+        {submittedPrompt && (
+          <p className="mt-4 text-xs text-accent" role="status">
+            Ready to orchestrate: {submittedPrompt}
+          </p>
+        )}
+      </section>
 
       <section
         className="mt-10 grid gap-4 sm:grid-cols-2 xl:grid-cols-4"

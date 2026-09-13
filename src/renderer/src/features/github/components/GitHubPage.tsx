@@ -1,296 +1,159 @@
 import {
   Bell,
-  Check,
-  ChevronDown,
+  Bot,
   CircleDot,
+  CircleX,
+  FileText,
   GitBranch,
   GitPullRequest,
   MessageCircle,
-  MoreHorizontal,
-  Plus,
   Search,
   Settings2,
-  Sparkles,
   Terminal,
-  Wrench
+  Wrench,
+  X
 } from 'lucide-react'
+import { useMemo, useState } from 'react'
 import { Button, Card } from '@heroui/react'
+import { PromptInput, Widget } from '@heroui-pro/react'
 import { PageHeader } from '../../../shared/components/PageHeader'
 
-type StatusChipProps = {
-  tone: 'success' | 'danger' | 'neutral'
+type MetricChipProps = {
+  count: string
   label: string
+  icon: React.ComponentType<{ size?: number; className?: string }>
+  tone: 'neutral' | 'success' | 'danger' | 'warning'
 }
 
-function StatusChip({ tone, label }: StatusChipProps): React.JSX.Element {
+function MetricChip({ count, label, icon: Icon, tone }: MetricChipProps): React.JSX.Element {
   const toneClass = {
-    success: 'border border-success/45 bg-success/10 text-success',
-    danger: 'border border-danger/45 bg-danger/10 text-danger',
-    neutral: 'border border-border bg-surface-secondary text-muted'
+    neutral: 'border-border bg-surface-tertiary text-foreground',
+    success: 'border-success bg-success text-success-foreground',
+    danger: 'border-danger bg-danger text-danger-foreground',
+    warning: 'border-warning bg-warning text-warning-foreground'
   }[tone]
 
   return (
     <span
-      className={`inline-flex items-center gap-1.5 rounded-[4px] px-1 py-px text-[9px] leading-3 font-medium ${toneClass}`}
+      className={`group inline-flex h-7 max-w-14 cursor-default items-center overflow-hidden whitespace-nowrap rounded-lg border px-1.5 text-xs transition-[max-width] duration-200 ease-out hover:max-w-40 focus-visible:max-w-40 ${toneClass}`}
+      tabIndex={0}
+      aria-label={`${count} ${label}`}
     >
-      <span
-        className={`size-1.5 rounded-sm ${tone === 'success' ? 'bg-success' : tone === 'danger' ? 'bg-danger' : 'bg-muted'}`}
-      />
-      {label}
+      <Icon size={13} className="shrink-0" aria-hidden={true} />
+      <span className="ml-1 font-semibold">{count}</span>
+      <span className="ml-0 max-w-0 overflow-hidden opacity-0 transition-[max-width,opacity,margin] duration-200 group-hover:ml-1 group-hover:max-w-28 group-hover:opacity-100 group-focus-visible:ml-1 group-focus-visible:max-w-28 group-focus-visible:opacity-100">
+        {label}
+      </span>
     </span>
   )
 }
 
-function GitHubIcon(): React.JSX.Element {
-  return (
-    <svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor" aria-hidden="true">
-      <path d="M12 .5a12 12 0 0 0-3.79 23.39c.6.11.82-.26.82-.58v-2.03c-3.34.73-4.04-1.61-4.04-1.61-.55-1.39-1.34-1.76-1.34-1.76-1.09-.75.08-.74.08-.74 1.2.09 1.84 1.23 1.84 1.23 1.07 1.83 2.8 1.3 3.49.99.11-.77.42-1.3.76-1.6-2.67-.3-5.47-1.33-5.47-5.93 0-1.31.47-2.38 1.23-3.22-.12-.3-.53-1.52.12-3.17 0 0 1-.32 3.3 1.23a11.5 11.5 0 0 1 6 0c2.3-1.55 3.3-1.23 3.3-1.23.65 1.65.24 2.87.12 3.17.77.84 1.23 1.91 1.23 3.22 0 4.61-2.8 5.62-5.48 5.92.43.37.81 1.1.81 2.22v3.29c0 .32.22.69.83.57A12 12 0 0 0 12 .5Z" />
-    </svg>
-  )
-}
-
-function SlackIcon(): React.JSX.Element {
-  return (
-    <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
-      <path
-        fill="#36c5f0"
-        d="M6.5 2A2.5 2.5 0 1 0 6.5 7H9V4.5A2.5 2.5 0 0 0 6.5 2ZM2 6.5A2.5 2.5 0 1 0 7 6.5V9H4.5A2.5 2.5 0 0 0 2 6.5Z"
-      />
-      <path
-        fill="#2eb67d"
-        d="M17.5 2A2.5 2.5 0 1 0 17.5 7H15V4.5A2.5 2.5 0 0 1 17.5 2ZM22 6.5A2.5 2.5 0 1 0 17 6.5V9H19.5A2.5 2.5 0 0 0 22 6.5Z"
-      />
-      <path
-        fill="#ecb22e"
-        d="M17.5 22A2.5 2.5 0 1 1 17.5 17H15V19.5A2.5 2.5 0 0 1 17.5 22ZM22 17.5A2.5 2.5 0 1 1 17 17.5V15H19.5A2.5 2.5 0 0 1 22 17.5Z"
-      />
-      <path
-        fill="#e01e5a"
-        d="M6.5 22A2.5 2.5 0 1 1 6.5 17H9V19.5A2.5 2.5 0 0 1 6.5 22ZM2 17.5A2.5 2.5 0 1 1 7 17.5V15H4.5A2.5 2.5 0 0 1 2 17.5Z"
-      />
-    </svg>
-  )
-}
-
-const repositories = [
-  {
-    name: 'platform-api',
-    detail: 'acme/platform-api',
-    color: 'bg-violet-400',
-    prs: [
-      {
-        number: 184,
-        title: 'Streamline deployment health checks',
-        author: 'Maya Chen',
-        time: '18 min ago',
-        ci: 'Passing',
-        comments: 2
-      },
-      {
-        number: 181,
-        title: 'Add retry policy to webhook delivery',
-        author: 'Noah Williams',
-        time: '2h ago',
-        ci: 'Failing',
-        comments: 0
-      },
-      {
-        number: 176,
-        title: 'Update runtime configuration defaults',
-        author: 'You',
-        time: 'Yesterday',
-        ci: 'Passing',
-        comments: 4
-      }
-    ]
-  },
-  {
-    name: 'web-console',
-    detail: 'acme/web-console',
-    color: 'bg-cyan-400',
-    prs: [
-      {
-        number: 92,
-        title: 'New incident timeline filters',
-        author: 'Ava Patel',
-        time: '42 min ago',
-        ci: 'Passing',
-        comments: 1
-      },
-      {
-        number: 88,
-        title: 'Improve empty state for on-call',
-        author: 'You',
-        time: '3h ago',
-        ci: 'Passing',
-        comments: 0
-      }
-    ]
-  }
-]
-
-function ReviewCard({
-  pr
-}: {
-  pr: (typeof repositories)[number]['prs'][number]
-}): React.JSX.Element {
-  return (
-    <Card className="h-full min-w-0 rounded-lg">
-      <Card.Content className="flex min-h-[132px] flex-col gap-1.5 p-2">
-        <div className="flex items-start justify-between gap-2">
-          <div className="flex min-w-0 items-center gap-1.5 text-[11px] text-muted">
-            <GitPullRequest size={13} className="text-accent" aria-hidden="true" />
-            <span>#{pr.number}</span>
-            <span>·</span>
-            <span>{pr.time}</span>
-          </div>
-          <Button
-            isIconOnly
-            variant="ghost"
-            size="sm"
-            aria-label={`More actions for PR ${pr.number}`}
-          >
-            <MoreHorizontal size={16} aria-hidden="true" />
-          </Button>
-        </div>
-        <div className="min-w-0 flex-1">
-          <h3 className="line-clamp-2 text-sm font-semibold leading-4">{pr.title}</h3>
-          <p className="mt-1 text-xs text-muted">Opened by {pr.author}</p>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <StatusChip tone={pr.ci === 'Passing' ? 'success' : 'danger'} label={`CI ${pr.ci}`} />
-          {pr.comments > 0 && (
-            <span className="inline-flex items-center gap-1.5 rounded-[4px] border border-warning/45 bg-warning/10 px-1 py-px text-[9px] leading-3 font-medium text-warning">
-              <MessageCircle size={12} aria-hidden="true" />
-              {pr.comments} comments
-            </span>
-          )}
-        </div>
-        <div className="flex items-center gap-1.5 border-t border-separator pt-2">
-          <Button
-            size="sm"
-            variant="primary"
-            className="h-6 min-h-6 w-fit min-w-0 rounded-lg px-2 text-[10px] bg-[#4a154b] text-white hover:bg-[#611f69]"
-            onPress={() => {}}
-          >
-            <span className="inline-flex size-3.5 shrink-0 items-center justify-center">
-              <SlackIcon />
-            </span>
-            Send for review
-          </Button>
-          <Button
-            isIconOnly
-            size="sm"
-            variant="ghost"
-            className="size-6 rounded-lg text-muted"
-            aria-label={`Open PR ${pr.number} on GitHub`}
-          >
-            <GitHubIcon />
-          </Button>
-          <Button
-            isIconOnly
-            size="sm"
-            variant="ghost"
-            className="size-6 rounded-lg text-muted"
-            aria-label={`Open PR ${pr.number} in Cursor`}
-          >
-            <Sparkles size={14} aria-hidden="true" />
-          </Button>
-        </div>
-      </Card.Content>
-    </Card>
-  )
-}
-
-function RepositorySection({
-  repository
-}: {
-  repository: (typeof repositories)[number]
-}): React.JSX.Element {
-  return (
-    <section aria-labelledby={`${repository.name}-heading`} className="space-y-3">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <span className={`size-2 rounded-full ${repository.color}`} />
-          <div>
-            <div className="flex items-center gap-2">
-              <h2 id={`${repository.name}-heading`} className="text-sm font-semibold">
-                {repository.name}
-              </h2>
-              <span className="rounded-[4px] border border-border bg-surface-secondary px-1 py-px text-[9px] text-muted">
-                {repository.prs.length} open
-              </span>
-            </div>
-            <p className="text-[11px] text-muted">{repository.detail}</p>
-          </div>
-        </div>
-        <Button size="sm" variant="ghost" className="rounded-lg" onPress={() => {}}>
-          <Settings2 size={15} aria-hidden="true" />
-          Review settings
-        </Button>
-      </div>
-
-      <div className="grid auto-rows-fr grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-4">
-        <Card className="h-full rounded-lg border-dashed bg-surface-secondary/55">
-          <Card.Content className="flex h-full min-h-[132px] flex-col justify-between p-2">
-            <div>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-1.5 text-sm font-semibold">
-                  <GitBranch size={16} className="text-muted" aria-hidden="true" />
-                  master
-                </div>
-                <Button
-                  isIconOnly
-                  variant="ghost"
-                  size="sm"
-                  aria-label={`Master actions for ${repository.name}`}
-                >
-                  <MoreHorizontal size={16} aria-hidden="true" />
-                </Button>
-              </div>
-              <p className="mt-1 text-[11px] leading-4 text-muted">
-                Operations and fix flows for the default branch.
-              </p>
-            </div>
-            <div className="space-y-1.5">
-              <Button
-                size="sm"
-                variant="outline"
-                className="h-6 min-h-6 w-fit rounded-lg px-2 text-[10px]"
-                onPress={() => {}}
-              >
-                <Wrench size={14} aria-hidden="true" />
-                Fix failing CI
-              </Button>
-              <Button
-                size="sm"
-                variant="ghost"
-                className="h-6 min-h-6 w-fit rounded-lg px-2 text-[10px]"
-                onPress={() => {}}
-              >
-                <Terminal size={14} aria-hidden="true" />
-                Add action
-                <Plus size={13} aria-hidden="true" />
-              </Button>
-            </div>
-          </Card.Content>
-        </Card>
-        {repository.prs.map((pr) => (
-          <ReviewCard key={pr.number} pr={pr} />
-        ))}
-      </div>
-    </section>
-  )
+function getSearchTerms(prompt: string): string[] {
+  const stop = new Set([
+    'a',
+    'an',
+    'and',
+    'are',
+    'as',
+    'at',
+    'be',
+    'by',
+    'for',
+    'from',
+    'has',
+    'he',
+    'in',
+    'is',
+    'it',
+    'its',
+    'me',
+    'my',
+    'of',
+    'on',
+    'or',
+    'pr',
+    'prs',
+    'that',
+    'the',
+    'this',
+    'to',
+    'was',
+    'what',
+    'when',
+    'where',
+    'which',
+    'who',
+    'why',
+    'with',
+    'find',
+    'search',
+    'give',
+    'show'
+  ])
+  return prompt
+    .toLowerCase()
+    .split(/\W+/)
+    .filter((word) => word.length > 2 && !stop.has(word))
 }
 
 export function GitHubPage(): React.JSX.Element {
+  const [searchPrompt, setSearchPrompt] = useState('')
+  const [searchQuery, setSearchQuery] = useState('')
+  const [spyInput, setSpyInput] = useState('')
+  const [spies, setSpies] = useState<string[]>([])
+  const [activeFilter, setActiveFilter] = useState<'all' | 'mine' | 'others'>('all')
+  const [activePromptTab, setActivePromptTab] = useState<'find' | 'watch'>('find')
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false)
+  const [settingsTab, setSettingsTab] = useState<'people' | 'slack'>('people')
+  const [selectedPerson, setSelectedPerson] = useState<string | null>(null)
+
+  const searchTerms = useMemo(() => getSearchTerms(searchQuery), [searchQuery])
+
+  const filteredRepositories = useMemo(() => {
+    let next = repositories
+    if (activeFilter !== 'all') {
+      next = next
+        .map((repository) => ({
+          ...repository,
+          prs: repository.prs.filter((pr) =>
+            activeFilter === 'mine' ? pr.author === 'You' : pr.author !== 'You'
+          )
+        }))
+        .filter((repository) => repository.prs.length > 0)
+    }
+    if (searchTerms.length === 0) return next
+    return next
+      .map((repository) => ({
+        ...repository,
+        prs: repository.prs.filter((pr) =>
+          searchTerms.some((term) => `${pr.title} ${pr.author}`.toLowerCase().includes(term))
+        )
+      }))
+      .filter((repository) => repository.prs.length > 0)
+  }, [activeFilter, searchTerms])
+
+  const addSpy = (term: string): void => {
+    const t = term.trim()
+    if (t && !spies.includes(t)) setSpies((prev) => [...prev, t])
+    setSpyInput('')
+  }
+
+  const removeSpy = (term: string): void => {
+    setSpies((prev) => prev.filter((s) => s !== term))
+  }
+
+  const clearSearch = (): void => {
+    setSearchPrompt('')
+    setSearchQuery('')
+  }
+
   return (
     <main className="mx-auto w-full max-w-[1600px] px-3 pb-6 pt-14 sm:px-5 lg:px-6">
       <header className="flex flex-wrap items-end justify-between gap-3">
         <PageHeader
           eyebrow={
             <span className="flex items-center gap-1">
-              <CircleDot size={12} aria-hidden="true" />
+              <CircleDot size={12} aria-hidden={true} />
               Git workspace
             </span>
           }
@@ -298,14 +161,6 @@ export function GitHubPage(): React.JSX.Element {
           description="Pull requests, CI signals, and lightweight review workflows — grouped by repository."
         />
         <div className="flex flex-wrap items-center justify-end gap-1.5">
-          <div
-            className="flex h-7 w-[180px] items-center gap-1.5 rounded-lg border border-border bg-surface-secondary px-2 text-xs text-muted"
-            role="search"
-            aria-label="Search pull requests"
-          >
-            <Search size={13} aria-hidden="true" />
-            <span>Search pull requests</span>
-          </div>
           <Button size="sm" variant="outline" className="rounded-lg" onPress={() => {}}>
             <GitBranch size={15} aria-hidden="true" />
             Connect to Git
@@ -313,40 +168,503 @@ export function GitHubPage(): React.JSX.Element {
           <Button isIconOnly variant="outline" size="sm" aria-label="Git workspace notifications">
             <Bell size={16} aria-hidden="true" />
           </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            className="rounded-lg"
+            onPress={() => window.open('?view=artifactory', '_blank', 'width=900,height=600')}
+          >
+            <FileText size={15} aria-hidden="true" />
+            Context
+          </Button>
+          <div className="flex flex-wrap items-center gap-1.5" aria-label="Pull request overview">
+            <MetricChip count="4" label="draft" icon={FileText} tone="neutral" />
+            <MetricChip count="7" label="open" icon={GitPullRequest} tone="success" />
+            <MetricChip count="2" label="failing" icon={CircleX} tone="danger" />
+            <MetricChip count="3" label="commented" icon={MessageCircle} tone="warning" />
+          </div>
         </div>
       </header>
 
-      <section className="mt-4 flex flex-wrap gap-1.5" aria-label="Pull request overview">
-        {[
-          ['7', 'Open pull requests', 'Across 2 repositories'],
-          ['2', 'Need your attention', 'Comments or failing CI'],
-          ['4', 'Ready for review', 'No blocking signals']
-        ].map(([value, label, detail]) => (
-          <Card key={label} className="w-fit min-w-[132px] rounded-lg">
-            <Card.Content className="flex items-center justify-between gap-2 p-2.5">
-              <div>
-                <p className="text-[11px] text-muted">{label}</p>
-                <p className="mt-0.5 text-xl font-semibold tabular-nums">{value}</p>
-                <p className="mt-0.5 text-[11px] text-muted">{detail}</p>
+      <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-[2fr_1fr]">
+        <section>
+          <Widget>
+            <Widget.Header>
+              <Widget.Title>Ask the Git workspace</Widget.Title>
+              <Widget.Description>
+                Find PRs or watch for new ones matching a topic.
+              </Widget.Description>
+            </Widget.Header>
+            <Widget.Content className="p-3">
+              <div className="mb-3 flex gap-1 rounded-lg border border-border p-1">
+                <Button
+                  size="sm"
+                  variant={activePromptTab === 'find' ? 'primary' : 'ghost'}
+                  className="flex-1 rounded-md text-xs"
+                  onPress={() => setActivePromptTab('find')}
+                >
+                  Find
+                </Button>
+                <Button
+                  size="sm"
+                  variant={activePromptTab === 'watch' ? 'primary' : 'ghost'}
+                  className="flex-1 rounded-md text-xs"
+                  onPress={() => setActivePromptTab('watch')}
+                >
+                  Watch
+                </Button>
               </div>
-              <Check size={18} className="text-success" aria-hidden="true" />
-            </Card.Content>
-          </Card>
-        ))}
+
+              <PromptInput
+                value={activePromptTab === 'find' ? searchPrompt : spyInput}
+                onValueChange={activePromptTab === 'find' ? setSearchPrompt : setSpyInput}
+                onSubmit={() => {
+                  if (activePromptTab === 'find') {
+                    setSearchQuery(searchPrompt.trim())
+                  } else {
+                    addSpy(spyInput)
+                  }
+                }}
+              >
+                <PromptInput.Shell className="border border-border shadow-none">
+                  <PromptInput.Content>
+                    <PromptInput.TextArea
+                      className="min-h-10"
+                      placeholder={
+                        activePromptTab === 'find'
+                          ? 'Find me a PR for editor installation...'
+                          : 'Watch for PRs about editor installation...'
+                      }
+                    />
+                  </PromptInput.Content>
+                  <PromptInput.Toolbar>
+                    <PromptInput.ToolbarStart>
+                      <span className="text-xs text-muted">
+                        {activePromptTab === 'find'
+                          ? searchTerms.length > 0
+                            ? `Matching ${searchTerms.join(', ')}`
+                            : 'Enter a context to search'
+                          : 'Enter a topic to watch'}
+                      </span>
+                    </PromptInput.ToolbarStart>
+                    <PromptInput.ToolbarEnd>
+                      {activePromptTab === 'find' && searchQuery && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 rounded-lg text-xs"
+                          onPress={clearSearch}
+                        >
+                          Clear
+                        </Button>
+                      )}
+                      <PromptInput.Send
+                        isDisabled={
+                          activePromptTab === 'find' ? !searchPrompt.trim() : !spyInput.trim()
+                        }
+                        aria-label={activePromptTab === 'find' ? 'Find PRs' : 'Add spy'}
+                      >
+                        {activePromptTab === 'find' ? (
+                          <Search size={15} aria-hidden="true" />
+                        ) : (
+                          <Bell size={15} aria-hidden="true" />
+                        )}
+                      </PromptInput.Send>
+                    </PromptInput.ToolbarEnd>
+                  </PromptInput.Toolbar>
+                </PromptInput.Shell>
+              </PromptInput>
+
+              {activePromptTab === 'find'
+                ? searchQuery && (
+                    <p className="mt-2 text-xs text-muted" role="status">
+                      Searching for: {searchQuery}
+                      {filteredRepositories.length === 0 && ' · No matches'}
+                    </p>
+                  )
+                : spies.length > 0 && (
+                    <div className="mt-3 flex flex-wrap items-center gap-2">
+                      {spies.map((spy) => (
+                        <div
+                          key={spy}
+                          className="inline-flex items-center gap-1 rounded-full border border-border bg-surface-secondary px-2.5 py-1 text-xs text-foreground"
+                        >
+                          <span>{spy}</span>
+                          <Button
+                            isIconOnly
+                            size="sm"
+                            variant="ghost"
+                            className="size-4 min-h-4 rounded-full p-0 text-muted"
+                            onPress={() => removeSpy(spy)}
+                            aria-label={`Remove ${spy}`}
+                          >
+                            <X size={10} aria-hidden="true" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+            </Widget.Content>
+          </Widget>
+        </section>
+
+        <section>
+          <Widget>
+            <Widget.Header>
+              <Widget.Title>Automations</Widget.Title>
+              <Widget.Description>
+                One-click HTTP triggers that can inject PR data.
+              </Widget.Description>
+            </Widget.Header>
+            <Widget.Content className="p-3">
+              <div className="space-y-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="w-full justify-start rounded-lg text-xs"
+                  onPress={() => {}}
+                >
+                  <Bot size={13} aria-hidden="true" />
+                  Trigger CI re-run
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="w-full justify-start rounded-lg text-xs"
+                  onPress={() => {}}
+                >
+                  <MessageCircle size={13} aria-hidden="true" />
+                  Notify Slack
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="w-full justify-start rounded-lg text-xs"
+                  onPress={() => {}}
+                >
+                  <Terminal size={13} aria-hidden="true" />
+                  Run lint on PR
+                </Button>
+              </div>
+              <div className="mt-3">
+                <span className="text-xs text-muted">Payload (injected data)</span>
+                <textarea
+                  className="mt-1 h-20 w-full rounded-lg border border-border bg-surface-secondary p-2 text-xs text-foreground outline-none"
+                  placeholder='{ "prLink": "...", "author": "..." }'
+                  readOnly
+                />
+              </div>
+            </Widget.Content>
+          </Widget>
+        </section>
+      </div>
+
+      <section className="mt-6">
+        <div className="flex flex-wrap items-center gap-2">
+          {(['all', 'mine', 'others'] as const).map((filter) => (
+            <Button
+              key={filter}
+              size="sm"
+              variant={activeFilter === filter ? 'primary' : 'outline'}
+              className="rounded-lg text-xs capitalize"
+              onPress={() => setActiveFilter(filter)}
+            >
+              {filter} PRs
+            </Button>
+          ))}
+        </div>
       </section>
 
-      <div className="mt-5 flex justify-end">
-        <Button size="sm" variant="ghost" className="rounded-lg" onPress={() => {}}>
-          All statuses
-          <ChevronDown size={14} aria-hidden="true" />
-        </Button>
-      </div>
-
       <div className="mt-6 space-y-7">
-        {repositories.map((repository) => (
-          <RepositorySection key={repository.name} repository={repository} />
+        {filteredRepositories.length === 0 ? (
+          <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border px-6 py-14 text-center">
+            <Search size={22} className="text-muted" aria-hidden="true" />
+            <p className="mt-4 font-medium">No PRs match that context</p>
+            <p className="mt-1 text-sm text-muted">
+              Try a different description or clear the search.
+            </p>
+          </div>
+        ) : (
+          filteredRepositories.map((repository) => (
+            <RepositorySection
+              key={repository.name}
+              repository={repository}
+              selectedPerson={selectedPerson}
+              onOpenPeople={() => {
+                setSettingsTab('people')
+                setIsSettingsOpen(true)
+              }}
+              onOpenSettings={() => {
+                setSettingsTab('slack')
+                setIsSettingsOpen(true)
+              }}
+            />
+          ))
+        )}
+      </div>
+      <GitHubSettingsModal
+        isOpen={isSettingsOpen}
+        initialTab={settingsTab}
+        favoritePeople={favoritePeople}
+        defaultSlackChannel="#eng-review"
+        onClose={() => setIsSettingsOpen(false)}
+        onSelectPerson={(person) => setSelectedPerson(person)}
+      />
+    </main>
+  )
+}
+
+type CiStatus = 'passing' | 'failing' | 'in-progress' | 'none'
+type Commit = { hash: string; message: string; ciStatus: CiStatus }
+type PullRequest = {
+  number: number
+  title: string
+  author: string
+  time: string
+  ciStatus: Exclude<CiStatus, 'none'>
+  comments: number
+  status: string
+  hasUncommitted: boolean
+  commits: Commit[]
+}
+type Repository = {
+  name: string
+  detail: string
+  color: string
+  masterCi: string
+  masterCommits: Commit[]
+  prs: PullRequest[]
+}
+const repositories: Repository[] = [
+  {
+    name: 'platform-api',
+    detail: 'acme/platform-api',
+    color: 'bg-violet-400',
+    masterCi: 'In-progress',
+    masterCommits: [{ hash: 'm0a1s2t', message: 'Bump version', ciStatus: 'passing' }],
+    prs: [
+      {
+        number: 184,
+        title: 'Streamline deployment health checks',
+        author: 'Maya Chen',
+        time: '18 min ago',
+        ciStatus: 'passing',
+        comments: 0,
+        status: 'Approved',
+        hasUncommitted: false,
+        commits: [{ hash: 'a1b2c3d', message: 'Add health check endpoint', ciStatus: 'passing' }]
+      },
+      {
+        number: 181,
+        title: 'Add retry policy to webhook delivery',
+        author: 'Noah Williams',
+        time: '2h ago',
+        ciStatus: 'failing',
+        comments: 2,
+        status: 'Changes requested',
+        hasUncommitted: true,
+        commits: [{ hash: 'm1n2o3p', message: 'Add retry config', ciStatus: 'failing' }]
+      },
+      {
+        number: 176,
+        title: 'Update runtime configuration defaults',
+        author: 'You',
+        time: 'Yesterday',
+        ciStatus: 'passing',
+        comments: 0,
+        status: 'Merged',
+        hasUncommitted: false,
+        commits: [{ hash: 'u7v8w9x', message: 'Tweak defaults', ciStatus: 'passing' }]
+      }
+    ]
+  },
+  {
+    name: 'web-console',
+    detail: 'acme/web-console',
+    color: 'bg-cyan-400',
+    masterCi: 'Failing',
+    masterCommits: [],
+    prs: [
+      {
+        number: 92,
+        title: 'New incident timeline filters',
+        author: 'Ava Patel',
+        time: '42 min ago',
+        ciStatus: 'passing',
+        comments: 0,
+        status: 'Open',
+        hasUncommitted: true,
+        commits: [{ hash: 'g7h8i9j', message: 'Add timeline filter', ciStatus: 'passing' }]
+      },
+      {
+        number: 88,
+        title: 'Improve empty state for on-call',
+        author: 'You',
+        time: '3h ago',
+        ciStatus: 'passing',
+        comments: 0,
+        status: 'Approved',
+        hasUncommitted: false,
+        commits: [{ hash: 'o1p2q3r', message: 'Empty state improvements', ciStatus: 'passing' }]
+      }
+    ]
+  }
+]
+const favoritePeople = ['Maya Chen', 'Ava Patel', 'Noah Williams']
+function RepositorySection({
+  repository,
+  selectedPerson,
+  onOpenPeople,
+  onOpenSettings
+}: {
+  repository: Repository
+  selectedPerson: string | null
+  onOpenPeople: () => void
+  onOpenSettings: () => void
+}): React.JSX.Element {
+  return (
+    <section aria-labelledby={`${repository.name}-heading`} className="space-y-3">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 id={`${repository.name}-heading`} className="text-sm font-semibold">
+            {repository.name}
+          </h2>
+          <p className="text-xs text-muted">
+            {repository.detail} · {repository.prs.length} open
+          </p>
+        </div>
+        <div className="flex gap-1">
+          <Button size="sm" variant="ghost" onPress={onOpenPeople}>
+            {selectedPerson ?? 'Filter'}
+          </Button>
+          <Button
+            isIconOnly
+            size="sm"
+            variant="ghost"
+            onPress={onOpenSettings}
+            aria-label="Review settings"
+          >
+            <Settings2 size={14} />
+          </Button>
+        </div>
+      </div>
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+        {repository.prs.map((pr) => (
+          <ReviewCard key={pr.number} pr={pr} />
         ))}
       </div>
-    </main>
+    </section>
+  )
+}
+function ReviewCard({ pr }: { pr: PullRequest }): React.JSX.Element {
+  return (
+    <Card className="h-full rounded-lg">
+      <Card.Content className="flex min-h-[132px] flex-col gap-1.5 p-2">
+        <div className="flex justify-between">
+          <span className="text-xs text-muted">
+            <GitPullRequest size={13} /> #{pr.number} · {pr.time}
+          </span>
+          <span
+            className={`size-2 rounded-full ${pr.ciStatus === 'passing' ? 'bg-success' : pr.ciStatus === 'failing' ? 'bg-danger' : 'bg-warning'}`}
+          />
+        </div>
+        <h3 className="text-sm font-semibold">{pr.title}</h3>
+        <p className="text-xs text-muted">Opened by {pr.author}</p>
+        <p className="flex-1 text-xs text-muted">{pr.commits.at(-1)?.message ?? 'No commits'}</p>
+        <div className="flex items-center gap-1 border-t border-separator pt-2">
+          <Button size="sm" variant="primary" className="h-6 rounded-lg text-xs">
+            <MessageCircle size={13} /> Send for review
+          </Button>
+          <Button size="sm" variant="ghost" className="h-6 rounded-lg text-xs">
+            Babysitter
+          </Button>
+          {pr.ciStatus === 'failing' && (
+            <Button size="sm" variant="danger-soft" className="h-6 rounded-lg text-xs">
+              <Wrench size={13} /> Fix CI
+            </Button>
+          )}
+        </div>
+      </Card.Content>
+    </Card>
+  )
+}
+function GitHubSettingsModal({
+  isOpen,
+  initialTab,
+  favoritePeople,
+  defaultSlackChannel,
+  onClose,
+  onSelectPerson
+}: {
+  isOpen: boolean
+  initialTab: 'people' | 'slack'
+  favoritePeople: string[]
+  defaultSlackChannel?: string
+  onClose: () => void
+  onSelectPerson?: (person: string) => void
+}): React.JSX.Element | null {
+  const [tab, setTab] = useState(initialTab)
+  const [channel, setChannel] = useState(defaultSlackChannel ?? '')
+  if (!isOpen) return null
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+      onClick={onClose}
+    >
+      <Card className="w-full max-w-md" onClick={(e) => e.stopPropagation()}>
+        <Card.Header className="flex justify-between">
+          <h3>Git workspace settings</h3>
+          <Button isIconOnly size="sm" variant="ghost" onPress={onClose}>
+            <X size={14} />
+          </Button>
+        </Card.Header>
+        <Card.Content className="space-y-3 p-4">
+          <div className="flex gap-1">
+            <Button
+              size="sm"
+              variant={tab === 'people' ? 'primary' : 'ghost'}
+              onPress={() => setTab('people')}
+            >
+              People
+            </Button>
+            <Button
+              size="sm"
+              variant={tab === 'slack' ? 'primary' : 'ghost'}
+              onPress={() => setTab('slack')}
+            >
+              Slack
+            </Button>
+          </div>
+          {tab === 'people' ? (
+            favoritePeople.map((person) => (
+              <Button
+                key={person}
+                size="sm"
+                variant="ghost"
+                className="w-full justify-start"
+                onPress={() => {
+                  onSelectPerson?.(person)
+                  onClose()
+                }}
+              >
+                {person}
+              </Button>
+            ))
+          ) : (
+            <>
+              <input
+                value={channel}
+                onChange={(e) => setChannel(e.target.value)}
+                placeholder="#eng-review"
+                className="w-full rounded-lg border p-2 text-xs"
+              />
+              <Button size="sm" onPress={onClose}>
+                Save
+              </Button>
+            </>
+          )}
+        </Card.Content>
+      </Card>
+    </div>
   )
 }

@@ -15,6 +15,7 @@ import { PromptInput } from '@heroui-pro/react'
 import ReactMarkdown from 'react-markdown'
 import { useNotes } from '../hooks/useNotes'
 import type { NoteAttachment, NoteStatus } from '../../../../../shared/notes/types'
+import { PageHeader } from '../../../shared/components/PageHeader'
 
 type NoteFilter = NoteStatus
 
@@ -86,9 +87,14 @@ export function NotesPage(): React.JSX.Element {
   })
 
   return (
-    <main className="mx-auto w-full max-w-6xl px-4 pb-10 pt-8 sm:px-6 lg:pt-12">
+    <main className="mx-auto w-full max-w-6xl px-4 pb-10 pt-14 sm:px-6 lg:pt-16">
+      <PageHeader
+        eyebrow="Workspace notes"
+        title="Notes"
+        description="Capture ideas, context, and follow-ups without losing the thread."
+      />
       <section
-        className={`mx-auto max-w-3xl rounded-2xl transition-colors ${isDragging ? 'bg-accent/10' : ''}`}
+        className={`mx-auto mt-8 max-w-3xl rounded-2xl transition-colors ${isDragging ? 'bg-accent/10' : ''}`}
         aria-label="Add a note"
         onDragOver={(event) => {
           event.preventDefault()

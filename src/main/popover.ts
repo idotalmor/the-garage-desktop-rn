@@ -1,7 +1,7 @@
 import { BrowserWindow, Tray, nativeImage, screen } from 'electron'
 import { join } from 'path'
 import { is } from '@electron-toolkit/utils'
-import icon from '../../resources/icon.png?asset'
+import brainIcon from '../../resources/brain.png?asset'
 import { createMainWindow, getMainWindow } from './main-window'
 
 let popoverWindow: BrowserWindow | null = null
@@ -82,9 +82,10 @@ export function showOrCreatePopover(): void {
 }
 
 export function createTray(): void {
-  const trayIcon = nativeImage.createFromPath(icon).resize({ width: 18, height: 18 })
+  const trayIcon = nativeImage.createFromPath(brainIcon).resize({ width: 18, height: 18 })
+  if (process.platform === 'darwin') trayIcon.setTemplateImage(true)
   tray = new Tray(trayIcon)
-  tray.setToolTip('DevFlow')
+  tray.setToolTip('The Orchestrator')
   tray.on('click', () => showOrCreatePopover())
 }
 
