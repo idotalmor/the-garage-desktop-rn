@@ -508,6 +508,7 @@ export function ReaderPage(): React.JSX.Element {
               <button
                 type="button"
                 className="flex w-full items-center rounded-md px-2.5 py-1.5 text-left text-xs text-foreground hover:bg-surface-secondary"
+                onMouseDown={(event) => event.preventDefault()}
                 onClick={() => {
                   setSplit(null)
                   setContextMenu(null)
@@ -518,13 +519,11 @@ export function ReaderPage(): React.JSX.Element {
               <div className="my-1 h-px bg-border" />
             </>
           )}
-          <p className="px-2.5 py-1 text-[10px] font-medium uppercase tracking-wide text-muted">
-            Split active tab with {files.find((file) => file.path === contextMenu.path)?.name}
-          </p>
           <div className="space-y-0.5">
             <button
               type="button"
               className="flex w-full items-center rounded-md px-2.5 py-1.5 text-left text-xs text-foreground hover:bg-surface-secondary"
+              onMouseDown={(event) => event.preventDefault()}
               onClick={() => {
                 if (active && active !== contextMenu.path) {
                   setSplit({ left: active, right: contextMenu.path })
@@ -537,6 +536,7 @@ export function ReaderPage(): React.JSX.Element {
             <button
               type="button"
               className="flex w-full items-center rounded-md px-2.5 py-1.5 text-left text-xs text-foreground hover:bg-surface-secondary"
+              onMouseDown={(event) => event.preventDefault()}
               onClick={() => {
                 if (active && active !== contextMenu.path) {
                   setSplit({ left: contextMenu.path, right: active })
