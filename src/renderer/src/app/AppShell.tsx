@@ -19,6 +19,28 @@ function openMain(): void {
   window.electron.ipcRenderer.send('app:open-main')
 }
 
+function RadialRecordIcon(): React.JSX.Element {
+  return (
+    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" aria-hidden="true">
+      <g stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+        <path d="M12 2v3" />
+        <path d="M16.9 3.3 15.4 6" />
+        <path d="m20.7 7-2.6 1.5" />
+        <path d="M22 12h-3" />
+        <path d="m20.7 17-2.6-1.5" />
+        <path d="m16.9 20.7-1.5-2.7" />
+        <path d="M12 22v-3" />
+        <path d="m7.1 20.7 1.5-2.7" />
+        <path d="m3.3 17 2.6-1.5" />
+        <path d="M2 12h3" />
+        <path d="m3.3 7 2.6 1.5" />
+        <path d="M7.1 3.3 8.6 6" />
+      </g>
+      <circle cx="12" cy="12" r="3" fill="currentColor" />
+    </svg>
+  )
+}
+
 const promptExamples = [
   'We need to merge experiments',
   'Find the PRs waiting for review',
@@ -128,13 +150,23 @@ export function AppShell(): React.JSX.Element {
               variant="ghost"
               className="size-7 rounded-full border border-danger/60 text-danger hover:bg-danger/15"
               onPress={() => setView('recording')}
-              aria-label="Start recording"
+              aria-label="Start recording with microphone waves"
             >
               <MicAudioLines size={15} aria-hidden="true" />
             </Button>
+            <Button
+              isIconOnly
+              size="sm"
+              variant="ghost"
+              className="size-7 rounded-full bg-danger/10 text-danger hover:bg-danger/20"
+              onPress={() => setView('recording')}
+              aria-label="Start recording with radial waves"
+            >
+              <RadialRecordIcon />
+            </Button>
           </div>
           <div
-            className="window-prompt-bar flex min-w-0 flex-1 items-center gap-1.5 rounded-md border border-border/60 bg-transparent px-2 text-xs"
+            className="window-prompt-bar flex h-7 min-w-0 flex-1 items-center gap-1.5 rounded-md border border-border/60 bg-transparent px-2 text-xs"
             role="button"
             tabIndex={0}
             aria-label="Open command prompt"

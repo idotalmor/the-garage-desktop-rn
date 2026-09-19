@@ -1,6 +1,19 @@
-import { ArrowLeft, MicAudioLines, Pause, Play, Square } from 'lucide-react'
+import {
+  ArrowLeft,
+  Bold,
+  Italic,
+  List,
+  ListOrdered,
+  MicAudioLines,
+  Pause,
+  Play,
+  Redo2,
+  Square,
+  Undo2
+} from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Button, Card } from '@heroui/react'
+import { RichTextEditor } from '@heroui-pro/react/rich-text-editor'
 import { PageHeader } from '../../../shared/components/PageHeader'
 
 type RecordingPageProps = {
@@ -16,7 +29,6 @@ function formatDuration(seconds: number): string {
 export function RecordingPage({ onBack }: RecordingPageProps): React.JSX.Element {
   const [isRecording, setIsRecording] = useState(true)
   const [duration, setDuration] = useState(0)
-  const [notes, setNotes] = useState('')
 
   useEffect(() => {
     if (!isRecording) return
@@ -42,59 +54,66 @@ export function RecordingPage({ onBack }: RecordingPageProps): React.JSX.Element
         description="Keep the conversation and your notes together in one session."
       />
 
-      <Card className="mt-8 overflow-hidden border-danger/25">
-        <Card.Content className="relative flex flex-col items-center px-6 py-10 text-center sm:py-14">
-          <div className="recording-halo absolute left-1/2 top-1/2 size-56 -translate-x-1/2 -translate-y-1/2 rounded-full bg-danger/5" />
-          <div
-            className={`relative flex size-24 items-center justify-center rounded-full ${isRecording ? 'recording-pulse bg-danger text-danger-foreground' : 'bg-danger/15 text-danger'}`}
-          >
-            <MicAudioLines size={38} strokeWidth={1.7} aria-hidden="true" />
+      <Card className="mt-8 overflow-hidden border-border bg-surface-secondary">
+        <Card.Header className="flex-row items-center justify-between gap-4 p-5 pb-4">
+          <div>
+            <Card.Title>Recording session</Card.Title>
+            <Card.Description>
+              {isRecording ? 'Recording live' : 'Recording paused'}
+            </Card.Description>
           </div>
-          <p className="relative mt-6 text-xs font-medium uppercase tracking-[0.18em] text-danger">
-            {isRecording ? 'Recording live' : 'Recording paused'}
-          </p>
-          <p className="relative mt-2 font-mono text-4xl font-semibold tabular-nums tracking-tight">
+          <p className="font-mono text-2xl font-semibold tabular-nums tracking-tight">
             {formatDuration(duration)}
           </p>
-          <div
-            className="recording-wave relative mt-6 flex h-8 items-center gap-1"
-            aria-hidden="true"
-          >
-            {[18, 28, 40, 24, 34, 20, 44, 26, 36, 18, 30].map((height, index) => (
-              <span
-                key={index}
-                className={isRecording ? 'recording-wave-bar' : 'h-1 rounded-full bg-danger/35'}
-                style={
-                  isRecording
-                    ? { height: `${height}px`, animationDelay: `${index * 90}ms` }
-                    : undefined
-                }
-              />
-            ))}
-          </div>
-          <div className="relative mt-8 flex items-center gap-2">
+        </Card.Header>
+        <Card.Content className="px-5 pb-5">
+          <div className="flex min-w-0 items-center gap-2 rounded-2xl bg-background p-3 sm:gap-3 sm:p-4">
             <Button
+              isIconOnly
+              size="sm"
+              variant="danger-soft"
+              className="size-9 shrink-0 rounded-full"
+              onPress={() => setIsRecording(false)}
+              aria-label="Stop recording"
+            >
+              <Square size={15} aria-hidden="true" />
+            </Button>
+            <Button
+              isIconOnly
               size="sm"
               variant="secondary"
-              className="rounded-lg"
+              className="size-9 shrink-0 rounded-full"
               onPress={() => setIsRecording((recording) => !recording)}
+              aria-label={isRecording ? 'Pause recording' : 'Resume recording'}
             >
               {isRecording ? (
                 <Pause size={15} aria-hidden="true" />
               ) : (
                 <Play size={15} aria-hidden="true" />
               )}
-              {isRecording ? 'Pause' : 'Resume'}
             </Button>
-            <Button
-              size="sm"
-              variant="danger-soft"
-              className="rounded-lg"
-              onPress={() => setIsRecording(false)}
+            <div
+              className="recording-wave flex min-w-0 flex-1 items-center justify-between gap-1 px-2 py-2 sm:px-4"
+              aria-label="Recording audio waveform"
+              role="img"
             >
-              <Square size={14} aria-hidden="true" />
-              Finish session
-            </Button>
+              {[18, 28, 40, 24, 34, 20, 44, 26, 36, 18, 30, 22, 38, 26, 34, 20].map(
+                (height, index) => (
+                  <span
+                    key={index}
+                    className={isRecording ? 'recording-wave-bar' : 'h-1 rounded-full bg-danger/35'}
+                    style={
+                      isRecording
+                        ? { height: `${height}px`, animationDelay: `${index * 90}ms` }
+                        : undefined
+                    }
+                  />
+                )
+              )}
+            </div>
+            <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-danger/10 text-danger">
+              <MicAudioLines size={16} aria-hidden="true" />
+            </div>
           </div>
         </Card.Content>
       </Card>
@@ -107,13 +126,70 @@ export function RecordingPage({ onBack }: RecordingPageProps): React.JSX.Element
           </Card.Description>
         </Card.Header>
         <Card.Content className="px-6 pb-6">
-          <textarea
-            value={notes}
-            onChange={(event) => setNotes(event.target.value)}
+          <RichTextEditor
+            defaultValue={{ type: 'doc', content: [] }}
             placeholder="Start writing notes..."
             aria-label="Meeting notes"
-            className="min-h-48 w-full resize-y rounded-xl border border-border bg-surface-secondary p-4 text-sm leading-6 text-foreground outline-none transition-colors placeholder:text-muted focus:border-accent"
-          />
+          >
+            <RichTextEditor.Shell className="overflow-hidden rounded-xl border border-border shadow-none">
+              <RichTextEditor.Toolbar aria-label="Meeting notes formatting">
+                <RichTextEditor.ToolbarGroup>
+                  <RichTextEditor.ToggleButton
+                    command="bold"
+                    isIconOnly
+                    aria-label="Bold"
+                    tooltip="Bold"
+                  >
+                    <Bold size={15} aria-hidden="true" />
+                  </RichTextEditor.ToggleButton>
+                  <RichTextEditor.ToggleButton
+                    command="italic"
+                    isIconOnly
+                    aria-label="Italic"
+                    tooltip="Italic"
+                  >
+                    <Italic size={15} aria-hidden="true" />
+                  </RichTextEditor.ToggleButton>
+                  <RichTextEditor.ToggleButton
+                    command="bulletList"
+                    isIconOnly
+                    aria-label="Bullet list"
+                    tooltip="Bullet list"
+                  >
+                    <List size={15} aria-hidden="true" />
+                  </RichTextEditor.ToggleButton>
+                  <RichTextEditor.ToggleButton
+                    command="orderedList"
+                    isIconOnly
+                    aria-label="Numbered list"
+                    tooltip="Numbered list"
+                  >
+                    <ListOrdered size={15} aria-hidden="true" />
+                  </RichTextEditor.ToggleButton>
+                </RichTextEditor.ToolbarGroup>
+                <RichTextEditor.ToolbarSeparator />
+                <RichTextEditor.ToolbarGroup>
+                  <RichTextEditor.ActionButton
+                    action="undo"
+                    isIconOnly
+                    aria-label="Undo"
+                    tooltip="Undo"
+                  >
+                    <Undo2 size={15} aria-hidden="true" />
+                  </RichTextEditor.ActionButton>
+                  <RichTextEditor.ActionButton
+                    action="redo"
+                    isIconOnly
+                    aria-label="Redo"
+                    tooltip="Redo"
+                  >
+                    <Redo2 size={15} aria-hidden="true" />
+                  </RichTextEditor.ActionButton>
+                </RichTextEditor.ToolbarGroup>
+              </RichTextEditor.Toolbar>
+              <RichTextEditor.Content className="min-h-48 px-4 py-3 text-sm leading-6" />
+            </RichTextEditor.Shell>
+          </RichTextEditor>
         </Card.Content>
       </Card>
     </main>
