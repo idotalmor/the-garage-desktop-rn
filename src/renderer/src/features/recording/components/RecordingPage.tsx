@@ -8,7 +8,7 @@ type RecordingPageProps = {
   onBack: () => void
 }
 
-const waveformHeights = Array.from({ length: 64 }, (_, index) => 8 + ((index * 7) % 15))
+const waveformHeights = Array.from({ length: 96 }, (_, index) => 6 + ((index * 7) % 13))
 
 function formatDuration(seconds: number): string {
   const minutes = Math.floor(seconds / 60)
@@ -39,12 +39,12 @@ export function RecordingPage({ onBack }: RecordingPageProps): React.JSX.Element
       </Button>
 
       <div className="mb-8">
-        <div className="flex min-w-0 items-center gap-2 rounded-2xl bg-surface-secondary p-3 sm:gap-3 sm:p-4">
+        <div className="flex min-w-0 items-center gap-2 rounded-2xl bg-black p-3 text-white sm:gap-3 sm:p-4">
           <Button
             isIconOnly
             size="sm"
-            variant="danger-soft"
-            className="size-9 shrink-0 rounded-full"
+            variant="ghost"
+            className="size-9 shrink-0 rounded-md bg-danger text-danger-foreground hover:bg-danger/85"
             onPress={() => setIsRecording(false)}
             aria-label="Stop recording"
           >
@@ -53,8 +53,8 @@ export function RecordingPage({ onBack }: RecordingPageProps): React.JSX.Element
           <Button
             isIconOnly
             size="sm"
-            variant="secondary"
-            className="size-9 shrink-0 rounded-full"
+            variant="ghost"
+            className="size-9 shrink-0 rounded-md text-white hover:bg-white/10"
             onPress={() => setIsRecording((recording) => !recording)}
             aria-label={isRecording ? 'Pause recording' : 'Resume recording'}
           >
@@ -64,9 +64,9 @@ export function RecordingPage({ onBack }: RecordingPageProps): React.JSX.Element
               <Play size={15} aria-hidden="true" />
             )}
           </Button>
-          <div className="min-w-0 flex-1 px-2 sm:px-4">
+          <div className="flex min-w-0 flex-1 items-center gap-3 px-2 sm:px-4">
             <div
-              className="recording-wave flex h-5 w-full items-center justify-between gap-0.5"
+              className="recording-wave flex h-5 min-w-0 flex-1 items-center justify-between gap-0.5"
               aria-label="Recording audio waveform"
               role="img"
             >
@@ -76,13 +76,13 @@ export function RecordingPage({ onBack }: RecordingPageProps): React.JSX.Element
                   className={isRecording ? 'recording-wave-bar' : 'h-1 rounded-full bg-danger/35'}
                   style={
                     isRecording
-                      ? { height: `${height}px`, animationDelay: `${index * 45}ms` }
+                      ? { height: `${height}px`, animationDelay: `${index * 30}ms` }
                       : undefined
                   }
                 />
               ))}
             </div>
-            <p className="mt-1 text-left font-mono text-xs tabular-nums text-muted">
+            <p className="shrink-0 font-mono text-xs tabular-nums text-white/65">
               {formatDuration(duration)}
             </p>
           </div>
