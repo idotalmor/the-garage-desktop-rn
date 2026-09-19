@@ -22,8 +22,8 @@ export function SplitView({ left, right, onClose }: SplitViewProps): React.JSX.E
   }
 
   return (
-    <div ref={containerRef} className="flex min-h-0 flex-1 overflow-hidden">
-      <div className="min-w-0 overflow-hidden" style={{ flex: `0 0 ${ratio * 100}%` }}>
+    <div ref={containerRef} className="flex min-h-0 min-w-0 flex-1 overflow-hidden">
+      <div className="min-h-0 min-w-0 overflow-hidden" style={{ flex: `0 0 ${ratio * 100}%` }}>
         {left}
       </div>
       <div
@@ -37,7 +37,7 @@ export function SplitView({ left, right, onClose }: SplitViewProps): React.JSX.E
       >
         <span className="absolute inset-y-0 -left-1 -right-1" />
       </div>
-      <div className="min-w-0 flex-1 overflow-hidden">{right}</div>
+      <div className="min-h-0 min-w-0 flex-1 overflow-hidden">{right}</div>
     </div>
   )
 }

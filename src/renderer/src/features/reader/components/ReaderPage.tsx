@@ -13,6 +13,8 @@ import {
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import { Button } from '@heroui/react'
 import { useFiles } from '../hooks/useFiles'
+import { useReaderTabs, type ReaderTab } from '../hooks/useReaderTabs'
+import { useCompact } from '../../../shared/hooks/useCompact'
 import type { MdFile, Tag as TagType } from '../../../../../shared/reader/types'
 import { ImportFilesModal } from './ImportFilesModal'
 import { ReaderDocument } from './ReaderDocument'
@@ -69,7 +71,10 @@ export function ReaderPage(): React.JSX.Element {
     path: string
   } | null>(null)
   const isStandaloneReader = new URLSearchParams(window.location.search).get('readerWindow') === '1'
+  const isCompact = useCompact()
+  const { visibleTabs } = useReaderTabs({ openFiles, split, active, pinnedPaths })
 
+  const isSidebarExpanded = isSidebarOpen && !isCompact
   const menuRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -209,22 +214,24 @@ export function ReaderPage(): React.JSX.Element {
   }
 
   const renderTabs = (): React.JSX.Element | null => {
-    if (openFiles.length === 0) return null
+    if (visibleTabs.length === 0) return null
 
-    const renderTab = (file: MdFile): React.JSX.Element => {
-      const pinned = pinnedPaths.includes(file.path)
+    const renderTab = (tab: ReaderTab): React.JSX.Element => {
+      const file = tab.files[0]
+      const isActive = tab.files.some((item) => item.path === active)
+      const isPinned = tab.files.every((item) => pinnedPaths.includes(item.path))
       return (
         <div
-          key={file.path}
-          role="button"
+          key={tab.id}
+          role="tab"
           tabIndex={0}
-          aria-selected={active === file.path}
-          className={`group flex h-7 max-w-[10rem] shrink-0 cursor-pointer items-center gap-1.5 rounded-md border px-2 text-[11px] transition-colors ${
-            pinned
-              ? active === file.path
+          aria-selected={isActive}
+          className={`group flex h-7 max-w-[14rem] shrink-0 cursor-pointer items-center gap-1.5 rounded-md border px-2 text-[11px] transition-colors ${
+            isPinned
+              ? isActive
                 ? 'border-violet-400/60 bg-violet-500/25 text-foreground'
                 : 'border-violet-400/40 bg-violet-500/15 text-foreground hover:bg-violet-500/25'
-              : active === file.path
+              : isActive
                 ? 'border-border bg-surface text-foreground'
                 : 'border-transparent text-muted hover:bg-surface hover:text-foreground'
           }`}
@@ -238,17 +245,19 @@ export function ReaderPage(): React.JSX.Element {
           }}
         >
           <FileText size={12} aria-hidden="true" />
-          <span className="truncate">{file.name}</span>
+          <span className="truncate">
+            {tab.isCombined ? tab.files.map((item) => item.name).join(' · ') : file.name}
+          </span>
           <button
             type="button"
-            className={`rounded p-0.5 hover:text-foreground ${pinned ? 'text-violet-300 opacity-100' : 'text-muted opacity-0 group-hover:opacity-100'}`}
+            className={`rounded p-0.5 hover:text-foreground ${isPinned ? 'text-violet-300 opacity-100' : 'text-muted opacity-0 group-hover:opacity-100'}`}
             onClick={(event) => {
               event.stopPropagation()
               togglePin(file.path)
             }}
-            aria-label={pinned ? `Unpin ${file.name}` : `Pin ${file.name}`}
+            aria-label={isPinned ? `Unpin ${file.name}` : `Pin ${file.name}`}
           >
-            {pinned ? (
+            {isPinned ? (
               <Pin size={12} aria-hidden="true" />
             ) : (
               <PinOff size={12} aria-hidden="true" />
@@ -259,9 +268,9 @@ export function ReaderPage(): React.JSX.Element {
             className="rounded p-0.5 text-muted opacity-0 hover:text-foreground group-hover:opacity-100"
             onClick={(event) => {
               event.stopPropagation()
-              handleCloseFile(file.path)
+              tab.files.forEach((item) => handleCloseFile(item.path))
             }}
-            aria-label={`Close ${file.name}`}
+            aria-label={`Close ${tab.isCombined ? 'split documents' : file.name}`}
           >
             <X size={12} aria-hidden="true" />
           </button>
@@ -269,32 +278,13 @@ export function ReaderPage(): React.JSX.Element {
       )
     }
 
-    const splitPaths = split ? new Set([split.left, split.right]) : new Set<string>()
-    const orderedFiles = [...openFiles].sort(
-      (a, b) => Number(pinnedPaths.includes(b.path)) - Number(pinnedPaths.includes(a.path))
-    )
-    const splitTabs = orderedFiles.filter((file) => splitPaths.has(file.path))
-    const regularTabs = orderedFiles.filter((file) => !splitPaths.has(file.path))
-    const splitIsPinned =
-      splitTabs.length > 0 && splitTabs.every((file) => pinnedPaths.includes(file.path))
-    const pinnedRegularTabs = regularTabs.filter((file) => pinnedPaths.includes(file.path))
-    const unpinnedRegularTabs = regularTabs.filter((file) => !pinnedPaths.includes(file.path))
-
-    const renderSplitTabs = (): React.JSX.Element | null =>
-      splitTabs.length > 0 ? (
-        <div
-          className={`flex items-center gap-0.5 rounded-lg border p-0.5 ${splitIsPinned ? 'border-violet-400/60 bg-violet-500/15' : 'border-border bg-surface-secondary'}`}
-        >
-          {splitTabs.map(renderTab)}
-        </div>
-      ) : null
-
     return (
-      <div className="flex items-center gap-1 border-b border-separator px-2 py-1.5">
-        {pinnedRegularTabs.map(renderTab)}
-        {splitIsPinned && renderSplitTabs()}
-        {unpinnedRegularTabs.map(renderTab)}
-        {!splitIsPinned && renderSplitTabs()}
+      <div
+        className="flex min-w-0 items-center gap-1 overflow-x-auto border-b border-separator px-2 py-1.5"
+        role="tablist"
+        aria-label="Open documents"
+      >
+        {visibleTabs.map(renderTab)}
       </div>
     )
   }
@@ -344,20 +334,20 @@ export function ReaderPage(): React.JSX.Element {
       {isStandaloneReader && <ReaderWindowChrome />}
       <div className="flex min-h-0 flex-1 overflow-hidden border-y border-separator">
         <aside
-          className={`flex shrink-0 flex-col border-r border-separator py-3 transition-[width,padding] duration-200 ${isSidebarOpen ? 'w-52' : 'w-12'}`}
+          className={`flex shrink-0 flex-col border-r border-separator py-3 transition-[width,padding] duration-200 ${isSidebarExpanded ? 'w-52' : 'w-12'}`}
           aria-label="Markdown files"
         >
           <div
-            className={`flex items-center px-2 ${isSidebarOpen ? 'justify-between' : 'justify-center'}`}
+            className={`flex items-center px-2 ${isSidebarExpanded ? 'justify-between' : 'justify-center'}`}
           >
-            {isSidebarOpen && (
+            {isSidebarExpanded && (
               <div>
                 <p className="text-xs font-semibold">Files</p>
                 <p className="mt-0.5 text-[11px] text-muted">{files.length} opened</p>
               </div>
             )}
             <div className="flex items-center gap-1">
-              {isSidebarOpen && (
+              {isSidebarExpanded && (
                 <Button
                   isIconOnly
                   size="sm"
@@ -374,10 +364,10 @@ export function ReaderPage(): React.JSX.Element {
                 size="sm"
                 variant="ghost"
                 className="size-6 rounded-lg text-muted"
-                aria-label={isSidebarOpen ? 'Collapse files sidebar' : 'Expand files sidebar'}
+                aria-label={isSidebarExpanded ? 'Collapse files sidebar' : 'Expand files sidebar'}
                 onPress={() => setIsSidebarOpen((open) => !open)}
               >
-                {isSidebarOpen ? (
+                {isSidebarExpanded ? (
                   <PanelLeftClose size={14} aria-hidden="true" />
                 ) : (
                   <PanelLeftOpen size={14} aria-hidden="true" />
@@ -386,7 +376,7 @@ export function ReaderPage(): React.JSX.Element {
             </div>
           </div>
 
-          {isSidebarOpen && (
+          {isSidebarExpanded && (
             <div className="mt-4 min-h-0 flex-1 overflow-y-auto pr-1">
               <div className="mb-3">
                 <div className="flex items-center gap-1 overflow-x-auto px-2 py-1">
@@ -458,7 +448,7 @@ export function ReaderPage(): React.JSX.Element {
           )}
         </aside>
 
-        <section className="flex min-w-0 flex-1 flex-col" aria-label="Markdown preview">
+        <section className="flex min-h-0 min-w-0 flex-1 flex-col" aria-label="Artifactory preview">
           {renderTabs()}
 
           {isEditing ? (

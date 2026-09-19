@@ -64,7 +64,7 @@ export function createReaderWindow(): BrowserWindow {
   const readerWindow = new BrowserWindow({
     width: 1200,
     height: 800,
-    title: 'Reader',
+    title: 'Artifactory',
     autoHideMenuBar: true,
     ...(process.platform === 'darwin'
       ? { titleBarStyle: 'hidden', trafficLightPosition: { x: 14, y: 14 } }
