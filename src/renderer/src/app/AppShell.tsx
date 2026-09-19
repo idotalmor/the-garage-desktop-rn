@@ -22,19 +22,19 @@ function openMain(): void {
 function RadialRecordIcon(): React.JSX.Element {
   return (
     <svg viewBox="0 0 24 24" width="16" height="16" fill="none" aria-hidden="true">
-      <g stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
-        <path d="M12 2v3" />
-        <path d="M16.9 3.3 15.4 6" />
-        <path d="m20.7 7-2.6 1.5" />
-        <path d="M22 12h-3" />
-        <path d="m20.7 17-2.6-1.5" />
-        <path d="m16.9 20.7-1.5-2.7" />
-        <path d="M12 22v-3" />
-        <path d="m7.1 20.7 1.5-2.7" />
-        <path d="m3.3 17 2.6-1.5" />
-        <path d="M2 12h3" />
-        <path d="m3.3 7 2.6 1.5" />
-        <path d="M7.1 3.3 8.6 6" />
+      <g stroke="#9CA3AF" strokeWidth="2" strokeLinecap="butt">
+        <path d="M12 0 L12 3.5" />
+        <path d="M18 1.6 L16.3 4.6" />
+        <path d="M22.4 6 L19.4 7.8" />
+        <path d="M24 12 L20.5 12" />
+        <path d="M22.4 18 L19.4 16.3" />
+        <path d="M18 22.4 L16.3 19.4" />
+        <path d="M12 24 L12 20.5" />
+        <path d="M6 22.4 L7.8 19.4" />
+        <path d="M1.6 18 L4.6 16.3" />
+        <path d="M0 12 L3.5 12" />
+        <path d="M1.6 6 L4.6 7.8" />
+        <path d="M6 1.6 L7.8 4.6" />
       </g>
       <circle cx="12" cy="12" r="3" fill="currentColor" />
     </svg>
@@ -152,7 +152,7 @@ export function AppShell(): React.JSX.Element {
               onPress={() => setView('recording')}
               aria-label="Start recording with microphone waves"
             >
-              <MicAudioLines size={15} aria-hidden="true" />
+              <MicAudioLines size={18} aria-hidden="true" />
             </Button>
             <Button
               isIconOnly
