@@ -1,4 +1,4 @@
-import { ArrowLeft, MicAudioLines } from 'lucide-react'
+import { ArrowLeft, MicAudioLines, Pause, Play, Square } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Button } from '@heroui/react'
 import { PageHeader } from '../../../shared/components/PageHeader'
@@ -9,6 +9,12 @@ type RecordingPageProps = {
 }
 
 type Recording = {
+  id: number
+  title: string
+  duration: number
+}
+
+type PendingRecording = {
   id: number
   title: string
   duration: number
@@ -54,15 +60,17 @@ function RecordingCard({
   onTogglePause: () => void
 }): React.JSX.Element {
   return (
-    <div className="flex min-w-0 items-center gap-1 rounded-2xl bg-black p-3 text-white sm:p-4">
+    <div className="flex min-h-16 min-w-0 items-center gap-1 rounded-2xl bg-black p-3 text-white sm:p-4">
       <Button
         isIconOnly
         size="sm"
         variant="ghost"
-        className="size-4 shrink-0s rounded-sm border-0 bg-danger p-0 hover:bg-danger/85"
+        className="size-6 shrink-0 rounded-sm border-0 bg-danger p-0 text-danger-foreground hover:bg-danger/85"
         onPress={onStop}
         aria-label="Stop recording"
-      />
+      >
+        <Square size={11} fill="currentColor" strokeWidth={0} aria-hidden="true" />
+      </Button>
       <Button
         isIconOnly
         size="sm"
@@ -72,15 +80,9 @@ function RecordingCard({
         aria-label={isRecording ? 'Pause recording' : 'Resume recording'}
       >
         {isRecording ? (
-          <span className="flex items-center gap-0.5" aria-hidden="true">
-            <span className="h-3 w-1 rounded-[1px] bg-current" />
-            <span className="h-3 w-1 rounded-[1px] bg-current" />
-          </span>
+          <Pause size={12} fill="currentColor" strokeWidth={2.5} aria-hidden="true" />
         ) : (
-          <span
-            className="ml-0.5 border-y-[4px] border-l-[6px] border-y-transparent border-l-current"
-            aria-hidden="true"
-          />
+          <Play size={12} fill="currentColor" strokeWidth={0} aria-hidden="true" />
         )}
       </Button>
       <div className="flex min-w-0 flex-1 items-center gap-3 px-2 sm:px-4">
@@ -103,34 +105,24 @@ function SavedRecordingCard({
   onPlay: () => void
 }): React.JSX.Element {
   return (
-    <div className="flex items-center gap-3 rounded-2xl bg-danger p-3 text-danger-foreground shadow-sm">
+    <div className="flex w-40 shrink-0 items-center gap-2 rounded-xl bg-black p-2.5 text-white">
       <Button
         isIconOnly
         size="sm"
         variant="ghost"
-        className="size-7 shrink-0 rounded-md bg-white/15 text-danger-foreground hover:bg-white/25"
+        className="size-6 shrink-0 rounded-md bg-white/10 text-white hover:bg-white/20"
         onPress={onPlay}
         aria-label={isPlaying ? `Pause ${recording.title}` : `Play ${recording.title}`}
       >
-        <span
-          className={
-            isPlaying
-              ? 'flex items-center gap-0.5'
-              : 'ml-0.5 border-y-[4px] border-l-[6px] border-y-transparent border-l-current'
-          }
-          aria-hidden="true"
-        >
-          {isPlaying && (
-            <>
-              <span className="h-3 w-1 rounded-[1px] bg-current" />
-              <span className="h-3 w-1 rounded-[1px] bg-current" />
-            </>
-          )}
-        </span>
+        {isPlaying ? (
+          <Pause size={11} fill="currentColor" strokeWidth={2.5} aria-hidden="true" />
+        ) : (
+          <Play size={11} fill="currentColor" strokeWidth={0} aria-hidden="true" />
+        )}
       </Button>
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-medium">{recording.title}</p>
-        <p className="mt-0.5 font-mono text-xs tabular-nums text-danger-foreground/70">
+      <div className="min-w-0">
+        <p className="truncate text-xs font-medium">{recording.title}</p>
+        <p className="mt-0.5 font-mono text-[10px] tabular-nums text-white/55">
           {formatDuration(recording.duration)}
         </p>
       </div>
@@ -138,9 +130,49 @@ function SavedRecordingCard({
   )
 }
 
+function PendingRecordingCard({
+  recording,
+  onTitleChange,
+  onSave
+}: {
+  recording: PendingRecording
+  onTitleChange: (title: string) => void
+  onSave: () => void
+}): React.JSX.Element {
+  return (
+    <div className="flex min-h-16 min-w-0 items-center gap-2 rounded-2xl bg-black p-3 text-white sm:gap-3 sm:p-4">
+      <label htmlFor="recording-name" className="shrink-0 text-xs text-white/55">
+        Name:
+      </label>
+      <input
+        id="recording-name"
+        value={recording.title}
+        onChange={(event) => onTitleChange(event.target.value)}
+        placeholder="Meeting recording"
+        aria-label="Recording name"
+        className="h-8 min-w-0 flex-1 rounded-md border border-white/15 bg-white/5 px-2 text-sm text-white outline-none placeholder:text-white/35 focus:border-danger"
+        autoFocus
+      />
+      <p className="shrink-0 font-mono text-xs tabular-nums text-white/55">
+        {formatDuration(recording.duration)}
+      </p>
+      <Button
+        size="sm"
+        variant="danger"
+        className="h-8 shrink-0 rounded-md px-3 text-xs"
+        onPress={onSave}
+        isDisabled={!recording.title.trim()}
+      >
+        Save
+      </Button>
+    </div>
+  )
+}
+
 export function RecordingPage({ onBack }: RecordingPageProps): React.JSX.Element {
   const [isRecording, setIsRecording] = useState(true)
   const [duration, setDuration] = useState(0)
+  const [pendingRecording, setPendingRecording] = useState<PendingRecording | null>(null)
   const [recordings, setRecordings] = useState<Recording[]>([])
   const [playingId, setPlayingId] = useState<number | null>(null)
 
@@ -152,17 +184,24 @@ export function RecordingPage({ onBack }: RecordingPageProps): React.JSX.Element
 
   const finishRecording = (): void => {
     setIsRecording(false)
+    setPendingRecording({
+      id: Date.now(),
+      title: '',
+      duration
+    })
+  }
+
+  const saveRecording = (): void => {
+    if (!pendingRecording?.title.trim()) return
     setRecordings((current) => [
       ...current,
-      {
-        id: Date.now(),
-        title: `Meeting recording ${current.length + 1}`,
-        duration
-      }
+      { ...pendingRecording, title: pendingRecording.title.trim() }
     ])
+    setPendingRecording(null)
   }
 
   const startRecording = (): void => {
+    if (pendingRecording) return
     setDuration(0)
     setIsRecording(true)
   }
@@ -180,17 +219,19 @@ export function RecordingPage({ onBack }: RecordingPageProps): React.JSX.Element
       </Button>
 
       <div className="mb-8">
-        <div className="flex min-w-0 flex-wrap items-start gap-2 sm:flex-nowrap sm:gap-3">
-          <Button
-            isIconOnly
-            size="sm"
-            variant="ghost"
-            className="size-8 shrink-0 rounded-md bg-danger text-danger-foreground hover:bg-danger/85"
-            onPress={startRecording}
-            aria-label="Start a new recording"
-          >
-            <MicAudioLines size={15} aria-hidden="true" />
-          </Button>
+        <div className="flex min-w-0 items-start gap-2 sm:gap-3">
+          {!isRecording && !pendingRecording && (
+            <Button
+              isIconOnly
+              size="sm"
+              variant="ghost"
+              className="size-8 shrink-0 rounded-full bg-danger text-danger-foreground hover:bg-danger/85"
+              onPress={startRecording}
+              aria-label="Start a new recording"
+            >
+              <MicAudioLines size={15} aria-hidden="true" />
+            </Button>
+          )}
           <div className="min-w-0 flex-1">
             {isRecording && (
               <RecordingCard
@@ -200,21 +241,35 @@ export function RecordingPage({ onBack }: RecordingPageProps): React.JSX.Element
                 onTogglePause={() => setIsRecording((recording) => !recording)}
               />
             )}
+            {!isRecording && pendingRecording && (
+              <PendingRecordingCard
+                recording={pendingRecording}
+                onTitleChange={(title) =>
+                  setPendingRecording((current) => current && { ...current, title })
+                }
+                onSave={saveRecording}
+              />
+            )}
+            {recordings.length > 0 && (
+              <div
+                className="mt-3 rounded-2xl bg-surface-secondary p-3"
+                aria-label="Saved recordings"
+              >
+                <div className="flex flex-wrap gap-2">
+                  {recordings.map((recording) => (
+                    <SavedRecordingCard
+                      key={recording.id}
+                      recording={recording}
+                      isPlaying={playingId === recording.id}
+                      onPlay={() =>
+                        setPlayingId((current) => (current === recording.id ? null : recording.id))
+                      }
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
-          {recordings.length > 0 && (
-            <aside className="w-full shrink-0 space-y-2 sm:w-64" aria-label="Saved recordings">
-              {recordings.map((recording) => (
-                <SavedRecordingCard
-                  key={recording.id}
-                  recording={recording}
-                  isPlaying={playingId === recording.id}
-                  onPlay={() =>
-                    setPlayingId((current) => (current === recording.id ? null : recording.id))
-                  }
-                />
-              ))}
-            </aside>
-          )}
         </div>
       </div>
 

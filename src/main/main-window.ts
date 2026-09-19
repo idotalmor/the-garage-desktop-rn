@@ -2,8 +2,10 @@ import { app, shell, BrowserWindow } from 'electron'
 import { join } from 'path'
 import { is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
+import type { OpenWindow } from '../shared/window-channels'
 
 let mainWindow: BrowserWindow | null = null
+const appWindows = new Set<BrowserWindow>()
 const readerWindows = new Set<BrowserWindow>()
 
 function configureWindow(window: BrowserWindow): BrowserWindow {
@@ -11,6 +13,8 @@ function configureWindow(window: BrowserWindow): BrowserWindow {
     shell.openExternal(details.url)
     return { action: 'deny' }
   })
+  appWindows.add(window)
+  window.on('closed', () => appWindows.delete(window))
   return window
 }
 
@@ -25,8 +29,8 @@ function loadRenderer(window: BrowserWindow, query = ''): void {
   }
 }
 
-export function createMainWindow(): BrowserWindow {
-  mainWindow = new BrowserWindow({
+function createWorkspaceWindow(): BrowserWindow {
+  const window = new BrowserWindow({
     width: 900,
     height: 670,
     show: false,
@@ -45,19 +49,46 @@ export function createMainWindow(): BrowserWindow {
     }
   })
 
-  configureWindow(mainWindow)
-  loadRenderer(mainWindow)
+  configureWindow(window)
+  loadRenderer(window)
+  return window
+}
 
+export function createMainWindow(): BrowserWindow {
+  mainWindow = createWorkspaceWindow()
   mainWindow.on('closed', () => {
     mainWindow = null
     if (process.platform === 'darwin') app.dock?.hide()
   })
-
   return mainWindow
+}
+
+export function createDuplicateWindow(): BrowserWindow {
+  const window = createWorkspaceWindow()
+  window.once('ready-to-show', () => window.show())
+  return window
 }
 
 export function getMainWindow(): BrowserWindow | null {
   return mainWindow
+}
+
+export function listAppWindows(): OpenWindow[] {
+  return Array.from(appWindows)
+    .filter((window) => !window.isDestroyed())
+    .map((window) => ({
+      id: window.id,
+      title: window.getTitle() || 'The Orchestrator',
+      isFocused: window.isFocused()
+    }))
+}
+
+export function focusAppWindow(id: number): void {
+  const window = Array.from(appWindows).find((item) => item.id === id && !item.isDestroyed())
+  if (!window) return
+  if (window.isMinimized()) window.restore()
+  window.show()
+  window.focus()
 }
 
 export function createReaderWindow(): BrowserWindow {

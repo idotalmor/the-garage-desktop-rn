@@ -1,6 +1,13 @@
 import { app, ipcMain, BrowserWindow, Menu } from 'electron'
 import { electronApp, optimizer } from '@electron-toolkit/utils'
-import { createMainWindow, createReaderWindow } from './main-window'
+import {
+  createDuplicateWindow,
+  createMainWindow,
+  createReaderWindow,
+  focusAppWindow,
+  listAppWindows
+} from './main-window'
+import { WindowChannel } from '../shared/window-channels'
 import { createTray, focusMainOrCreate, hidePopover } from './popover'
 import { initNotesIpc } from './notes'
 import { initFilesIpc } from './files'
@@ -46,6 +53,17 @@ app.whenReady().then(() => {
 
   ipcMain.on('files:expand', () => {
     createReaderWindow()
+  })
+
+  ipcMain.handle(WindowChannel.Duplicate, () => {
+    const window = createDuplicateWindow()
+    return window.id
+  })
+
+  ipcMain.handle(WindowChannel.List, () => listAppWindows())
+
+  ipcMain.on(WindowChannel.Focus, (_, id: number) => {
+    focusAppWindow(id)
   })
 
   initNotesIpc()

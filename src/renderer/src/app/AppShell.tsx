@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Brain, MicAudioLines, Moon, Settings, Sun, X } from 'lucide-react'
+import { Brain, ChevronDown, Copy, MicAudioLines, Moon, Settings, Sun, X } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import { Button } from '@heroui/react'
 import { PromptInput } from '@heroui-pro/react'
@@ -14,6 +14,7 @@ import { NewsletterPage } from '../features/newsletter/components/NewsletterPage
 import { CodeExplorerPage } from '../features/code-explorer/components/CodeExplorerPage'
 import { ReaderPage } from '../features/reader/ReaderPage'
 import { RecordingPage } from '../features/recording/components/RecordingPage'
+import { WindowChannel, type OpenWindow } from '../../../shared/window-channels'
 
 function openMain(): void {
   window.electron.ipcRenderer.send('app:open-main')
@@ -57,6 +58,8 @@ export function AppShell(): React.JSX.Element {
   const [prompt, setPrompt] = useState('')
   const [promptIndex, setPromptIndex] = useState(0)
   const [isPromptOpen, setIsPromptOpen] = useState(false)
+  const [isWindowMenuOpen, setIsWindowMenuOpen] = useState(false)
+  const [openWindows, setOpenWindows] = useState<OpenWindow[]>([])
   const [isContentScrolled, setIsContentScrolled] = useState(false)
 
   useEffect(() => {
@@ -66,6 +69,20 @@ export function AppShell(): React.JSX.Element {
 
     return () => window.clearInterval(timer)
   }, [])
+
+  useEffect(() => {
+    if (!isWindowMenuOpen) return
+
+    const refreshWindows = (): void => {
+      void window.electron.ipcRenderer
+        .invoke(WindowChannel.List)
+        .then((windows) => setOpenWindows(windows as OpenWindow[]))
+    }
+
+    refreshWindows()
+    const timer = window.setInterval(refreshWindows, 1000)
+    return () => window.clearInterval(timer)
+  }, [isWindowMenuOpen])
 
   const cycleTheme = (): void => {
     setTheme(theme === 'dark' ? 'light' : theme === 'light' ? 'system' : 'dark')
@@ -179,6 +196,60 @@ export function AppShell(): React.JSX.Element {
             <span key={promptIndex} className="prompt-example min-w-0 truncate text-xs text-muted">
               {prompt || promptExamples[promptIndex]}
             </span>
+          </div>
+        </div>
+        <div className="absolute right-3 flex items-center gap-1">
+          <Button
+            isIconOnly
+            size="sm"
+            variant="ghost"
+            className="size-7 rounded-md text-muted hover:text-foreground"
+            onPress={() => void window.electron.ipcRenderer.invoke(WindowChannel.Duplicate)}
+            aria-label="Open duplicate window"
+          >
+            <Copy size={15} aria-hidden="true" />
+          </Button>
+          <div className="relative">
+            <Button
+              isIconOnly
+              size="sm"
+              variant="ghost"
+              className="size-7 rounded-md text-muted hover:text-foreground"
+              onPress={() => setIsWindowMenuOpen((open) => !open)}
+              aria-label="Show open windows"
+              aria-expanded={isWindowMenuOpen}
+            >
+              <ChevronDown size={15} aria-hidden="true" />
+            </Button>
+            {isWindowMenuOpen && (
+              <div
+                className="absolute right-0 top-8 z-50 w-56 rounded-xl border border-border bg-overlay p-1.5 shadow-overlay"
+                role="menu"
+                aria-label="Open windows"
+              >
+                {openWindows.length > 0 ? (
+                  openWindows.map((openWindow, index) => (
+                    <button
+                      key={openWindow.id}
+                      type="button"
+                      className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-xs text-foreground hover:bg-surface-secondary"
+                      role="menuitem"
+                      onClick={() => {
+                        window.electron.ipcRenderer.send(WindowChannel.Focus, openWindow.id)
+                        setIsWindowMenuOpen(false)
+                      }}
+                    >
+                      <span className="truncate">{`${openWindow.title} ${index + 1}`}</span>
+                      {openWindow.isFocused && (
+                        <span className="ml-2 size-1.5 shrink-0 rounded-full bg-accent" />
+                      )}
+                    </button>
+                  ))
+                ) : (
+                  <p className="px-3 py-2 text-xs text-muted">No open windows</p>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>
