@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Brain, Moon, Settings, Sun, X } from 'lucide-react'
+import { Brain, Circle, Moon, Plus, Settings, Sun, X } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import { Button } from '@heroui/react'
 import { PromptInput } from '@heroui-pro/react'
@@ -34,6 +34,7 @@ export function AppShell(): React.JSX.Element {
   const [prompt, setPrompt] = useState('')
   const [promptIndex, setPromptIndex] = useState(0)
   const [isPromptOpen, setIsPromptOpen] = useState(false)
+  const [isRecording, setIsRecording] = useState(false)
   const [isContentScrolled, setIsContentScrolled] = useState(false)
 
   useEffect(() => {
@@ -131,6 +132,31 @@ export function AppShell(): React.JSX.Element {
           <span key={promptIndex} className="prompt-example min-w-0 truncate text-xs text-muted">
             {prompt || promptExamples[promptIndex]}
           </span>
+        </div>
+        <div className="window-top-actions absolute right-3 flex items-center gap-1">
+          <Button
+            isIconOnly
+            size="sm"
+            variant="ghost"
+            className={`size-7 rounded-md ${isRecording ? 'bg-danger text-danger-foreground animate-pulse' : 'text-danger hover:bg-danger/15'}`}
+            onPress={() => setIsRecording((recording) => !recording)}
+            aria-label={isRecording ? 'Stop recording' : 'Start recording'}
+          >
+            <Circle size={13} fill="currentColor" aria-hidden="true" />
+          </Button>
+          <Button
+            isIconOnly
+            size="sm"
+            variant="ghost"
+            className="size-7 rounded-md text-muted hover:text-foreground"
+            onPress={() => {
+              setPrompt('')
+              setIsPromptOpen(true)
+            }}
+            aria-label="Create new prompt"
+          >
+            <Plus size={15} aria-hidden="true" />
+          </Button>
         </div>
       </div>
       {isPromptOpen && (
