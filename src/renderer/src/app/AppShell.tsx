@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Brain, Circle, Moon, Plus, Settings, Sun, X } from 'lucide-react'
+import { Brain, MicAudioLines, Moon, Plus, Settings, Sun, X } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import { Button } from '@heroui/react'
 import { PromptInput } from '@heroui-pro/react'
@@ -118,45 +118,47 @@ export function AppShell(): React.JSX.Element {
       <div
         className={`window-drag-region app-top-bar fixed inset-x-0 top-0 z-30 flex h-10 items-center bg-background/60 backdrop-blur-md ${isContentScrolled ? 'is-scrolled' : ''}`}
       >
-        <div
-          className="window-prompt-bar absolute left-1/2 flex h-7 w-[min(420px,calc(100vw-8rem))] -translate-x-1/2 items-center gap-1.5 rounded-md border border-border/60 bg-transparent px-2 text-xs"
-          role="button"
-          tabIndex={0}
-          aria-label="Open command prompt"
-          onClick={() => setIsPromptOpen(true)}
-          onKeyDown={(event) => {
-            if (event.key === 'Enter' || event.key === ' ') setIsPromptOpen(true)
-          }}
-        >
-          <Brain size={13} className="shrink-0 text-foreground/60" aria-hidden={true} />
-          <span key={promptIndex} className="prompt-example min-w-0 truncate text-xs text-muted">
-            {prompt || promptExamples[promptIndex]}
-          </span>
-        </div>
-        <div className="window-top-actions absolute right-3 flex items-center gap-1">
-          <Button
-            isIconOnly
-            size="sm"
-            variant="ghost"
-            className={`size-7 rounded-md ${isRecording ? 'bg-danger text-danger-foreground animate-pulse' : 'text-danger hover:bg-danger/15'}`}
-            onPress={() => setIsRecording((recording) => !recording)}
-            aria-label={isRecording ? 'Stop recording' : 'Start recording'}
-          >
-            <Circle size={13} fill="currentColor" aria-hidden="true" />
-          </Button>
-          <Button
-            isIconOnly
-            size="sm"
-            variant="ghost"
-            className="size-7 rounded-md text-muted hover:text-foreground"
-            onPress={() => {
-              setPrompt('')
-              setIsPromptOpen(true)
+        <div className="absolute left-1/2 flex h-7 w-[min(500px,calc(100vw-2rem))] -translate-x-1/2 items-center gap-1">
+          <div className="window-top-actions flex shrink-0 items-center gap-1">
+            <Button
+              isIconOnly
+              size="sm"
+              variant="ghost"
+              className={`size-7 rounded-full ${isRecording ? 'animate-pulse bg-danger text-danger-foreground' : 'border border-danger/60 text-danger hover:bg-danger/15'}`}
+              onPress={() => setIsRecording((recording) => !recording)}
+              aria-label={isRecording ? 'Stop recording' : 'Start recording'}
+            >
+              <MicAudioLines size={15} aria-hidden="true" />
+            </Button>
+            <Button
+              isIconOnly
+              size="sm"
+              variant="ghost"
+              className="size-7 rounded-md text-muted hover:text-foreground"
+              onPress={() => {
+                setPrompt('')
+                setIsPromptOpen(true)
+              }}
+              aria-label="Create new prompt"
+            >
+              <Plus size={15} aria-hidden="true" />
+            </Button>
+          </div>
+          <div
+            className="window-prompt-bar flex min-w-0 flex-1 items-center gap-1.5 rounded-md border border-border/60 bg-transparent px-2 text-xs"
+            role="button"
+            tabIndex={0}
+            aria-label="Open command prompt"
+            onClick={() => setIsPromptOpen(true)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' || event.key === ' ') setIsPromptOpen(true)
             }}
-            aria-label="Create new prompt"
           >
-            <Plus size={15} aria-hidden="true" />
-          </Button>
+            <Brain size={13} className="shrink-0 text-foreground/60" aria-hidden={true} />
+            <span key={promptIndex} className="prompt-example min-w-0 truncate text-xs text-muted">
+              {prompt || promptExamples[promptIndex]}
+            </span>
+          </div>
         </div>
       </div>
       {isPromptOpen && (
