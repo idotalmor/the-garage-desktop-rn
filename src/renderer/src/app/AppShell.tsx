@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Brain, MicAudioLines, Moon, Plus, Settings, Sun, X } from 'lucide-react'
+import { Brain, MicAudioLines, Moon, Settings, Sun, X } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import { Button } from '@heroui/react'
 import { PromptInput } from '@heroui-pro/react'
@@ -13,6 +13,7 @@ import { NotesPage } from '../features/notes/components/NotesPage'
 import { NewsletterPage } from '../features/newsletter/components/NewsletterPage'
 import { CodeExplorerPage } from '../features/code-explorer/components/CodeExplorerPage'
 import { ReaderPage } from '../features/reader/ReaderPage'
+import { RecordingPage } from '../features/recording/components/RecordingPage'
 
 function openMain(): void {
   window.electron.ipcRenderer.send('app:open-main')
@@ -34,7 +35,6 @@ export function AppShell(): React.JSX.Element {
   const [prompt, setPrompt] = useState('')
   const [promptIndex, setPromptIndex] = useState(0)
   const [isPromptOpen, setIsPromptOpen] = useState(false)
-  const [isRecording, setIsRecording] = useState(false)
   const [isContentScrolled, setIsContentScrolled] = useState(false)
 
   useEffect(() => {
@@ -62,6 +62,8 @@ export function AppShell(): React.JSX.Element {
       <NewsletterPage />
     ) : view === 'code-explorer' ? (
       <CodeExplorerPage />
+    ) : view === 'recording' ? (
+      <RecordingPage onBack={() => setView('home')} />
     ) : (
       <DashboardHome />
     )
@@ -124,24 +126,11 @@ export function AppShell(): React.JSX.Element {
               isIconOnly
               size="sm"
               variant="ghost"
-              className={`size-7 rounded-full ${isRecording ? 'animate-pulse bg-danger text-danger-foreground' : 'border border-danger/60 text-danger hover:bg-danger/15'}`}
-              onPress={() => setIsRecording((recording) => !recording)}
-              aria-label={isRecording ? 'Stop recording' : 'Start recording'}
+              className="size-7 rounded-full border border-danger/60 text-danger hover:bg-danger/15"
+              onPress={() => setView('recording')}
+              aria-label="Start recording"
             >
               <MicAudioLines size={15} aria-hidden="true" />
-            </Button>
-            <Button
-              isIconOnly
-              size="sm"
-              variant="ghost"
-              className="size-7 rounded-md text-muted hover:text-foreground"
-              onPress={() => {
-                setPrompt('')
-                setIsPromptOpen(true)
-              }}
-              aria-label="Create new prompt"
-            >
-              <Plus size={15} aria-hidden="true" />
             </Button>
           </div>
           <div

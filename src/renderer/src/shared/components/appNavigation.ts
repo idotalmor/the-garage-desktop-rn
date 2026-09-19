@@ -19,6 +19,7 @@ export type AppView =
   | 'artifactory'
   | 'newsletter'
   | 'code-explorer'
+  | 'recording'
   | 'settings'
 
 export const navItems = [
