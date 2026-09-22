@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Brain, ChevronDown, Copy, MicAudioLines, Moon, Settings, Sun, X } from 'lucide-react'
+import { Brain, ChevronDown, Copy, Moon, Settings, Sun, X } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import { Button } from '@heroui/react'
 import { PromptInput } from '@heroui-pro/react'
@@ -17,24 +17,11 @@ import { RecordingPage } from '../features/recording/components/RecordingPage'
 import { WindowChannel, type OpenWindow } from '../../../shared/window-channels'
 import { WindowDragRegion } from '../shared/components/WindowDragRegion'
 
-function RadialRecordIcon(): React.JSX.Element {
+function RecordDotIcon(): React.JSX.Element {
   return (
     <svg viewBox="0 0 24 24" width="16" height="16" fill="none" aria-hidden="true">
-      <g stroke="#9CA3AF" strokeWidth="2" strokeLinecap="butt">
-        <path d="M12 0 L12 3.5" />
-        <path d="M18 1.6 L16.3 4.6" />
-        <path d="M22.4 6 L19.4 7.8" />
-        <path d="M24 12 L20.5 12" />
-        <path d="M22.4 18 L19.4 16.3" />
-        <path d="M18 22.4 L16.3 19.4" />
-        <path d="M12 24 L12 20.5" />
-        <path d="M6 22.4 L7.8 19.4" />
-        <path d="M1.6 18 L4.6 16.3" />
-        <path d="M0 12 L3.5 12" />
-        <path d="M1.6 6 L4.6 7.8" />
-        <path d="M6 1.6 L7.8 4.6" />
-      </g>
-      <circle cx="12" cy="12" r="3" fill="currentColor" />
+      <circle cx="12" cy="12" r="11" stroke="#9CA3AF" strokeWidth="1" />
+      <circle cx="12" cy="12" r="7" fill="#EF4444" />
     </svg>
   )
 }
@@ -118,21 +105,11 @@ export function AppShell(): React.JSX.Element {
             isIconOnly
             size="sm"
             variant="ghost"
-            className="size-7 rounded-full border border-danger/60 text-danger hover:bg-danger/15"
+            className="size-7 rounded-full"
             onPress={() => setView('recording')}
-            aria-label="Start recording with microphone waves"
+            aria-label="Start recording"
           >
-            <MicAudioLines size={18} aria-hidden="true" />
-          </Button>
-          <Button
-            isIconOnly
-            size="sm"
-            variant="ghost"
-            className="size-7 rounded-full bg-danger/10 text-danger hover:bg-danger/20"
-            onPress={() => setView('recording')}
-            aria-label="Start recording with radial waves"
-          >
-            <RadialRecordIcon />
+            <RecordDotIcon />
           </Button>
         </div>
         <div
