@@ -52,7 +52,7 @@ These existing features can connect to the Git work:
 
 - **Dashboard** (`DashboardHome`) — main command center with prompt input
 - **Notes** (`NotesPage`) — can host the artifact/context files mentioned above
-- **Reader** (`ReaderPage`) — for reading linked Markdown artifacts
+- **Artifactory** (`ArtifactoryPage`) — for reading linked Markdown artifacts
 - **Code Explorer** (`CodeExplorerPage`) — cross-repo docs/podcast context
 - **Newsletter** (`NewsletterPage`) — for announcing shipped PRs
 

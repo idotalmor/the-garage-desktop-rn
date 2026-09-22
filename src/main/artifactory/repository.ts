@@ -2,7 +2,7 @@ import { app } from 'electron'
 import { existsSync, mkdirSync } from 'fs'
 import { join } from 'path'
 import Database from 'better-sqlite3'
-import type { MdFile, Tag } from '../../shared/reader/types'
+import type { MdFile, Tag } from '../../shared/artifactory/types'
 
 type StoredFile = Omit<MdFile, 'tags'> & { tags: string }
 
@@ -12,9 +12,9 @@ function getDb(): Database.Database {
   if (db) return db
   const directory = join(app.getPath('home'), '.devflow')
   if (!existsSync(directory)) mkdirSync(directory, { recursive: true })
-  db = new Database(join(directory, 'reader.db'))
+  db = new Database(join(directory, 'artifactory.db'))
   db.exec(`
-    CREATE TABLE IF NOT EXISTS reader_files (
+    CREATE TABLE IF NOT EXISTS artifactory_files (
       path TEXT PRIMARY KEY,
       name TEXT NOT NULL,
       content TEXT NOT NULL,
@@ -37,17 +37,17 @@ function toFile(row: StoredFile): MdFile {
   return { path: row.path, name: row.name, content: row.content, tags: parseTags(row.tags) }
 }
 
-export function listReaderFiles(): MdFile[] {
+export function listArtifactoryFiles(): MdFile[] {
   const rows = getDb()
-    .prepare('SELECT path, name, content, tags FROM reader_files ORDER BY updated_at DESC')
+    .prepare('SELECT path, name, content, tags FROM artifactory_files ORDER BY updated_at DESC')
     .all() as StoredFile[]
   return rows.map(toFile)
 }
 
-export function saveReaderFile(file: MdFile): MdFile {
+export function saveArtifactoryFile(file: MdFile): MdFile {
   getDb()
     .prepare(
-      `INSERT INTO reader_files (path, name, content, tags, updated_at)
+      `INSERT INTO artifactory_files (path, name, content, tags, updated_at)
        VALUES (?, ?, ?, ?, ?)
        ON CONFLICT(path) DO UPDATE SET
          name = excluded.name,
@@ -59,6 +59,6 @@ export function saveReaderFile(file: MdFile): MdFile {
   return file
 }
 
-export function removeReaderFile(path: string): void {
-  getDb().prepare('DELETE FROM reader_files WHERE path = ?').run(path)
+export function removeArtifactoryFile(path: string): void {
+  getDb().prepare('DELETE FROM artifactory_files WHERE path = ?').run(path)
 }

@@ -1,24 +1,24 @@
 import { app, dialog, ipcMain, shell } from 'electron'
 import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'fs'
 import { basename, extname, join } from 'path'
-import { ReaderChannel } from '../shared/reader/channels'
-import type { ImportMode, MdFile, Tag } from '../shared/reader/types'
-import { listReaderFiles, saveReaderFile } from './reader/repository'
+import { ArtifactoryChannel } from '../../shared/artifactory/channels'
+import type { ImportMode, MdFile, Tag } from '../../shared/artifactory/types'
+import { listArtifactoryFiles, saveArtifactoryFile } from './repository'
 
-const READER_DIR = join(app.getPath('home'), '.devflow', 'reader')
+const ARTIFACTORY_DIR = join(app.getPath('home'), '.devflow', 'artifactory')
 
-function ensureReaderDir(): void {
-  if (!existsSync(READER_DIR)) mkdirSync(READER_DIR, { recursive: true })
+function ensureArtifactoryDir(): void {
+  if (!existsSync(ARTIFACTORY_DIR)) mkdirSync(ARTIFACTORY_DIR, { recursive: true })
 }
 
 function uniqueTargetPath(sourcePath: string): string {
   const name = basename(sourcePath)
   const base = name.slice(0, -extname(name).length) || name
   const suffix = extname(name)
-  let target = join(READER_DIR, name)
+  let target = join(ARTIFACTORY_DIR, name)
   let i = 1
   while (existsSync(target)) {
-    target = join(READER_DIR, `${base} (${i})${suffix}`)
+    target = join(ARTIFACTORY_DIR, `${base} (${i})${suffix}`)
     i++
   }
   return target
@@ -36,10 +36,10 @@ function readMarkdownContent(path: string): string {
   }
 }
 
-export function initFilesIpc(): void {
-  ipcMain.handle(ReaderChannel.List, () => listReaderFiles())
+export function initArtifactoryIpc(): void {
+  ipcMain.handle(ArtifactoryChannel.List, () => listArtifactoryFiles())
 
-  ipcMain.handle(ReaderChannel.Open, async () => {
+  ipcMain.handle(ArtifactoryChannel.Open, async () => {
     const result = await dialog.showOpenDialog({
       properties: ['openFile'],
       filters: [{ name: 'Markdown', extensions: ['md'] }]
@@ -47,9 +47,9 @@ export function initFilesIpc(): void {
     if (result.canceled || result.filePaths.length === 0) return null
 
     const path = result.filePaths[0]
-    const stored = listReaderFiles().find((file) => file.path === path)
+    const stored = listArtifactoryFiles().find((file) => file.path === path)
     if (stored) return stored
-    return saveReaderFile({
+    return saveArtifactoryFile({
       path,
       name: basename(path),
       content: readFileSync(path, 'utf-8'),
@@ -58,9 +58,9 @@ export function initFilesIpc(): void {
   })
 
   ipcMain.handle(
-    ReaderChannel.Import,
+    ArtifactoryChannel.Import,
     async (_, payload: { paths: string[]; mode: ImportMode; tag?: Tag }): Promise<MdFile[]> => {
-      ensureReaderDir()
+      ensureArtifactoryDir()
       const imported: MdFile[] = []
       for (const sourcePath of payload.paths) {
         if (!existsSync(sourcePath)) continue
@@ -72,7 +72,7 @@ export function initFilesIpc(): void {
             rmSync(sourcePath, { recursive: true, force: true })
         }
         imported.push(
-          saveReaderFile({
+          saveArtifactoryFile({
             path: targetPath,
             name: basename(targetPath),
             content: readMarkdownContent(targetPath),
@@ -85,16 +85,16 @@ export function initFilesIpc(): void {
   )
 
   ipcMain.handle(
-    ReaderChannel.Save,
+    ArtifactoryChannel.Save,
     async (_, payload: { path: string; content: string }): Promise<{ path: string }> => {
       writeFileSync(payload.path, payload.content, 'utf-8')
-      const current = listReaderFiles().find((file) => file.path === payload.path)
-      if (current) saveReaderFile({ ...current, content: payload.content })
+      const current = listArtifactoryFiles().find((file) => file.path === payload.path)
+      if (current) saveArtifactoryFile({ ...current, content: payload.content })
       return { path: payload.path }
     }
   )
 
-  ipcMain.handle(ReaderChannel.ShowInFolder, (_, path: string): void => {
+  ipcMain.handle(ArtifactoryChannel.ShowInFolder, (_, path: string): void => {
     shell.showItemInFolder(path)
   })
 }

@@ -1,6 +1,6 @@
 import { ExternalLink, FolderOpen, GitPullRequest } from 'lucide-react'
 import { Button } from '@heroui/react'
-import { ReaderChannel } from '../../../../../shared/reader/channels'
+import { ArtifactoryChannel } from '../../../../../../shared/artifactory/channels'
 
 export function DocumentConnections({ path }: { path: string }): React.JSX.Element {
   return (
@@ -34,7 +34,7 @@ export function DocumentConnections({ path }: { path: string }): React.JSX.Eleme
           size="sm"
           variant="ghost"
           className="h-6 min-h-6 rounded-none px-2 text-[11px] text-muted hover:text-foreground"
-          onPress={() => window.electron.ipcRenderer.invoke(ReaderChannel.ShowInFolder, path)}
+          onPress={() => window.electron.ipcRenderer.invoke(ArtifactoryChannel.ShowInFolder, path)}
         >
           <FolderOpen size={13} aria-hidden="true" />
           Show in Finder

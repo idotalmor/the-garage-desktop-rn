@@ -3,14 +3,14 @@ import { electronApp, optimizer } from '@electron-toolkit/utils'
 import {
   createDuplicateWindow,
   createMainWindow,
-  createReaderWindow,
+  createArtifactoryWindow,
   focusAppWindow,
   listAppWindows
 } from './main-window'
 import { WindowChannel } from '../shared/window-channels'
 import { createTray, focusMainOrCreate, hidePopover } from './popover'
 import { initNotesIpc } from './notes'
-import { initFilesIpc } from './files'
+import { initArtifactoryIpc } from './artifactory/ipc'
 
 const APP_NAME = 'The Orchestrator'
 app.setName(APP_NAME)
@@ -51,8 +51,8 @@ app.whenReady().then(() => {
     if (process.platform === 'darwin') app.dock?.show()
   })
 
-  ipcMain.on('files:expand', () => {
-    createReaderWindow()
+  ipcMain.on('artifactory:expand', () => {
+    createArtifactoryWindow()
   })
 
   ipcMain.handle(WindowChannel.Duplicate, () => {
@@ -67,7 +67,7 @@ app.whenReady().then(() => {
   })
 
   initNotesIpc()
-  initFilesIpc()
+  initArtifactoryIpc()
   createTray()
   createMainWindow()
 })

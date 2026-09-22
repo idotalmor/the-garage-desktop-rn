@@ -1,10 +1,10 @@
 import { Maximize2, Pencil, Save, X } from 'lucide-react'
 import { Button } from '@heroui/react'
-import type { MdFile } from '../../../../../shared/reader/types'
-import { MarkdownPreview } from './MarkdownPreview'
-import { DocumentConnections } from './DocumentConnections'
+import type { MdFile } from '../../../../../../shared/artifactory/types'
+import { MarkdownViewer } from './markdown-viewer'
+import { DocumentConnections } from './document-connections'
 
-type ReaderDocumentProps = {
+type ArtifactoryViewerProps = {
   file: MdFile | null
   content: string
   isEditing: boolean
@@ -16,7 +16,7 @@ type ReaderDocumentProps = {
   onExpand: () => void
 }
 
-export function ReaderDocument({
+export function ArtifactoryViewer({
   file,
   content,
   isEditing,
@@ -26,7 +26,7 @@ export function ReaderDocument({
   onCancel,
   onChange,
   onExpand
-}: ReaderDocumentProps): React.JSX.Element {
+}: ArtifactoryViewerProps): React.JSX.Element {
   if (!file) {
     return (
       <div className="flex min-h-64 flex-col items-center justify-center text-center">
@@ -74,7 +74,7 @@ export function ReaderDocument({
               variant="ghost"
               className="rounded-lg"
               onPress={onExpand}
-              aria-label="Open reader in a new window"
+              aria-label="Open artifactory in a new window"
             >
               <Maximize2 size={14} aria-hidden="true" />
             </Button>
@@ -85,7 +85,7 @@ export function ReaderDocument({
       {isEditing ? (
         <div className="grid min-h-0 flex-1 grid-cols-2 overflow-hidden">
           <div className="min-h-0 overflow-y-auto border-r border-separator px-4 py-5">
-            <MarkdownPreview content={content} />
+            <MarkdownViewer content={content} />
           </div>
           <div className="min-h-0 flex-1 bg-surface-secondary">
             <textarea
@@ -98,7 +98,7 @@ export function ReaderDocument({
         </div>
       ) : (
         <div className="min-h-0 flex-1 overflow-y-auto px-5 py-6 sm:px-8">
-          <MarkdownPreview content={content} />
+          <MarkdownViewer content={content} />
         </div>
       )}
     </div>

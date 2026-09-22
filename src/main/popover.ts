@@ -4,13 +4,17 @@ import { is } from '@electron-toolkit/utils'
 import brainIcon from '../../resources/brain.png?asset'
 import { createMainWindow, getMainWindow } from './main-window'
 
+const POPOVER_WIDTH = process.platform === 'darwin' ? 520 : 360
+const POPOVER_HEIGHT = process.platform === 'darwin' ? 720 : 480
+const POPOVER_MARGIN = 20
+
 let popoverWindow: BrowserWindow | null = null
 let tray: Tray | null = null
 
 function createPopoverWindow(): void {
   popoverWindow = new BrowserWindow({
-    width: 360,
-    height: 480,
+    width: POPOVER_WIDTH,
+    height: POPOVER_HEIGHT,
     show: false,
     frame: false,
     resizable: false,
@@ -43,9 +47,19 @@ function createPopoverWindow(): void {
 
 function getPopoverPosition(): { x: number; y: number } {
   const bounds = tray?.getBounds() ?? { x: 0, y: 0, width: 0, height: 0 }
-  const { width, height } = popoverWindow?.getBounds() ?? { width: 360, height: 480 }
+  const { width, height } = popoverWindow?.getBounds() ?? {
+    width: POPOVER_WIDTH,
+    height: POPOVER_HEIGHT
+  }
   const display = screen.getDisplayNearestPoint({ x: bounds.x, y: bounds.y })
   const workArea = display.workArea
+
+  if (process.platform === 'darwin') {
+    return {
+      x: workArea.x + workArea.width - width - POPOVER_MARGIN,
+      y: workArea.y + POPOVER_MARGIN
+    }
+  }
 
   let x = Math.round(bounds.x + bounds.width / 2 - width / 2)
   let y = bounds.y + bounds.height
@@ -66,6 +80,18 @@ function getPopoverPosition(): { x: number; y: number } {
   return { x, y }
 }
 
+function animatePopoverIn(x: number, y: number): void {
+  if (!popoverWindow || process.platform !== 'darwin') return
+
+  const { width } = popoverWindow.getBounds()
+  const startX = x + width + POPOVER_MARGIN
+
+  popoverWindow.setPosition(startX, y, false)
+  popoverWindow.show()
+  popoverWindow.setPosition(x, y, true)
+  popoverWindow.focus()
+}
+
 export function showOrCreatePopover(): void {
   if (!popoverWindow) createPopoverWindow()
   if (!popoverWindow) return
@@ -76,6 +102,12 @@ export function showOrCreatePopover(): void {
   }
 
   const { x, y } = getPopoverPosition()
+
+  if (process.platform === 'darwin') {
+    animatePopoverIn(x, y)
+    return
+  }
+
   popoverWindow.setPosition(x, y, false)
   popoverWindow.show()
   popoverWindow.focus()

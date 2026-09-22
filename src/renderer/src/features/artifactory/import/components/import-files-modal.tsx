@@ -9,7 +9,7 @@ import { ColorSlider } from '@heroui/react/color-slider'
 import { ColorSwatch } from '@heroui/react/color-swatch'
 import { Label } from '@heroui/react/label'
 import { Modal } from '@heroui/react/modal'
-import type { ImportMode, Tag } from '../../../../../shared/reader/types'
+import type { ImportMode, Tag } from '../../../../../../shared/artifactory/types'
 
 type ImportFilesModalProps = {
   isOpen: boolean

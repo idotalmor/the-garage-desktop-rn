@@ -1,6 +1,6 @@
 import { FileText, Folder } from 'lucide-react'
 import { Button } from '@heroui/react'
-import type { MdFile } from '../../../../../shared/reader/types'
+import type { MdFile } from '../../../../../../../shared/artifactory/types'
 
 type FileGroup = {
   name: string

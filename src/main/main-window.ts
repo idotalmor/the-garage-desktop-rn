@@ -6,7 +6,7 @@ import type { OpenWindow } from '../shared/window-channels'
 
 let mainWindow: BrowserWindow | null = null
 const appWindows = new Set<BrowserWindow>()
-const readerWindows = new Set<BrowserWindow>()
+const artifactoryWindows = new Set<BrowserWindow>()
 
 function configureWindow(window: BrowserWindow): BrowserWindow {
   window.webContents.setWindowOpenHandler((details) => {
@@ -91,8 +91,8 @@ export function focusAppWindow(id: number): void {
   window.focus()
 }
 
-export function createReaderWindow(): BrowserWindow {
-  const readerWindow = new BrowserWindow({
+export function createArtifactoryWindow(): BrowserWindow {
+  const artifactoryWindow = new BrowserWindow({
     width: 1200,
     height: 800,
     title: 'Artifactory',
@@ -107,11 +107,11 @@ export function createReaderWindow(): BrowserWindow {
     }
   })
 
-  configureWindow(readerWindow)
-  loadRenderer(readerWindow, '?readerWindow=1')
-  readerWindows.add(readerWindow)
-  readerWindow.on('closed', () => {
-    readerWindows.delete(readerWindow)
+  configureWindow(artifactoryWindow)
+  loadRenderer(artifactoryWindow, '?artifactoryWindow=1')
+  artifactoryWindows.add(artifactoryWindow)
+  artifactoryWindow.on('closed', () => {
+    artifactoryWindows.delete(artifactoryWindow)
   })
-  return readerWindow
+  return artifactoryWindow
 }

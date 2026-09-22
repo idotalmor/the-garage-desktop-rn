@@ -12,9 +12,10 @@ import { ArtifactoryWindow } from '../features/github/components/ArtifactoryWind
 import { NotesPage } from '../features/notes/components/NotesPage'
 import { NewsletterPage } from '../features/newsletter/components/NewsletterPage'
 import { CodeExplorerPage } from '../features/code-explorer/components/CodeExplorerPage'
-import { ReaderPage } from '../features/reader/ReaderPage'
+import { ArtifactoryPage } from '../features/artifactory/pages/artifactory-page'
 import { RecordingPage } from '../features/recording/components/RecordingPage'
 import { WindowChannel, type OpenWindow } from '../../../shared/window-channels'
+import { WindowDragRegion } from '../shared/components/WindowDragRegion'
 
 function openMain(): void {
   window.electron.ipcRenderer.send('app:open-main')
@@ -95,8 +96,8 @@ export function AppShell(): React.JSX.Element {
       <GitHubPage />
     ) : view === 'notes' ? (
       <NotesPage />
-    ) : view === 'reader' ? (
-      <ReaderPage />
+    ) : view === 'artifactory' ? (
+      <ArtifactoryPage />
     ) : view === 'newsletter' ? (
       <NewsletterPage />
     ) : view === 'code-explorer' ? (
@@ -108,8 +109,13 @@ export function AppShell(): React.JSX.Element {
     )
 
   if (isArtifactory) return <ArtifactoryWindow />
-  if (new URLSearchParams(window.location.search).get('readerWindow') === '1') {
-    return <ReaderPage />
+  if (new URLSearchParams(window.location.search).get('artifactoryWindow') === '1') {
+    return (
+      <div className="relative h-screen overflow-hidden bg-background text-foreground">
+        <WindowDragRegion className="fixed inset-x-0 top-0 z-30 h-10" />
+        <ArtifactoryPage />
+      </div>
+    )
   }
 
   if (isCompact) {
@@ -156,8 +162,8 @@ export function AppShell(): React.JSX.Element {
 
   return (
     <div className="relative h-screen overflow-hidden bg-background text-foreground">
-      <div
-        className={`window-drag-region app-top-bar fixed inset-x-0 top-0 z-30 flex h-10 items-center bg-background/60 backdrop-blur-md ${isContentScrolled ? 'is-scrolled' : ''}`}
+      <WindowDragRegion
+        className={`app-top-bar fixed inset-x-0 top-0 z-30 flex h-10 items-center bg-background/60 backdrop-blur-md ${isContentScrolled ? 'is-scrolled' : ''}`}
       >
         <div className="absolute left-1/2 flex h-7 w-[min(500px,calc(100vw-2rem))] -translate-x-1/2 items-center gap-1">
           <div className="window-top-actions flex shrink-0 items-center gap-1">
@@ -252,7 +258,7 @@ export function AppShell(): React.JSX.Element {
             )}
           </div>
         </div>
-      </div>
+      </WindowDragRegion>
       {isPromptOpen && (
         <div
           className="fixed inset-0 z-50 flex items-start justify-center bg-background/35 px-4 pt-16 backdrop-blur-sm"

@@ -1,29 +1,34 @@
 import { useMemo } from 'react'
-import type { MdFile } from '../../../../../shared/reader/types'
+import type { MdFile } from '../../../../../../../shared/artifactory/types'
 
 type SplitState = {
   left: string
   right: string
 }
 
-export type ReaderTab = {
+export type ArtifactoryTab = {
   id: string
   files: MdFile[]
   isCombined: boolean
   isVisible: boolean
 }
 
-type UseReaderTabsArgs = {
+type UseArtifactoryTabsArgs = {
   openFiles: MdFile[]
   split: SplitState | null
   active: string | null
   pinnedPaths: string[]
 }
 
-export function useReaderTabs({ openFiles, split, active, pinnedPaths }: UseReaderTabsArgs): {
-  tabs: ReaderTab[]
-  visibleTabs: ReaderTab[]
-  activeTab: ReaderTab | null
+export function useArtifactoryTabs({
+  openFiles,
+  split,
+  active,
+  pinnedPaths
+}: UseArtifactoryTabsArgs): {
+  tabs: ArtifactoryTab[]
+  visibleTabs: ArtifactoryTab[]
+  activeTab: ArtifactoryTab | null
 } {
   return useMemo(() => {
     const splitPaths = split ? new Set([split.left, split.right]) : new Set<string>()
@@ -32,7 +37,7 @@ export function useReaderTabs({ openFiles, split, active, pinnedPaths }: UseRead
     )
     const splitFiles = orderedFiles.filter((file) => splitPaths.has(file.path))
     const regularFiles = orderedFiles.filter((file) => !splitPaths.has(file.path))
-    const splitTab: ReaderTab | null = splitFiles.length
+    const splitTab: ArtifactoryTab | null = splitFiles.length
       ? {
           id: `split:${splitFiles.map((file) => file.path).join('|')}`,
           files: splitFiles,
@@ -40,7 +45,7 @@ export function useReaderTabs({ openFiles, split, active, pinnedPaths }: UseRead
           isVisible: splitFiles.length > 1
         }
       : null
-    const regularTabs = regularFiles.map<ReaderTab>((file) => ({
+    const regularTabs = regularFiles.map<ArtifactoryTab>((file) => ({
       id: file.path,
       files: [file],
       isCombined: false,

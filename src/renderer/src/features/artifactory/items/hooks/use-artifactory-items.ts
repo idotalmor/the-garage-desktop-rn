@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { ReaderChannel } from '../../../../../shared/reader/channels'
-import type { ImportMode, MdFile, Tag } from '../../../../../shared/reader/types'
+import { ArtifactoryChannel } from '../../../../../../shared/artifactory/channels'
+import type { ImportMode, MdFile, Tag } from '../../../../../../shared/artifactory/types'
 
-export function useFiles(): {
+export function useArtifactoryItems(): {
   files: MdFile[]
   openFiles: MdFile[]
   active: string | null
@@ -36,7 +36,7 @@ export function useFiles(): {
 
   useEffect(() => {
     let cancelled = false
-    void window.electron.ipcRenderer.invoke(ReaderChannel.List).then((loaded) => {
+    void window.electron.ipcRenderer.invoke(ArtifactoryChannel.List).then((loaded) => {
       if (cancelled) return
       const stored = loaded as MdFile[]
       setFiles(stored)
@@ -49,7 +49,9 @@ export function useFiles(): {
   }, [])
 
   const openFile = useCallback(async (): Promise<void> => {
-    const file = (await window.electron.ipcRenderer.invoke(ReaderChannel.Open)) as MdFile | null
+    const file = (await window.electron.ipcRenderer.invoke(
+      ArtifactoryChannel.Open
+    )) as MdFile | null
     if (!file) return
     setFiles((prev) => (prev.some((item) => item.path === file.path) ? prev : [...prev, file]))
     setOpenPaths((prev) => (prev.includes(file.path) ? prev : [...prev, file.path]))
@@ -63,7 +65,7 @@ export function useFiles(): {
       tag?: Tag
     }): Promise<MdFile[] | undefined> => {
       const imported = (await window.electron.ipcRenderer.invoke(
-        ReaderChannel.Import,
+        ArtifactoryChannel.Import,
         payload
       )) as MdFile[]
       if (!imported.length) return
@@ -85,7 +87,7 @@ export function useFiles(): {
   )
 
   const saveFile = useCallback(async (file: MdFile, content: string): Promise<void> => {
-    await window.electron.ipcRenderer.invoke(ReaderChannel.Save, {
+    await window.electron.ipcRenderer.invoke(ArtifactoryChannel.Save, {
       path: file.path,
       content
     })
