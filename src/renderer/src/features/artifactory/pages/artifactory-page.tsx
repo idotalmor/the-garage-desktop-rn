@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useArtifactoryItems } from '../items/hooks/use-artifactory-items'
 import { useArtifactoryTabs } from '../layout/tabs/hooks/use-artifactory-tabs'
 import { ArtifactoryTabs } from '../layout/tabs/components/artifactory-tabs'
-import { useCompact } from '../../../shared/hooks/useCompact'
+import { useFeatureMenu } from '../../../shared/components/feature-menu-context'
 import { ArtifactoryChannel } from '../../../../../shared/artifactory/channels'
 import type { Tag as TagType } from '../../../../../shared/artifactory/types'
 import { ImportFilesModal } from '../import/components/import-files-modal'
@@ -39,7 +40,8 @@ export function ArtifactoryPage(): React.JSX.Element {
     tags
   } = useArtifactoryItems()
   const [isEditing, setIsEditing] = useState(false)
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true)
+  const [isSidebarOpen, setSidebarOpen] = useState(true)
+  const featureMenu = useFeatureMenu()
   const [drafts, setDrafts] = useState<Record<string, string>>({})
   const [isDragging, setIsDragging] = useState(false)
   const [droppedPaths, setDroppedPaths] = useState<string[]>([])
@@ -55,10 +57,8 @@ export function ArtifactoryPage(): React.JSX.Element {
   } | null>(null)
   const isStandaloneArtifactory =
     new URLSearchParams(window.location.search).get('artifactoryWindow') === '1'
-  const isCompact = useCompact()
   const { visibleTabs } = useArtifactoryTabs({ openFiles, split, active, pinnedPaths })
 
-  const isSidebarExpanded = isSidebarOpen && !isCompact
   const menuRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -80,6 +80,16 @@ export function ArtifactoryPage(): React.JSX.Element {
 
   const fileGroups = useSidebarGroups(files, filterTag, groupBy)
 
+  useEffect(() => {
+    if (!featureMenu) return
+    featureMenu.setContribution({
+      isOpen: isSidebarOpen,
+      onToggle: () => setSidebarOpen(!isSidebarOpen),
+      label: 'Files'
+    })
+    return () => featureMenu.setContribution(null)
+  }, [featureMenu, isSidebarOpen, setSidebarOpen])
+
   const filterItems = useMemo<FilterItem[]>(() => {
     const tagItems: FilterItem[] = tags.map((tag) => ({
       id: tag.name,
@@ -96,6 +106,25 @@ export function ArtifactoryPage(): React.JSX.Element {
         ]
       : [{ id: FILTER_ALL, label: 'All' }, ...tagItems]
   }, [tags, filterTag])
+
+  const sidebar = (
+    <ArtifactorySidebar
+      filesCount={files.length}
+      isExpanded={isSidebarOpen}
+      onOpenFile={openFile}
+      onToggleExpanded={() => setSidebarOpen(!isSidebarOpen)}
+      showToggle={!featureMenu}
+      groupBy={groupBy}
+      onGroupByChange={setGroupBy}
+      filterItems={filterItems}
+      filterTag={filterTag}
+      onFilterChange={setFilterTag}
+      isDragging={isDragging}
+      fileGroups={fileGroups}
+      active={active}
+      onSelect={openPath}
+    />
+  )
 
   const activeContent = activeFile ? (drafts[activeFile.path] ?? activeFile.content) : ''
 
@@ -123,7 +152,7 @@ export function ArtifactoryPage(): React.JSX.Element {
 
   const handleEdit = (): void => {
     if (!activeFile) return
-    setIsSidebarOpen(false)
+    setSidebarOpen(false)
     setIsEditing(true)
   }
 
@@ -212,21 +241,11 @@ export function ArtifactoryPage(): React.JSX.Element {
       onDrop={handleDrop}
     >
       <div className="flex min-h-0 flex-1 overflow-hidden border-y border-separator">
-        <ArtifactorySidebar
-          filesCount={files.length}
-          isExpanded={isSidebarExpanded}
-          onOpenFile={openFile}
-          onToggleExpanded={() => setIsSidebarOpen((open) => !open)}
-          groupBy={groupBy}
-          onGroupByChange={setGroupBy}
-          filterItems={filterItems}
-          filterTag={filterTag}
-          onFilterChange={setFilterTag}
-          isDragging={isDragging}
-          fileGroups={fileGroups}
-          active={active}
-          onSelect={openPath}
-        />
+        {featureMenu
+          ? featureMenu.panelSlot
+            ? createPortal(sidebar, featureMenu.panelSlot)
+            : null
+          : sidebar}
 
         <section className="flex min-h-0 min-w-0 flex-1 flex-col" aria-label="Artifactory preview">
           <ArtifactoryTabs

@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react'
-import { Brain, ChevronDown, Copy, Moon, Settings, Sun, X } from 'lucide-react'
+import { Brain, ChevronDown, Copy, X } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import { Button } from '@heroui/react'
 import { PromptInput } from '@heroui-pro/react'
-import { AppNavbar, NavButton } from '../shared/components/AppNavbar'
-import { navItems, type AppView } from '../shared/components/appNavigation'
+import { AppNavbar } from '../shared/components/AppNavbar'
+import { FeatureMenuProvider, FeatureMenuSlot } from '../shared/components/feature-menu'
+import type { AppView } from '../shared/components/appNavigation'
 import { useCompact } from '../shared/hooks/useCompact'
 import { DashboardHome } from '../features/dashboard/components/DashboardHome'
 import { GitHubPage } from '../features/github/components/GitHubPage'
@@ -38,7 +39,6 @@ export function AppShell(): React.JSX.Element {
   const [view, setView] = useState<AppView>('home')
   const { theme, setTheme } = useTheme()
   const themeLabel = theme === 'dark' ? 'Dark' : theme === 'light' ? 'Light' : 'System'
-  const ThemeIcon = themeLabel === 'Dark' ? Moon : Sun
   const [prompt, setPrompt] = useState('')
   const [promptIndex, setPromptIndex] = useState(0)
   const [isPromptOpen, setIsPromptOpen] = useState(false)
@@ -257,74 +257,58 @@ export function AppShell(): React.JSX.Element {
 
   if (isCompact) {
     return (
-      <div className="popover-shell flex h-screen flex-col overflow-hidden rounded-2xl bg-background text-foreground">
-        <WindowDragRegion
-          className={`app-top-bar relative flex h-10 shrink-0 items-center bg-background/60 backdrop-blur-md ${isContentScrolled ? 'is-scrolled' : ''}`}
-        >
-          {topBarContent(true)}
-        </WindowDragRegion>
-        <div className="flex min-h-0 flex-1">
-          <main
-            className="min-w-0 flex-1 overflow-y-auto"
-            onScroll={(event) => setIsContentScrolled(event.currentTarget.scrollTop > 0)}
+      <FeatureMenuProvider>
+        <div className="popover-shell flex h-screen flex-col overflow-hidden rounded-2xl bg-background text-foreground">
+          <WindowDragRegion
+            className={`app-top-bar relative flex h-10 shrink-0 items-center bg-background/60 backdrop-blur-md ${isContentScrolled ? 'is-scrolled' : ''}`}
           >
-            {content}
-          </main>
-          <aside
-            className="window-drag-region flex w-12 shrink-0 flex-col items-center border-l border-separator bg-background/85 px-2 pb-1 pt-2 backdrop-blur"
-            aria-label="Main navigation"
-          >
-            <nav className="mt-1 flex flex-1 flex-col items-center gap-1">
-              {navItems.map((item) => (
-                <NavButton key={item.id} {...item} view={view} onViewChange={setView} />
-              ))}
-            </nav>
-            <div className="flex flex-col items-center gap-1">
-              <NavButton
-                id="settings"
-                label="Settings"
-                icon={Settings}
-                view={view}
-                onViewChange={setView}
-              />
-              <Button
-                isIconOnly
-                size="sm"
-                variant="ghost"
-                onPress={cycleTheme}
-                aria-label={`Switch theme, currently ${themeLabel}`}
-                className="text-muted"
-              >
-                <ThemeIcon size={17} aria-hidden={true} />
-              </Button>
-            </div>
-          </aside>
+            {topBarContent(true)}
+          </WindowDragRegion>
+          <div className="flex min-h-0 flex-1">
+            <main
+              className="min-w-0 flex-1 overflow-y-auto"
+              onScroll={(event) => setIsContentScrolled(event.currentTarget.scrollTop > 0)}
+            >
+              {content}
+            </main>
+            <FeatureMenuSlot className="flex" />
+            <AppNavbar
+              position="right"
+              view={view}
+              themeLabel={themeLabel}
+              onViewChange={setView}
+              onThemeChange={cycleTheme}
+            />
+          </div>
+          {promptOverlay}
         </div>
-        {promptOverlay}
-      </div>
+      </FeatureMenuProvider>
     )
   }
 
   return (
-    <div className="relative h-screen overflow-hidden bg-background text-foreground">
-      <WindowDragRegion
-        className={`app-top-bar fixed inset-x-0 top-0 z-30 flex h-10 items-center bg-background/60 backdrop-blur-md ${isContentScrolled ? 'is-scrolled' : ''}`}
-      >
-        {topBarContent(false)}
-      </WindowDragRegion>
-      {promptOverlay}
-      <AppNavbar
-        view={view}
-        themeLabel={themeLabel}
-        onViewChange={setView}
-        onThemeChange={cycleTheme}
-      />
-      <div
-        className="ml-12 h-screen min-w-0 overflow-y-auto"
-        onScroll={(event) => setIsContentScrolled(event.currentTarget.scrollTop > 0)}
-      >
-        {content}
+    <FeatureMenuProvider>
+      <div className="flex h-screen overflow-hidden bg-background text-foreground">
+        <WindowDragRegion
+          className={`app-top-bar fixed inset-x-0 top-0 z-30 flex h-10 items-center bg-background/60 backdrop-blur-md ${isContentScrolled ? 'is-scrolled' : ''}`}
+        >
+          {topBarContent(false)}
+        </WindowDragRegion>
+        <AppNavbar
+          view={view}
+          themeLabel={themeLabel}
+          onViewChange={setView}
+          onThemeChange={cycleTheme}
+        />
+        <FeatureMenuSlot className="flex pt-10" />
+        <main
+          className="h-full min-w-0 flex-1 overflow-y-auto"
+          onScroll={(event) => setIsContentScrolled(event.currentTarget.scrollTop > 0)}
+        >
+          {content}
+        </main>
+        {promptOverlay}
       </div>
-    </div>
+    </FeatureMenuProvider>
   )
 }

@@ -38,6 +38,7 @@ type ArtifactorySidebarProps = {
   fileGroups: FileGroup[]
   active: string | null
   onSelect: (path: string) => void
+  showToggle?: boolean
 }
 
 export function ArtifactorySidebar({
@@ -53,23 +54,27 @@ export function ArtifactorySidebar({
   isDragging,
   fileGroups,
   active,
-  onSelect
+  onSelect,
+  showToggle = true
 }: ArtifactorySidebarProps): React.JSX.Element {
   return (
     <aside
-      className={`flex shrink-0 flex-col border-r border-separator py-3 transition-[width,padding] duration-200 ${isExpanded ? 'w-52' : 'w-12'}`}
+      className={`flex shrink-0 flex-col overflow-hidden border-separator transition-[width,padding] duration-200 ${
+        isExpanded ? 'w-52 border-r py-3' : showToggle ? 'w-12 border-r py-3' : 'w-0'
+      }`}
       aria-label="Markdown files"
+      aria-hidden={!isExpanded && !showToggle}
     >
       <div
-        className={`flex items-center px-2 ${isExpanded ? 'justify-between' : 'justify-center'}`}
+        className={`flex px-2 ${isExpanded ? 'items-center justify-between' : 'flex-col items-center'}`}
       >
         {isExpanded && (
           <div>
-            <p className="text-xs font-semibold">Files</p>
+            <p className="text-xs font-semibold">Artifactory</p>
             <p className="mt-0.5 text-[11px] text-muted">{filesCount} opened</p>
           </div>
         )}
-        <div className="flex items-center gap-1">
+        <div className={`flex gap-1 ${isExpanded ? 'items-center' : 'flex-col items-center'}`}>
           {isExpanded && (
             <Button
               isIconOnly
@@ -82,20 +87,22 @@ export function ArtifactorySidebar({
               <FolderOpen size={14} aria-hidden="true" />
             </Button>
           )}
-          <Button
-            isIconOnly
-            size="sm"
-            variant="ghost"
-            className="size-6 rounded-lg text-muted"
-            aria-label={isExpanded ? 'Collapse files sidebar' : 'Expand files sidebar'}
-            onPress={onToggleExpanded}
-          >
-            {isExpanded ? (
-              <PanelLeftClose size={14} aria-hidden="true" />
-            ) : (
-              <PanelLeftOpen size={14} aria-hidden="true" />
-            )}
-          </Button>
+          {showToggle && (
+            <Button
+              isIconOnly
+              size="sm"
+              variant="ghost"
+              className="size-6 rounded-lg text-muted"
+              aria-label={isExpanded ? 'Collapse files sidebar' : 'Expand files sidebar'}
+              onPress={onToggleExpanded}
+            >
+              {isExpanded ? (
+                <PanelLeftClose size={14} aria-hidden="true" />
+              ) : (
+                <PanelLeftOpen size={14} aria-hidden="true" />
+              )}
+            </Button>
+          )}
         </div>
       </div>
 
