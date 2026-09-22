@@ -4,12 +4,14 @@ import { is } from '@electron-toolkit/utils'
 import brainIcon from '../../resources/brain.png?asset'
 import { createMainWindow, getMainWindow } from './main-window'
 
-const POPOVER_WIDTH = process.platform === 'darwin' ? 520 : 360
-const POPOVER_HEIGHT = process.platform === 'darwin' ? 720 : 480
-const POPOVER_MARGIN = 20
+const POPOVER_WIDTH = process.platform === 'darwin' ? 500 : 360
+const POPOVER_HEIGHT = process.platform === 'darwin' ? 700 : 480
+const POPOVER_MARGIN = 10
+const POPOVER_ANIMATION_DURATION = 420
 
 let popoverWindow: BrowserWindow | null = null
 let tray: Tray | null = null
+let popoverAnimation: ReturnType<typeof setInterval> | null = null
 
 function createPopoverWindow(): void {
   popoverWindow = new BrowserWindow({
@@ -37,12 +39,19 @@ function createPopoverWindow(): void {
   }
 
   popoverWindow.on('closed', () => {
+    stopPopoverAnimation()
     popoverWindow = null
   })
 
   popoverWindow.on('blur', () => {
-    popoverWindow?.hide()
+    animatePopoverOut()
   })
+}
+
+function stopPopoverAnimation(): void {
+  if (!popoverAnimation) return
+  clearInterval(popoverAnimation)
+  popoverAnimation = null
 }
 
 function getPopoverPosition(): { x: number; y: number } {
@@ -85,11 +94,65 @@ function animatePopoverIn(x: number, y: number): void {
 
   const { width } = popoverWindow.getBounds()
   const startX = x + width + POPOVER_MARGIN
+  const startedAt = Date.now()
 
+  stopPopoverAnimation()
+  popoverWindow.setOpacity(0)
   popoverWindow.setPosition(startX, y, false)
   popoverWindow.show()
-  popoverWindow.setPosition(x, y, true)
   popoverWindow.focus()
+
+  popoverAnimation = setInterval(() => {
+    if (!popoverWindow || popoverWindow.isDestroyed()) {
+      stopPopoverAnimation()
+      return
+    }
+
+    const progress = Math.min((Date.now() - startedAt) / POPOVER_ANIMATION_DURATION, 1)
+    const easedProgress = 1 - Math.pow(1 - progress, 3)
+    const currentX = Math.round(startX + (x - startX) * easedProgress)
+
+    popoverWindow.setPosition(currentX, y, false)
+    popoverWindow.setOpacity(easedProgress)
+
+    if (progress >= 1) {
+      stopPopoverAnimation()
+      popoverWindow.setOpacity(1)
+    }
+  }, 16)
+}
+
+function animatePopoverOut(): void {
+  if (!popoverWindow) return
+  if (process.platform !== 'darwin') {
+    popoverWindow.hide()
+    return
+  }
+  if (popoverAnimation) return
+
+  const { x, y, width } = popoverWindow.getBounds()
+  const endX = x + width + POPOVER_MARGIN
+  const startedAt = Date.now()
+
+  popoverAnimation = setInterval(() => {
+    if (!popoverWindow || popoverWindow.isDestroyed()) {
+      stopPopoverAnimation()
+      return
+    }
+
+    const progress = Math.min((Date.now() - startedAt) / POPOVER_ANIMATION_DURATION, 1)
+    const easedProgress = 1 - Math.pow(1 - progress, 3)
+    const currentX = Math.round(x + (endX - x) * easedProgress)
+
+    popoverWindow.setPosition(currentX, y, false)
+    popoverWindow.setOpacity(1 - progress)
+
+    if (progress >= 1) {
+      stopPopoverAnimation()
+      popoverWindow.hide()
+      popoverWindow.setOpacity(1)
+    }
+  }, 16)
 }
 
 export function showOrCreatePopover(): void {
@@ -97,7 +160,7 @@ export function showOrCreatePopover(): void {
   if (!popoverWindow) return
 
   if (popoverWindow.isVisible()) {
-    popoverWindow.hide()
+    animatePopoverOut()
     return
   }
 
@@ -122,6 +185,8 @@ export function createTray(): void {
 }
 
 export function hidePopover(): void {
+  stopPopoverAnimation()
+  popoverWindow?.setOpacity(1)
   popoverWindow?.hide()
 }
 

@@ -120,7 +120,7 @@ export function AppShell(): React.JSX.Element {
 
   if (isCompact) {
     return (
-      <div className="h-screen overflow-y-auto bg-background text-foreground">
+      <div className="popover-shell h-screen overflow-hidden rounded-2xl bg-background text-foreground">
         <header className="flex items-center justify-between border-b border-separator px-4 py-3">
           <div className="flex items-center gap-2">
             <div className="flex size-8 items-center justify-center rounded-xl bg-accent text-accent-foreground">
