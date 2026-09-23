@@ -1,7 +1,8 @@
 import { ArrowLeft, MicAudioLines, Pause, Play, Square } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Button } from '@heroui/react'
 import { PageHeader } from '../../../shared/components/PageHeader'
+import { useRecordingStatus } from '../../../shared/hooks/use-recording'
 import { MeetingNotesEditor } from './MeetingNotesEditor'
 
 type RecordingPageProps = {
@@ -170,24 +171,19 @@ function PendingRecordingCard({
 }
 
 export function RecordingPage({ onBack }: RecordingPageProps): React.JSX.Element {
-  const [isRecording, setIsRecording] = useState(true)
-  const [duration, setDuration] = useState(0)
+  const { status, elapsedSeconds, start, togglePause, stop } = useRecordingStatus()
+  const isRecording = status.state === 'recording'
+  const isActive = status.state !== 'idle'
   const [pendingRecording, setPendingRecording] = useState<PendingRecording | null>(null)
   const [recordings, setRecordings] = useState<Recording[]>([])
   const [playingId, setPlayingId] = useState<number | null>(null)
 
-  useEffect(() => {
-    if (!isRecording) return
-    const timer = window.setInterval(() => setDuration((current) => current + 1), 1000)
-    return () => window.clearInterval(timer)
-  }, [isRecording])
-
   const finishRecording = (): void => {
-    setIsRecording(false)
+    stop()
     setPendingRecording({
       id: Date.now(),
       title: '',
-      duration
+      duration: elapsedSeconds
     })
   }
 
@@ -202,8 +198,7 @@ export function RecordingPage({ onBack }: RecordingPageProps): React.JSX.Element
 
   const startRecording = (): void => {
     if (pendingRecording) return
-    setDuration(0)
-    setIsRecording(true)
+    start()
   }
 
   return (
@@ -220,7 +215,7 @@ export function RecordingPage({ onBack }: RecordingPageProps): React.JSX.Element
 
       <div className="mb-8">
         <div className="flex min-w-0 items-start gap-2 sm:gap-3">
-          {!isRecording && !pendingRecording && (
+          {!isActive && !pendingRecording && (
             <Button
               isIconOnly
               size="sm"
@@ -233,15 +228,15 @@ export function RecordingPage({ onBack }: RecordingPageProps): React.JSX.Element
             </Button>
           )}
           <div className="min-w-0 flex-1">
-            {isRecording && (
+            {isActive && (
               <RecordingCard
-                duration={duration}
+                duration={elapsedSeconds}
                 isRecording={isRecording}
                 onStop={finishRecording}
-                onTogglePause={() => setIsRecording((recording) => !recording)}
+                onTogglePause={togglePause}
               />
             )}
-            {!isRecording && pendingRecording && (
+            {!isActive && pendingRecording && (
               <PendingRecordingCard
                 recording={pendingRecording}
                 onTitleChange={(title) =>

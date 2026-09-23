@@ -1,4 +1,4 @@
-import { FileText, Home, Mail, Package, ScanSearch } from 'lucide-react'
+import { Blocks, FileText, Home, Mail, Package, ScanSearch } from 'lucide-react'
 import { createElement, type ReactElement } from 'react'
 
 function GitHubIcon({ size = 18 }: { size?: number }): ReactElement {
@@ -18,6 +18,7 @@ export type AppView =
   | 'artifactory'
   | 'newsletter'
   | 'code-explorer'
+  | 'integrations'
   | 'recording'
   | 'settings'
 
@@ -27,5 +28,6 @@ export const navItems = [
   { id: 'notes' as const, label: 'Notes', icon: FileText },
   { id: 'artifactory' as const, label: 'Artifactory', icon: Package },
   { id: 'newsletter' as const, label: 'Newsletter', icon: Mail },
-  { id: 'code-explorer' as const, label: 'Code Explorer', icon: ScanSearch }
+  { id: 'code-explorer' as const, label: 'Code Explorer', icon: ScanSearch },
+  { id: 'integrations' as const, label: 'Integrations', icon: Blocks }
 ]

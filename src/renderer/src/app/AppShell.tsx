@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react'
-import { Brain, ChevronDown, Copy, X } from 'lucide-react'
+import { Brain, ChevronDown, Copy, Expand, X } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import { Button } from '@heroui/react'
 import { PromptInput } from '@heroui-pro/react'
 import { AppNavbar } from '../shared/components/AppNavbar'
 import { FeatureMenuProvider, FeatureMenuSlot } from '../shared/components/feature-menu'
+import { RecordingControl } from '../shared/components/RecordingControl'
 import type { AppView } from '../shared/components/appNavigation'
 import { useCompact } from '../shared/hooks/useCompact'
 import { DashboardHome } from '../features/dashboard/components/DashboardHome'
@@ -13,19 +14,11 @@ import { ArtifactoryWindow } from '../features/github/components/ArtifactoryWind
 import { NotesPage } from '../features/notes/components/NotesPage'
 import { NewsletterPage } from '../features/newsletter/components/NewsletterPage'
 import { CodeExplorerPage } from '../features/code-explorer/components/CodeExplorerPage'
+import { IntegrationsPage } from '../features/integrations/components/IntegrationsPage'
 import { ArtifactoryPage } from '../features/artifactory/pages/artifactory-page'
 import { RecordingPage } from '../features/recording/components/RecordingPage'
 import { WindowChannel, type OpenWindow } from '../../../shared/window-channels'
 import { WindowDragRegion } from '../shared/components/WindowDragRegion'
-
-function RecordDotIcon(): React.JSX.Element {
-  return (
-    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" aria-hidden="true">
-      <circle cx="12" cy="12" r="11" stroke="#9CA3AF" strokeWidth="1" />
-      <circle cx="12" cy="12" r="7" fill="#EF4444" />
-    </svg>
-  )
-}
 
 const promptExamples = [
   'We need to merge experiments',
@@ -68,6 +61,21 @@ export function AppShell(): React.JSX.Element {
     return () => window.clearInterval(timer)
   }, [isWindowMenuOpen])
 
+  useEffect(() => {
+    if (!isCompact) return
+    const blurActiveElement = (): void => {
+      requestAnimationFrame(() => {
+        if (document.activeElement instanceof HTMLElement) document.activeElement.blur()
+      })
+    }
+    window.addEventListener('focus', blurActiveElement)
+    const timer = setTimeout(blurActiveElement, 150)
+    return () => {
+      clearTimeout(timer)
+      window.removeEventListener('focus', blurActiveElement)
+    }
+  }, [isCompact])
+
   const cycleTheme = (): void => {
     setTheme(theme === 'dark' ? 'light' : theme === 'light' ? 'system' : 'dark')
   }
@@ -85,6 +93,8 @@ export function AppShell(): React.JSX.Element {
       <NewsletterPage />
     ) : view === 'code-explorer' ? (
       <CodeExplorerPage />
+    ) : view === 'integrations' ? (
+      <IntegrationsPage />
     ) : view === 'recording' ? (
       <RecordingPage onBack={() => setView('home')} />
     ) : (
@@ -101,16 +111,7 @@ export function AppShell(): React.JSX.Element {
         }
       >
         <div className="window-top-actions flex shrink-0 items-center gap-1">
-          <Button
-            isIconOnly
-            size="sm"
-            variant="ghost"
-            className="size-7 rounded-full"
-            onPress={() => setView('recording')}
-            aria-label="Start recording"
-          >
-            <RecordDotIcon />
-          </Button>
+          <RecordingControl onOpen={() => setView('recording')} />
         </div>
         <div
           className="window-prompt-bar flex h-7 min-w-0 flex-1 items-center gap-1.5 rounded-md border border-border/60 bg-transparent px-2 text-xs"
@@ -135,6 +136,18 @@ export function AppShell(): React.JSX.Element {
             : 'absolute right-3 flex items-center gap-1'
         }
       >
+        {compact && (
+          <Button
+            isIconOnly
+            size="sm"
+            variant="ghost"
+            className="size-7 rounded-md text-muted hover:text-foreground"
+            onPress={() => window.electron.ipcRenderer.send(WindowChannel.Promote)}
+            aria-label="Open in desktop window"
+          >
+            <Expand size={15} aria-hidden="true" />
+          </Button>
+        )}
         <Button
           isIconOnly
           size="sm"
@@ -265,20 +278,21 @@ export function AppShell(): React.JSX.Element {
             {topBarContent(true)}
           </WindowDragRegion>
           <div className="flex min-h-0 flex-1">
+            <AppNavbar
+              position="left"
+              topBarInset={false}
+              view={view}
+              themeLabel={themeLabel}
+              onViewChange={setView}
+              onThemeChange={cycleTheme}
+            />
+            <FeatureMenuSlot className="flex" />
             <main
               className="min-w-0 flex-1 overflow-y-auto"
               onScroll={(event) => setIsContentScrolled(event.currentTarget.scrollTop > 0)}
             >
               {content}
             </main>
-            <FeatureMenuSlot className="flex" />
-            <AppNavbar
-              position="right"
-              view={view}
-              themeLabel={themeLabel}
-              onViewChange={setView}
-              onThemeChange={cycleTheme}
-            />
           </div>
           {promptOverlay}
         </div>

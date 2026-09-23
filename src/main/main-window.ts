@@ -73,6 +73,17 @@ export function getMainWindow(): BrowserWindow | null {
   return mainWindow
 }
 
+export function registerAppWindow(window: BrowserWindow): void {
+  configureWindow(window)
+  if (!mainWindow || mainWindow.isDestroyed()) {
+    mainWindow = window
+    window.on('closed', () => {
+      if (mainWindow === window) mainWindow = null
+      if (process.platform === 'darwin' && appWindows.size === 0) app.dock?.hide()
+    })
+  }
+}
+
 export function listAppWindows(): OpenWindow[] {
   return Array.from(appWindows)
     .filter((window) => !window.isDestroyed())

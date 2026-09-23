@@ -2,7 +2,7 @@ import { BrowserWindow, Tray, nativeImage, screen } from 'electron'
 import { join } from 'path'
 import { is } from '@electron-toolkit/utils'
 import brainIcon from '../../resources/brain.png?asset'
-import { createMainWindow, getMainWindow } from './main-window'
+import { createMainWindow, getMainWindow, registerAppWindow } from './main-window'
 
 const POPOVER_WIDTH = process.platform === 'darwin' ? 500 : 360
 const POPOVER_HEIGHT = process.platform === 'darwin' ? 700 : 480
@@ -18,14 +18,17 @@ function createPopoverWindow(): void {
     width: POPOVER_WIDTH,
     height: POPOVER_HEIGHT,
     show: false,
-    frame: false,
     resizable: false,
-    minimizable: false,
-    maximizable: false,
     skipTaskbar: true,
     transparent: true,
     hasShadow: true,
     backgroundColor: '#00000000',
+    ...(process.platform === 'darwin'
+      ? {
+          titleBarStyle: 'hidden',
+          trafficLightPosition: { x: -200, y: -200 }
+        }
+      : { frame: false, minimizable: false, maximizable: false }),
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       sandbox: false
@@ -188,6 +191,42 @@ export function hidePopover(): void {
   stopPopoverAnimation()
   popoverWindow?.setOpacity(1)
   popoverWindow?.hide()
+}
+
+export function promotePopoverToWindow(): void {
+  const window = popoverWindow
+  if (!window || window.isDestroyed()) {
+    focusMainOrCreate()
+    return
+  }
+
+  stopPopoverAnimation()
+  window.removeAllListeners('blur')
+  window.setOpacity(1)
+  window.setResizable(true)
+  window.setSkipTaskbar(false)
+  if (process.platform === 'darwin') {
+    window.setWindowButtonPosition({ x: 14, y: 14 })
+  }
+
+  const { x, y } = getPopoverPosition()
+  const { workArea } = screen.getDisplayNearestPoint({ x, y })
+  const width = 900
+  const height = 670
+  window.setBounds(
+    {
+      width,
+      height,
+      x: Math.round(workArea.x + (workArea.width - width) / 2),
+      y: Math.round(workArea.y + (workArea.height - height) / 2)
+    },
+    true
+  )
+
+  popoverWindow = null
+  registerAppWindow(window)
+  window.show()
+  window.focus()
 }
 
 export function focusMainOrCreate(): void {

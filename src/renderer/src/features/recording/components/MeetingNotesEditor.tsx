@@ -17,9 +17,16 @@ import {
   Underline,
   Undo2
 } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import type { JSONContent } from '@tiptap/core'
 import { RichTextEditor } from '@heroui-pro/react/rich-text-editor'
+import { AppStateChannel, type AppStateChange } from '../../../../../shared/app-state/channels'
+import { RECORDING_SLICE, type RecordingSession } from '../../../../../shared/recording/types'
 
 const iconClassName = 'size-4'
+
+const EMPTY_DOC: JSONContent = { type: 'doc', content: [] }
+const NOTES_DEBOUNCE_MS = 400
 
 function LinkControls(): React.JSX.Element {
   return (
@@ -137,10 +144,47 @@ function BubbleToolbar(): React.JSX.Element {
 }
 
 export function MeetingNotesEditor(): React.JSX.Element {
+  const clientId = useMemo(() => crypto.randomUUID(), [])
+  const [doc, setDoc] = useState<JSONContent>(EMPTY_DOC)
+  const debounceRef = useRef<number | null>(null)
+
+  useEffect(() => {
+    const applyRemote = (session: RecordingSession | undefined): void => {
+      if (session?.notes && session.lastWriter !== clientId) {
+        setDoc(session.notes as JSONContent)
+      }
+    }
+    const onChanged = (_event: Electron.IpcRendererEvent, change: AppStateChange): void => {
+      if (change.name === RECORDING_SLICE) applyRemote(change.value as RecordingSession)
+    }
+    window.electron.ipcRenderer.on(AppStateChannel.Changed, onChanged)
+    queueMicrotask(() => {
+      void window.electron.ipcRenderer
+        .invoke(AppStateChannel.Get, RECORDING_SLICE)
+        .then((session) => applyRemote(session as RecordingSession | undefined))
+    })
+    return () => {
+      window.electron.ipcRenderer.removeListener(AppStateChannel.Changed, onChanged)
+      if (debounceRef.current !== null) window.clearTimeout(debounceRef.current)
+    }
+  }, [clientId])
+
+  const onValueChange = (value: JSONContent): void => {
+    setDoc(value)
+    if (debounceRef.current !== null) window.clearTimeout(debounceRef.current)
+    debounceRef.current = window.setTimeout(() => {
+      void window.electron.ipcRenderer.invoke(AppStateChannel.Patch, RECORDING_SLICE, {
+        notes: value,
+        lastWriter: clientId
+      })
+    }, NOTES_DEBOUNCE_MS)
+  }
+
   return (
     <RichTextEditor
       className="w-full"
-      defaultValue={{ type: 'doc', content: [] }}
+      value={doc}
+      onValueChange={onValueChange}
       placeholder="Start writing meeting notes..."
     >
       <RichTextEditor.Shell className="overflow-hidden rounded-2xl border border-border shadow-none">

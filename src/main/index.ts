@@ -8,9 +8,12 @@ import {
   listAppWindows
 } from './main-window'
 import { WindowChannel } from '../shared/window-channels'
-import { createTray, focusMainOrCreate, hidePopover } from './popover'
+import { createTray, focusMainOrCreate, hidePopover, promotePopoverToWindow } from './popover'
 import { initNotesIpc } from './notes'
 import { initArtifactoryIpc } from './artifactory/ipc'
+import { initIntegrationsIpc } from './integrations/ipc'
+import { initAppStateIpc } from './app-state'
+import { initRecordingIpc } from './recording'
 
 const APP_NAME = 'The Orchestrator'
 app.setName(APP_NAME)
@@ -66,8 +69,15 @@ app.whenReady().then(() => {
     focusAppWindow(id)
   })
 
+  ipcMain.on(WindowChannel.Promote, () => {
+    promotePopoverToWindow()
+  })
+
   initNotesIpc()
   initArtifactoryIpc()
+  initIntegrationsIpc()
+  initAppStateIpc()
+  initRecordingIpc()
   createTray()
   createMainWindow()
 })
