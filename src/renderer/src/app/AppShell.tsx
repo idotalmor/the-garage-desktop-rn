@@ -6,6 +6,7 @@ import { PromptInput } from '@heroui-pro/react'
 import { AppNavbar } from '../shared/components/AppNavbar'
 import { FeatureMenuProvider, FeatureMenuSlot } from '../shared/components/feature-menu'
 import { RecordingControl } from '../shared/components/RecordingControl'
+import { FocusControl } from '../shared/components/FocusControl'
 import type { AppView } from '../shared/components/appNavigation'
 import { useCompact } from '../shared/hooks/useCompact'
 import { DashboardHome } from '../features/dashboard/components/DashboardHome'
@@ -116,7 +117,7 @@ export function AppShell(): React.JSX.Element {
               isIconOnly
               size="sm"
               variant="ghost"
-              className="size-7 rounded-md text-muted hover:text-foreground"
+              className="size-7 rounded-full text-muted hover:text-foreground"
               onPress={() => window.electron.ipcRenderer.send(WindowChannel.Promote)}
               aria-label="Open in desktop window"
             >
@@ -124,6 +125,7 @@ export function AppShell(): React.JSX.Element {
             </Button>
           )}
           <RecordingControl onOpen={() => setView('recording')} />
+          <FocusControl />
         </div>
         <div
           className="window-prompt-bar flex h-7 min-w-0 flex-1 items-center gap-1.5 rounded-md border border-border/60 bg-transparent px-2 text-xs"
@@ -152,7 +154,7 @@ export function AppShell(): React.JSX.Element {
           isIconOnly
           size="sm"
           variant="ghost"
-          className="size-7 rounded-md text-muted hover:text-foreground"
+          className="size-7 rounded-full text-muted hover:text-foreground"
           onPress={() => void window.electron.ipcRenderer.invoke(WindowChannel.Duplicate)}
           aria-label="Open duplicate window"
         >
@@ -163,7 +165,7 @@ export function AppShell(): React.JSX.Element {
             isIconOnly
             size="sm"
             variant="ghost"
-            className="size-7 rounded-md text-muted hover:text-foreground"
+            className="size-7 rounded-full text-muted hover:text-foreground"
             onPress={() => setIsWindowMenuOpen((open) => !open)}
             aria-label="Show open windows"
             aria-expanded={isWindowMenuOpen}

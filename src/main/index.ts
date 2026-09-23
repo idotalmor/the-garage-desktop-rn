@@ -5,7 +5,8 @@ import {
   createMainWindow,
   createArtifactoryWindow,
   focusAppWindow,
-  listAppWindows
+  listAppWindows,
+  showAppWindow
 } from './main-window'
 import { WindowChannel } from '../shared/window-channels'
 import { createTray, focusMainOrCreate, hidePopover, promotePopoverToWindow } from './popover'
@@ -51,7 +52,6 @@ app.whenReady().then(() => {
   ipcMain.on('app:open-main', () => {
     focusMainOrCreate()
     hidePopover()
-    if (process.platform === 'darwin') app.dock?.show()
   })
 
   ipcMain.on('artifactory:expand', () => {
@@ -83,7 +83,9 @@ app.whenReady().then(() => {
 })
 
 app.on('activate', () => {
-  if (BrowserWindow.getAllWindows().length === 0) createMainWindow()
+  if (BrowserWindow.getAllWindows().length === 0) {
+    showAppWindow(createMainWindow())
+  }
 })
 
 app.on('window-all-closed', () => {

@@ -87,94 +87,12 @@ export function NotesPage(): React.JSX.Element {
   })
 
   return (
-    <main className="mx-auto w-full max-w-6xl px-4 pb-10 pt-14 sm:px-6 lg:pt-16">
+    <main className="mx-auto flex min-h-full w-full max-w-6xl flex-col px-4 pt-14 sm:px-6 lg:pt-16">
       <PageHeader
         eyebrow="Workspace notes"
         title="Notes"
         description="Capture ideas, context, and follow-ups without losing the thread."
       />
-      <section
-        className={`mx-auto mt-8 max-w-3xl rounded-2xl transition-colors ${isDragging ? 'bg-accent/10' : ''}`}
-        aria-label="Add a note"
-        onDragOver={(event) => {
-          event.preventDefault()
-          setIsDragging(true)
-        }}
-        onDragLeave={() => setIsDragging(false)}
-        onDrop={(event) => {
-          event.preventDefault()
-          setIsDragging(false)
-          addFiles(event.dataTransfer.files)
-        }}
-      >
-        <PromptInput value={input} onValueChange={setInput} onSubmit={submit} className="w-full">
-          <PromptInput.Shell className="border border-border shadow-none">
-            {files.length > 0 && (
-              <PromptInput.Attachments className="flex flex-wrap gap-2 px-4 pt-4">
-                {files.map((file) => (
-                  <div
-                    key={`${file.name}-${file.lastModified}`}
-                    className="flex items-center gap-2 rounded-lg bg-surface-secondary px-2.5 py-1.5 text-xs"
-                  >
-                    <FileText size={14} className="text-muted" aria-hidden="true" />
-                    <span className="max-w-48 truncate">{file.name}</span>
-                    <button
-                      type="button"
-                      className="text-muted hover:text-foreground"
-                      onClick={() => setFiles((current) => current.filter((item) => item !== file))}
-                      aria-label={`Remove ${file.name}`}
-                    >
-                      <X size={14} aria-hidden="true" />
-                    </button>
-                  </div>
-                ))}
-              </PromptInput.Attachments>
-            )}
-            <PromptInput.Content>
-              <PromptInput.TextArea
-                className="min-h-32"
-                placeholder="Write a note, drop files, or add context..."
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) {
-                    event.preventDefault()
-                    submit()
-                  }
-                }}
-              />
-            </PromptInput.Content>
-            <PromptInput.Toolbar>
-              <PromptInput.ToolbarStart>
-                <PromptInput.Action
-                  aria-label="Attach files"
-                  tooltip="Attach files"
-                  onPress={() => fileInputRef.current?.click()}
-                >
-                  <Paperclip size={16} aria-hidden="true" />
-                </PromptInput.Action>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  multiple
-                  className="hidden"
-                  onChange={(event) => {
-                    addFiles(event.target.files)
-                    event.target.value = ''
-                  }}
-                />
-                {isDragging && <span className="text-xs text-accent">Drop files to attach</span>}
-              </PromptInput.ToolbarStart>
-              <PromptInput.ToolbarEnd>
-                <PromptInput.Send
-                  isDisabled={!input.trim() && files.length === 0}
-                  aria-label="Add note"
-                >
-                  <ArrowUp size={16} aria-hidden="true" />
-                </PromptInput.Send>
-              </PromptInput.ToolbarEnd>
-            </PromptInput.Toolbar>
-          </PromptInput.Shell>
-        </PromptInput>
-      </section>
 
       <section className="mt-10" aria-label="Notes">
         <div className="mb-4 flex items-center justify-end gap-3">
@@ -301,6 +219,95 @@ export function NotesPage(): React.JSX.Element {
             </Table.ScrollContainer>
           </Table>
         )}
+      </section>
+
+      <section
+        className="sticky bottom-0 z-10 -mx-4 mt-auto bg-background px-4 pb-4 pt-2 sm:-mx-6 sm:px-6"
+        aria-label="Add a note"
+        onDragOver={(event) => {
+          event.preventDefault()
+          setIsDragging(true)
+        }}
+        onDragLeave={() => setIsDragging(false)}
+        onDrop={(event) => {
+          event.preventDefault()
+          setIsDragging(false)
+          addFiles(event.dataTransfer.files)
+        }}
+      >
+        <div
+          className={`mx-auto max-w-3xl rounded-2xl transition-colors ${isDragging ? 'bg-accent/10' : ''}`}
+        >
+          <PromptInput value={input} onValueChange={setInput} onSubmit={submit} className="w-full">
+            <PromptInput.Shell className="border border-border shadow-none">
+              {files.length > 0 && (
+                <PromptInput.Attachments className="flex flex-wrap gap-2 px-4 pt-4">
+                  {files.map((file) => (
+                    <div
+                      key={`${file.name}-${file.lastModified}`}
+                      className="flex items-center gap-2 rounded-lg bg-surface-secondary px-2.5 py-1.5 text-xs"
+                    >
+                      <FileText size={14} className="text-muted" aria-hidden="true" />
+                      <span className="max-w-48 truncate">{file.name}</span>
+                      <button
+                        type="button"
+                        className="text-muted hover:text-foreground"
+                        onClick={() =>
+                          setFiles((current) => current.filter((item) => item !== file))
+                        }
+                        aria-label={`Remove ${file.name}`}
+                      >
+                        <X size={14} aria-hidden="true" />
+                      </button>
+                    </div>
+                  ))}
+                </PromptInput.Attachments>
+              )}
+              <PromptInput.Content>
+                <PromptInput.TextArea
+                  className="min-h-12"
+                  placeholder="Write a note, drop files, or add context..."
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) {
+                      event.preventDefault()
+                      submit()
+                    }
+                  }}
+                />
+              </PromptInput.Content>
+              <PromptInput.Toolbar>
+                <PromptInput.ToolbarStart>
+                  <PromptInput.Action
+                    aria-label="Attach files"
+                    tooltip="Attach files"
+                    onPress={() => fileInputRef.current?.click()}
+                  >
+                    <Paperclip size={16} aria-hidden="true" />
+                  </PromptInput.Action>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    multiple
+                    className="hidden"
+                    onChange={(event) => {
+                      addFiles(event.target.files)
+                      event.target.value = ''
+                    }}
+                  />
+                  {isDragging && <span className="text-xs text-accent">Drop files to attach</span>}
+                </PromptInput.ToolbarStart>
+                <PromptInput.ToolbarEnd>
+                  <PromptInput.Send
+                    isDisabled={!input.trim() && files.length === 0}
+                    aria-label="Add note"
+                  >
+                    <ArrowUp size={16} aria-hidden="true" />
+                  </PromptInput.Send>
+                </PromptInput.ToolbarEnd>
+              </PromptInput.Toolbar>
+            </PromptInput.Shell>
+          </PromptInput>
+        </div>
       </section>
 
       {selectedAttachment && (

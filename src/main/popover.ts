@@ -1,8 +1,8 @@
-import { BrowserWindow, Tray, nativeImage, screen } from 'electron'
+import { app, BrowserWindow, Menu, Tray, nativeImage, screen } from 'electron'
 import { join } from 'path'
 import { is } from '@electron-toolkit/utils'
 import brainIcon from '../../resources/brain.png?asset'
-import { createMainWindow, getMainWindow, registerAppWindow } from './main-window'
+import { createMainWindow, getMainWindow, registerAppWindow, showAppWindow } from './main-window'
 
 const POPOVER_WIDTH = process.platform === 'darwin' ? 500 : 360
 const POPOVER_HEIGHT = process.platform === 'darwin' ? 700 : 480
@@ -12,6 +12,10 @@ const POPOVER_ANIMATION_DURATION = 420
 let popoverWindow: BrowserWindow | null = null
 let tray: Tray | null = null
 let popoverAnimation: ReturnType<typeof setInterval> | null = null
+
+function activateApp(): void {
+  if (process.platform === 'darwin') app.focus({ steal: true })
+}
 
 function createPopoverWindow(): void {
   popoverWindow = new BrowserWindow({
@@ -105,6 +109,7 @@ function animatePopoverIn(x: number, y: number): void {
   popoverWindow.setPosition(startX, y, false)
   popoverWindow.show()
   popoverWindow.focus()
+  activateApp()
 
   popoverAnimation = setInterval(() => {
     if (!popoverWindow || popoverWindow.isDestroyed()) {
@@ -178,6 +183,7 @@ export function showOrCreatePopover(): void {
   popoverWindow.setPosition(x, y, false)
   popoverWindow.show()
   popoverWindow.focus()
+  activateApp()
 }
 
 export function createTray(): void {
@@ -185,7 +191,9 @@ export function createTray(): void {
   if (process.platform === 'darwin') trayIcon.setTemplateImage(true)
   tray = new Tray(trayIcon)
   tray.setToolTip('The Orchestrator')
+  const contextMenu = Menu.buildFromTemplate([{ label: 'Quit', click: () => app.quit() }])
   tray.on('click', () => showOrCreatePopover())
+  tray.on('right-click', () => tray?.popUpContextMenu(contextMenu))
 }
 
 export function hidePopover(): void {
@@ -231,8 +239,7 @@ export function promotePopoverToWindow(): void {
 
   popoverWindow = null
   registerAppWindow(window)
-  window.show()
-  window.focus()
+  showAppWindow(window)
 }
 
 export function focusMainOrCreate(): void {
@@ -240,6 +247,5 @@ export function focusMainOrCreate(): void {
   if (!main) {
     main = createMainWindow()
   }
-  main?.show()
-  main?.focus()
+  if (main) showAppWindow(main)
 }

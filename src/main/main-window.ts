@@ -58,19 +58,27 @@ export function createMainWindow(): BrowserWindow {
   mainWindow = createWorkspaceWindow()
   mainWindow.on('closed', () => {
     mainWindow = null
-    if (process.platform === 'darwin') app.dock?.hide()
+    if (process.platform === 'darwin' && appWindows.size === 0) app.dock?.hide()
   })
   return mainWindow
 }
 
 export function createDuplicateWindow(): BrowserWindow {
   const window = createWorkspaceWindow()
-  window.once('ready-to-show', () => window.show())
+  window.once('ready-to-show', () => showAppWindow(window))
   return window
 }
 
 export function getMainWindow(): BrowserWindow | null {
   return mainWindow
+}
+
+export function showAppWindow(window: BrowserWindow): void {
+  if (window.isMinimized()) window.restore()
+  if (process.platform === 'darwin') app.dock?.show()
+  window.show()
+  window.focus()
+  if (process.platform === 'darwin') app.focus({ steal: true })
 }
 
 export function registerAppWindow(window: BrowserWindow): void {
@@ -97,9 +105,7 @@ export function listAppWindows(): OpenWindow[] {
 export function focusAppWindow(id: number): void {
   const window = Array.from(appWindows).find((item) => item.id === id && !item.isDestroyed())
   if (!window) return
-  if (window.isMinimized()) window.restore()
-  window.show()
-  window.focus()
+  showAppWindow(window)
 }
 
 export function createArtifactoryWindow(): BrowserWindow {
@@ -120,6 +126,7 @@ export function createArtifactoryWindow(): BrowserWindow {
 
   configureWindow(artifactoryWindow)
   loadRenderer(artifactoryWindow, '?artifactoryWindow=1')
+  showAppWindow(artifactoryWindow)
   artifactoryWindows.add(artifactoryWindow)
   artifactoryWindow.on('closed', () => {
     artifactoryWindows.delete(artifactoryWindow)
