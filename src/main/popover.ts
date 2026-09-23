@@ -24,16 +24,17 @@ function createPopoverWindow(): void {
     hasShadow: true,
     backgroundColor: '#00000000',
     ...(process.platform === 'darwin'
-      ? {
-          titleBarStyle: 'hidden',
-          trafficLightPosition: { x: -200, y: -200 }
-        }
+      ? { titleBarStyle: 'hidden', trafficLightPosition: { x: 14, y: 14 } }
       : { frame: false, minimizable: false, maximizable: false }),
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       sandbox: false
     }
   })
+
+  if (process.platform === 'darwin') {
+    popoverWindow.setWindowButtonVisibility(false)
+  }
 
   if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
     popoverWindow.loadURL(process.env['ELECTRON_RENDERER_URL'])
@@ -206,7 +207,12 @@ export function promotePopoverToWindow(): void {
   window.setResizable(true)
   window.setSkipTaskbar(false)
   if (process.platform === 'darwin') {
-    window.setWindowButtonPosition({ x: 14, y: 14 })
+    try {
+      window.setWindowButtonVisibility(true)
+      window.setWindowButtonPosition({ x: 14, y: 14 })
+    } catch {
+      // frameless windows may not support window buttons
+    }
   }
 
   const { x, y } = getPopoverPosition()

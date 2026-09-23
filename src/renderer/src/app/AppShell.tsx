@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Brain, ChevronDown, Copy, Expand, X } from 'lucide-react'
+import { ArrowUpLeft, Brain, ChevronDown, CopyPlus, X } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import { Button } from '@heroui/react'
 import { PromptInput } from '@heroui-pro/react'
@@ -111,6 +111,18 @@ export function AppShell(): React.JSX.Element {
         }
       >
         <div className="window-top-actions flex shrink-0 items-center gap-1">
+          {compact && (
+            <Button
+              isIconOnly
+              size="sm"
+              variant="ghost"
+              className="size-7 rounded-md text-muted hover:text-foreground"
+              onPress={() => window.electron.ipcRenderer.send(WindowChannel.Promote)}
+              aria-label="Open in desktop window"
+            >
+              <ArrowUpLeft size={15} aria-hidden="true" />
+            </Button>
+          )}
           <RecordingControl onOpen={() => setView('recording')} />
         </div>
         <div
@@ -136,18 +148,6 @@ export function AppShell(): React.JSX.Element {
             : 'absolute right-3 flex items-center gap-1'
         }
       >
-        {compact && (
-          <Button
-            isIconOnly
-            size="sm"
-            variant="ghost"
-            className="size-7 rounded-md text-muted hover:text-foreground"
-            onPress={() => window.electron.ipcRenderer.send(WindowChannel.Promote)}
-            aria-label="Open in desktop window"
-          >
-            <Expand size={15} aria-hidden="true" />
-          </Button>
-        )}
         <Button
           isIconOnly
           size="sm"
@@ -156,7 +156,7 @@ export function AppShell(): React.JSX.Element {
           onPress={() => void window.electron.ipcRenderer.invoke(WindowChannel.Duplicate)}
           aria-label="Open duplicate window"
         >
-          <Copy size={15} aria-hidden="true" />
+          <CopyPlus size={15} aria-hidden="true" />
         </Button>
         <div className="relative">
           <Button
@@ -273,20 +273,19 @@ export function AppShell(): React.JSX.Element {
       <FeatureMenuProvider>
         <div className="popover-shell flex h-screen flex-col overflow-hidden rounded-2xl bg-background text-foreground">
           <WindowDragRegion
-            className={`app-top-bar relative flex h-10 shrink-0 items-center bg-background/60 backdrop-blur-md ${isContentScrolled ? 'is-scrolled' : ''}`}
+            className={`app-top-bar fixed inset-x-0 top-0 z-30 flex h-10 items-center bg-background/60 backdrop-blur-md ${isContentScrolled ? 'is-scrolled' : ''}`}
           >
             {topBarContent(true)}
           </WindowDragRegion>
           <div className="flex min-h-0 flex-1">
             <AppNavbar
               position="left"
-              topBarInset={false}
               view={view}
               themeLabel={themeLabel}
               onViewChange={setView}
               onThemeChange={cycleTheme}
             />
-            <FeatureMenuSlot className="flex" />
+            <FeatureMenuSlot className="flex pt-10" />
             <main
               className="min-w-0 flex-1 overflow-y-auto"
               onScroll={(event) => setIsContentScrolled(event.currentTarget.scrollTop > 0)}

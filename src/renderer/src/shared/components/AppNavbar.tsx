@@ -18,7 +18,6 @@ type AppNavbarProps = {
   onViewChange: (view: AppView) => void
   onThemeChange: () => void
   position?: 'left' | 'right'
-  topBarInset?: boolean
 }
 
 export function NavButton({
@@ -54,8 +53,7 @@ export function AppNavbar({
   themeLabel,
   onViewChange,
   onThemeChange,
-  position = 'left',
-  topBarInset = true
+  position = 'left'
 }: AppNavbarProps): React.JSX.Element {
   const ThemeIcon = themeLabel === 'Dark' ? Moon : Sun
   const contribution = useFeatureMenuContribution()
@@ -72,8 +70,8 @@ export function AppNavbar({
     <aside
       className={
         isLeft
-          ? `window-drag-region relative flex h-screen w-12 shrink-0 flex-col items-center bg-background/85 px-2 pb-1 backdrop-blur ${topBarInset ? 'pt-9' : 'pt-2'}`
-          : 'window-drag-region flex w-12 shrink-0 flex-col items-center border-l border-separator bg-background/85 px-2 pb-1 pt-2 backdrop-blur'
+          ? 'window-drag-region relative mt-10 flex h-[calc(100vh-2.5rem)] w-12 shrink-0 flex-col items-center bg-background/85 px-2 pb-1 pt-2 backdrop-blur'
+          : 'window-drag-region mt-10 flex h-[calc(100vh-2.5rem)] w-12 shrink-0 flex-col items-center border-l border-separator bg-background/85 px-2 pb-1 pt-2 backdrop-blur'
       }
       aria-label="Main navigation"
     >
