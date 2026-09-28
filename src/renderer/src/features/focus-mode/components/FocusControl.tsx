@@ -322,67 +322,148 @@ export function FocusControl({
     }
   }, [timers, getFinishSound])
 
+  const [isMoreOpen, setIsMoreOpen] = useState(false)
+  const moreCloseTimer = useRef<number | undefined>(undefined)
+  const openMore = (): void => {
+    window.clearTimeout(moreCloseTimer.current)
+    setIsMoreOpen(true)
+  }
+  const closeMore = (): void => {
+    moreCloseTimer.current = window.setTimeout(() => setIsMoreOpen(false), 250)
+  }
   const hiddenTimers = Math.max(0, timers.length - 2)
 
   return (
     <div className="flex items-center gap-1">
-      <div className="flex items-center">
+      {isFocusPage ? (
         <Button
           isIconOnly
           size="sm"
           variant="ghost"
-          className={
-            isFocusPage
-              ? 'size-7! rounded-full bg-black text-white ring-2 ring-success'
-              : 'size-7! rounded-full text-muted hover:text-foreground'
-          }
+          className="size-6! shrink-0 rounded-full bg-black text-white ring-2 ring-success hover:bg-black/60"
           onPress={onToggleFocusPage}
-          aria-label={isFocusPage ? 'Back to previous view' : 'Open focus mode'}
+          aria-label="Back to previous view"
         >
-          <Hourglass className="size-3.5!" aria-hidden="true" />
+          <Hourglass className="size-3!" aria-hidden="true" />
         </Button>
-        <Button
-          isIconOnly
-          size="sm"
-          variant="ghost"
-          className="size-7! rounded-full text-muted hover:text-foreground"
-          onPress={() => startTimer()}
-          aria-label={
-            hiddenTimers > 0 ? `Add focus timer, ${hiddenTimers} more not shown` : 'Add focus timer'
-          }
-        >
-          <Plus className="size-3.5!" aria-hidden="true" />
-        </Button>
+      ) : (
+        <div className="peer relative flex h-6 w-6 items-center">
+          <div className="group/focusbtns absolute left-0 top-0 z-10 flex h-6 w-6 items-center overflow-hidden rounded-full transition-[width,background-color] duration-300 ease-out focus-within:w-12 focus-within:bg-success hover:w-12 hover:bg-success">
+            <div className="flex -translate-x-6 items-center transition-transform duration-300 ease-out group-focus-within/focusbtns:translate-x-0 group-hover/focusbtns:translate-x-0">
+              <Button
+                isIconOnly
+                size="sm"
+                variant="ghost"
+                className="size-6! shrink-0 rounded-full text-muted hover:bg-black/20 group-focus-within/focusbtns:text-white group-hover/focusbtns:text-white"
+                onPress={(event) => {
+                  ;(event.target as HTMLElement).blur()
+                  startTimer()
+                }}
+                aria-label={
+                  hiddenTimers > 0
+                    ? `Add focus timer, ${hiddenTimers} more not shown`
+                    : 'Add focus timer'
+                }
+              >
+                <Plus className="size-3!" aria-hidden="true" />
+              </Button>
+              <Button
+                isIconOnly
+                size="sm"
+                variant="ghost"
+                className="size-6! shrink-0 rounded-full text-muted hover:bg-black/20 group-focus-within/focusbtns:text-white group-hover/focusbtns:text-white"
+                onPress={(event) => {
+                  ;(event.target as HTMLElement).blur()
+                  onToggleFocusPage()
+                }}
+                aria-label="Open focus mode"
+              >
+                <Hourglass className="size-3!" aria-hidden="true" />
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+      <div
+        className={`flex items-center gap-1 transition-transform duration-300 ease-out ${isFocusPage ? '' : 'peer-focus-within:translate-x-6 peer-hover:translate-x-6'}`}
+      >
+        {timers.length > 0 && (
+          <span className="mx-1 h-3.5 w-px bg-separator" role="separator" aria-hidden="true" />
+        )}
+        <AnimatePresence initial={false} mode="popLayout">
+          {timers.slice(0, 2).map((timer) => (
+            <FocusChip
+              key={timer.id}
+              timer={timer}
+              now={now}
+              onRequestStop={requestStop}
+              onSetDuration={setDuration}
+              onRename={renameTimer}
+              onDismiss={dismissTimer}
+              onAgain={againTimer}
+              onOpenFocusPage={onToggleFocusPage}
+              onPauseStop={pauseStop}
+              onResumeStop={resumeStop}
+              onCancelStop={cancelStop}
+            />
+          ))}
+        </AnimatePresence>
+        {hiddenTimers > 0 && (
+          <div
+            className="hover-menu relative flex h-6 cursor-pointer items-center"
+            role="button"
+            tabIndex={0}
+            aria-haspopup="menu"
+            aria-label={`${hiddenTimers} more focus timers`}
+            onMouseEnter={openMore}
+            onMouseLeave={closeMore}
+            onFocus={openMore}
+            onBlur={closeMore}
+          >
+            <span className="text-xs font-medium tabular-nums text-muted">+{hiddenTimers}</span>
+            {isMoreOpen && (
+              <div className="absolute right-0 top-full z-50 pt-1">
+                <div
+                  className="w-max rounded-xl border border-white/15 bg-black p-1 shadow-overlay"
+                  role="menu"
+                  aria-label="More focus timers"
+                >
+                  {timers.slice(2).map((timer) => (
+                    <div
+                      key={timer.id}
+                      className="flex items-center gap-1.5 px-1 py-0.5"
+                      role="menuitem"
+                    >
+                      <EditableText
+                        value={timer.name}
+                        placeholder="Unknown timer"
+                        onSave={(name) => renameTimer(timer.id, name)}
+                        className="w-28 truncate rounded-md border border-transparent px-1.5 py-1 text-left text-[11px] font-medium text-white hover:border-white/25"
+                        inputClassName="w-28 rounded-md border border-white/25 bg-white/10 px-1.5 py-1 text-[11px] font-medium text-white outline-none placeholder:text-white/50"
+                      />
+                      <span className="text-[11px] tabular-nums text-white/60">
+                        {timer.state === 'scheduled'
+                          ? formatTime(timer.startsAt)
+                          : formatRemaining(Math.max(0, Math.ceil((timer.endsAt - now) / 1000)))}
+                      </span>
+                      <Button
+                        isIconOnly
+                        size="sm"
+                        variant="ghost"
+                        className="size-4! rounded-full bg-danger text-white hover:bg-danger/80"
+                        onPress={() => dismissTimer(timer.id)}
+                        aria-label={`Stop timer ${timer.name ?? ''}`}
+                      >
+                        <Square className="size-2.5! fill-current" aria-hidden="true" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
-      {timers.length > 0 && (
-        <span className="mx-1 h-3.5 w-px bg-separator" role="separator" aria-hidden="true" />
-      )}
-      <AnimatePresence initial={false} mode="popLayout">
-        {timers.slice(0, 2).map((timer) => (
-          <FocusChip
-            key={timer.id}
-            timer={timer}
-            now={now}
-            onRequestStop={requestStop}
-            onSetDuration={setDuration}
-            onRename={renameTimer}
-            onDismiss={dismissTimer}
-            onAgain={againTimer}
-            onOpenFocusPage={onToggleFocusPage}
-            onPauseStop={pauseStop}
-            onResumeStop={resumeStop}
-            onCancelStop={cancelStop}
-          />
-        ))}
-      </AnimatePresence>
-      {hiddenTimers > 0 && (
-        <span
-          className="text-xs font-medium tabular-nums text-muted"
-          aria-label={`${hiddenTimers} more focus timers`}
-        >
-          +{hiddenTimers}
-        </span>
-      )}
     </div>
   )
 }

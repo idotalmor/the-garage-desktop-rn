@@ -60,6 +60,11 @@ body:has(.popover-shell) {
   -webkit-app-region: no-drag;
 }
 
+.hover-menu,
+.hover-menu * {
+  -webkit-app-region: no-drag;
+}
+
 .window-prompt-input {
   -webkit-app-region: no-drag;
 }

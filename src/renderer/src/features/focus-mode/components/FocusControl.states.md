@@ -1,0 +1,114 @@
+# FocusControl — State & Behavior Map
+
+Top-bar focus timer control (`FocusControl.tsx`). This document lists every
+visual/interactive state and the rules that govern transitions.
+
+## Layout
+
+`[focus buttons] | separator | [chip 1] [chip 2] +N`
+
+- Max **2 timer chips** render inline (`timers.slice(0, 2)`); the rest collapse
+  into a `+N` indicator.
+- The whole control lives inside the **centered** top bar
+  (`absolute left-1/2 -translate-x-1/2` in `AppShell`) — nothing in it may change
+  layout width, or the whole bar re-centers and the cursor target drifts. All
+  expansions therefore use overlays/transforms, never layout growth.
+
+## Timer chip states (`FocusChip`)
+
+Resolved with explicit precedence (first match wins):
+
+| Order | State        | Trigger                              | Look                                   | Click action                  |
+| ----- | ------------ | ------------------------------------ | -------------------------------------- | ----------------------------- |
+| 1     | `finished`   | `timer.state === 'finished'`         | red pill (`bg-danger`)                 | none                          |
+| 2     | `scheduled`  | `timer.state === 'scheduled'`        | gray pill, clock icon + start time     | opens focus page              |
+| 3     | `stopping`   | `timer.state === 'stopping'`         | black pill + green ring (`ring-success`) | cancels stop                |
+| 4     | `urgent`     | `remainingSeconds <= 4`              | red pill + countdown                   | requestStop (→ `stopping`)    |
+| 5     | `running`    | default                              | small green circle (14px)              | requestStop (→ `stopping`)    |
+
+> `stopping` beats `urgent`: a chip in the confirm/edit state never becomes the
+> red urgent chip even at ≤4s.
+
+### `running` — the green dot
+
+- Collapsed: `h-3.5 max-w-3.5` (14×14), `rounded-full`, `bg-success`,
+  `overflow-hidden`, **no padding on the chip itself** (padding lives on the
+  counter span — chip padding would force a min width and make an oval).
+- Breathing: opacity oscillates 0.55 → 1.0 on a 2.4s cosine cycle computed from
+  the shared `now` clock (250ms tick in `useFocusMode`) → all dots stay in
+  sync. Disabled on hover/focus (opacity pinned to 1) and with
+  `prefers-reduced-motion`.
+- Hover / `focus-visible`: expands `h-6 max-w-48` left-to-right into the green
+  pill; the counter fades/slides in with a 150ms delay. Plain tabular-nums
+  text — no rolling digits.
+
+### `urgent` — last 4 seconds
+
+- Red pill (`bg-danger`) showing the countdown directly.
+- Same 2.4s synchronized breathing as the running dot (not the old fast flicker).
+- Click requests stop → `stopping`.
+
+### `stopping` — confirm/edit
+
+- Black pill + `ring-2 ring-success`; leading square button confirms the stop;
+  countdown stays as plain text.
+- Timer is **paused** while open (`pauseStop` on mount, `resumeStop` on unmount).
+- `DurationMenu` dropdown opens below (rename via `EditableText`, duration
+  presets). Clicking outside cancels (`document` pointerdown listener +
+  `fixed inset-0 z-[-1]` backdrop). Wrapper goes `z-50` to float above siblings.
+
+### `finished`
+
+- Red pill: square = dismiss (`dismissTimer`), circular-arrow = rerun
+  (`againTimer`), then name marquee or flickering `0:00`.
+- New finishes while the window is visible play `playFinishSound` once.
+
+### `scheduled`
+
+- Gray pill with clock + `formatTime(startsAt)`. Click opens the focus page.
+
+## Focus buttons cluster
+
+### Not on focus page (`isFocusPage === false`)
+
+- Collapsed: 24px circle, hourglass icon only.
+- Hover or `focus-within`: overlay expands `w-6 → w-12` + `bg-success`; inner
+  row `[+][hourglass]` slides `translate-x-0` from `-translate-x-6` → the
+  hourglass visibly shifts right and **plus lands under the cursor** (the
+  common action first).
+- Expansion is an **absolutely positioned overlay** (`z-10`) — fixed 24px
+  layout slot, so the centered top bar never re-centers.
+- Siblings (separator, chips, `+N`) slide right `translate-x-6` via
+  `peer-hover` / `peer-focus-within` — a transform, not layout — so they appear
+  pushed aside rather than overlapped.
+- Buttons blur themselves on press, so the chip collapses on mouse-out even
+  though `focus-within` is active after a click. Keyboard tab-in still opens it.
+
+### On focus page (`isFocusPage === true`)
+
+- Cluster replaced by a **single hourglass button**
+  (`bg-black ring-2 ring-success`) = "back to previous view".
+- No expansion, no plus — adding timers happens on the focus page.
+- Sibling shift disabled too (hover does nothing to layout).
+
+## `+N` hidden-timers menu
+
+- Renders only when `timers.length > 2`.
+- Trigger: `+N` text (`role="button"`, `aria-haspopup="menu"`).
+- Opens on hover/focus via JS state (`isMoreOpen`) with a **250ms close delay**
+  — pure `group-hover` was unusable because moving diagonally to the menu
+  crosses the chips and a `display:none` menu can't re-trigger hover.
+- Menu: right-aligned below `+N` (`right-0`, extends left), dark
+  (`bg-black`, `border-white/15`), `z-50`.
+- Rows: `EditableText` name (hover border → click to edit → `renameTimer`),
+  remaining countdown (or scheduled start time), red `bg-danger` square =
+  `dismissTimer`.
+
+## Electron drag-region rule
+
+The top bar is `-webkit-app-region: drag`. In Electron, **drag regions don't
+deliver `:hover` to non-interactive elements** — only `no-drag` elements get
+hover/click. Existing CSS gives `no-drag` to `button`, `a`, `input`,
+`[role='button']`, `.window-prompt-bar`, and the `.hover-menu` class (which
+also no-drags all descendants). Anything interactive added to this control that
+isn't one of those must opt out of dragging or its hover will be dead.
