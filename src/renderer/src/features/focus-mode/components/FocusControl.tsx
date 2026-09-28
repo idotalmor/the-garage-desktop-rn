@@ -1,13 +1,26 @@
 import { Clock, Hourglass, Plus, RotateCcw, Square, Timer } from 'lucide-react'
 import { Button } from '@heroui/react'
-import { AnimatePresence, motion } from 'motion/react'
-import { useEffect, useRef } from 'react'
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
+import { useEffect, useRef, useState } from 'react'
 import type { FocusTimer } from '../../../../../shared/focus-mode/types'
 import { EditableText } from '../../../shared/components/EditableText'
 import { useFocusMode } from '../hooks/use-focus-mode'
 import { FOCUS_DURATIONS, formatTime, playFinishSound } from '../utils'
 
 const chipSpring = { type: 'spring', bounce: 0.3, duration: 0.4 } as const
+const BREATHE_PERIOD_MS = 2400
+const URGENT_SECONDS = 4
+
+type ChipState = 'scheduled' | 'finished' | 'stopping' | 'urgent' | 'running'
+
+const CHIP_CLASS: Record<ChipState, string> = {
+  scheduled: 'h-6 bg-surface-secondary pl-2.5 pr-3 text-muted transition-colors',
+  finished: 'h-6 bg-danger pl-2.5 pr-3 text-white transition-colors',
+  stopping: 'h-6 bg-black pl-2.5 pr-3 text-white ring-2 ring-success transition-colors',
+  urgent: 'h-6 bg-danger pl-2.5 pr-3 text-white transition-[color,background-color,opacity]',
+  running:
+    'group h-3.5 w-max max-w-3.5 overflow-hidden bg-success text-white transition-[height,max-width,opacity] duration-300 ease-out hover:h-6 hover:max-w-48 focus-visible:h-6 focus-visible:max-w-48'
+}
 
 function formatRemaining(totalSeconds: number): string {
   const minutes = Math.floor(totalSeconds / 60)
@@ -103,8 +116,25 @@ function FocusChip({
   const isStopping = timer.state === 'stopping'
   const isFinished = timer.state === 'finished'
   const remainingSeconds = Math.max(0, Math.ceil((timer.endsAt - now) / 1000))
+  const chipState: ChipState = isFinished
+    ? 'finished'
+    : isScheduled
+      ? 'scheduled'
+      : isStopping
+        ? 'stopping'
+        : remainingSeconds <= URGENT_SECONDS
+          ? 'urgent'
+          : 'running'
+  const isUrgent = chipState === 'urgent'
   const holdConfirm = isStopping
   const hasOpenLayer = isStopping
+
+  const reduceMotion = useReducedMotion()
+  const [isHovered, setIsHovered] = useState(false)
+  const breathing = (chipState === 'running' || isUrgent) && !isHovered && !reduceMotion
+  const breathePhase = (now % BREATHE_PERIOD_MS) / BREATHE_PERIOD_MS
+  const breathe =
+    Math.round((0.55 + 0.45 * (0.5 - 0.5 * Math.cos(breathePhase * Math.PI * 2))) * 1000) / 1000
 
   useEffect(() => {
     if (!holdConfirm) return
@@ -164,17 +194,14 @@ function FocusChip({
               ? 'Focus timer finished, press for details or double press to dismiss'
               : isStopping
                 ? 'Confirm stop focus mode'
-                : 'Focus session in progress'
+                : `Focus session in progress, ${formatRemaining(remainingSeconds)} remaining`
         }
-        className={`flex h-6 shrink-0 cursor-pointer items-center rounded-full pl-2.5 transition-colors ${
-          isFinished
-            ? 'bg-danger pr-3 text-white'
-            : isStopping
-              ? 'bg-black pr-3 text-white ring-2 ring-success'
-              : isScheduled
-                ? 'bg-surface-secondary pr-3 text-muted'
-                : 'bg-success pr-3 text-white'
-        }`}
+        style={{ opacity: breathing ? breathe : 1 }}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+        onFocus={() => setIsHovered(true)}
+        onBlur={() => setIsHovered(false)}
+        className={`flex shrink-0 cursor-pointer items-center rounded-full ${CHIP_CLASS[chipState]}`}
         onClick={(event) => {
           if ((event.target as HTMLElement).closest('button, input')) return
           handlePress()
@@ -234,9 +261,15 @@ function FocusChip({
                 <Square className="size-2.5! fill-current" aria-hidden="true" />
               </Button>
             )}
-            <span className="text-xs font-medium tabular-nums">
-              {formatRemaining(remainingSeconds)}
-            </span>
+            {isStopping || isUrgent ? (
+              <span className="text-xs font-medium tabular-nums">
+                {formatRemaining(remainingSeconds)}
+              </span>
+            ) : (
+              <span className="translate-y-1 whitespace-nowrap pl-2.5 pr-3 text-xs font-medium tabular-nums opacity-0 transition-all duration-300 ease-out group-hover:translate-y-0 group-hover:opacity-100 group-hover:delay-150 group-focus-visible:translate-y-0 group-focus-visible:opacity-100">
+                {formatRemaining(remainingSeconds)}
+              </span>
+            )}
           </>
         )}
         {isStopping && (
