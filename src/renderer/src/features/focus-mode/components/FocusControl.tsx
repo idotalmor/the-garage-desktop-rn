@@ -331,61 +331,90 @@ export function FocusControl({
   const closeMore = (): void => {
     moreCloseTimer.current = window.setTimeout(() => setIsMoreOpen(false), 250)
   }
+  const [expandArmed, setExpandArmed] = useState(true)
+  const [justClosed, setJustClosed] = useState(false)
+  const [wasFocusPage, setWasFocusPage] = useState(isFocusPage)
+  if (isFocusPage !== wasFocusPage) {
+    setWasFocusPage(isFocusPage)
+    if (isFocusPage) setExpandArmed(false)
+    else setJustClosed(true)
+  }
+  useEffect(() => {
+    if (!justClosed) return
+    const timer = window.setTimeout(() => setJustClosed(false), 350)
+    return () => window.clearTimeout(timer)
+  }, [justClosed])
+  const [buttonLock, setButtonLock] = useState(false)
+  const lockTimer = useRef<number | undefined>(undefined)
+  const armExpand = (): void => {
+    if (justClosed || isFocusPage) return
+    setExpandArmed(true)
+    window.clearTimeout(lockTimer.current)
+    setButtonLock(true)
+    lockTimer.current = window.setTimeout(() => setButtonLock(false), 320)
+  }
   const hiddenTimers = Math.max(0, timers.length - 2)
 
   return (
     <div className="flex items-center gap-1">
-      {isFocusPage ? (
-        <Button
-          isIconOnly
-          size="sm"
-          variant="ghost"
-          className="size-6! shrink-0 rounded-full bg-black text-white ring-2 ring-success hover:bg-black/60"
-          onPress={onToggleFocusPage}
-          aria-label="Back to previous view"
+      <div
+        className="peer relative flex h-6 w-6 items-center"
+        onMouseEnter={armExpand}
+        onFocus={armExpand}
+      >
+        <div
+          className={`group/focusbtns absolute left-0 top-0 z-10 flex h-6 w-6 items-center overflow-hidden rounded-full duration-300 ease-out ${
+            isFocusPage
+              ? 'bg-black text-white ring-2 ring-success transition-[width,background-color,box-shadow]'
+              : expandArmed
+                ? 'focus-within:w-12 focus-within:bg-success hover:w-12 hover:bg-success transition-[width]'
+                : 'transition-[width]'
+          }`}
         >
-          <Hourglass className="size-3!" aria-hidden="true" />
-        </Button>
-      ) : (
-        <div className="peer relative flex h-6 w-6 items-center">
-          <div className="group/focusbtns absolute left-0 top-0 z-10 flex h-6 w-6 items-center overflow-hidden rounded-full transition-[width,background-color] duration-300 ease-out focus-within:w-12 focus-within:bg-success hover:w-12 hover:bg-success">
-            <div className="flex -translate-x-6 items-center transition-transform duration-300 ease-out group-focus-within/focusbtns:translate-x-0 group-hover/focusbtns:translate-x-0">
-              <Button
-                isIconOnly
-                size="sm"
-                variant="ghost"
-                className="size-6! shrink-0 rounded-full text-muted hover:bg-black/20 group-focus-within/focusbtns:text-white group-hover/focusbtns:text-white"
-                onPress={(event) => {
-                  ;(event.target as HTMLElement).blur()
-                  startTimer()
-                }}
-                aria-label={
-                  hiddenTimers > 0
-                    ? `Add focus timer, ${hiddenTimers} more not shown`
-                    : 'Add focus timer'
-                }
-              >
-                <Plus className="size-3!" aria-hidden="true" />
-              </Button>
-              <Button
-                isIconOnly
-                size="sm"
-                variant="ghost"
-                className="size-6! shrink-0 rounded-full text-muted hover:bg-black/20 group-focus-within/focusbtns:text-white group-hover/focusbtns:text-white"
-                onPress={(event) => {
-                  ;(event.target as HTMLElement).blur()
-                  onToggleFocusPage()
-                }}
-                aria-label="Open focus mode"
-              >
-                <Hourglass className="size-3!" aria-hidden="true" />
-              </Button>
-            </div>
+          <div
+            className={`flex -translate-x-6 items-center transition-transform duration-300 ease-out ${
+              !isFocusPage && expandArmed
+                ? 'group-focus-within/focusbtns:translate-x-0 group-hover/focusbtns:translate-x-0'
+                : ''
+            }`}
+          >
+            <Button
+              isIconOnly
+              size="sm"
+              variant="ghost"
+              className={`size-6! shrink-0 rounded-full text-muted ${buttonLock ? '' : 'hover:bg-black/20'} ${!isFocusPage && expandArmed ? 'group-focus-within/focusbtns:text-white group-hover/focusbtns:text-white' : ''} ${isFocusPage ? 'pointer-events-none' : ''}`}
+              excludeFromTabOrder={isFocusPage}
+              aria-hidden={isFocusPage || undefined}
+              onPress={(event) => {
+                ;(event.target as HTMLElement).blur()
+                startTimer()
+              }}
+              aria-label={
+                hiddenTimers > 0
+                  ? `Add focus timer, ${hiddenTimers} more not shown`
+                  : 'Add focus timer'
+              }
+            >
+              <Plus className="size-3!" aria-hidden="true" />
+            </Button>
+            <Button
+              isIconOnly
+              size="sm"
+              variant="ghost"
+              className={`size-6! shrink-0 rounded-full ${isFocusPage ? 'text-white hover:bg-white/10' : `text-muted ${buttonLock ? '' : 'hover:bg-black/20'} ${expandArmed ? 'group-focus-within/focusbtns:text-white group-hover/focusbtns:text-white' : ''}`}`}
+              onPress={(event) => {
+                ;(event.target as HTMLElement).blur()
+                onToggleFocusPage()
+              }}
+              aria-label={isFocusPage ? 'Back to previous view' : 'Open focus mode'}
+            >
+              <Hourglass className="size-3!" aria-hidden="true" />
+            </Button>
           </div>
         </div>
-      )}
+      </div>
       <div
-        className={`flex items-center gap-1 transition-transform duration-300 ease-out ${isFocusPage ? '' : 'peer-focus-within:translate-x-6 peer-hover:translate-x-6'}`}
+        className={`flex items-center gap-1 transition-transform duration-300 ease-out ${isFocusPage || !expandArmed ? '' : 'peer-focus-within:translate-x-6 peer-hover:translate-x-6'}`}
       >
         {timers.length > 0 && (
           <span className="mx-1 h-3.5 w-px bg-separator" role="separator" aria-hidden="true" />
@@ -420,7 +449,11 @@ export function FocusControl({
             onFocus={openMore}
             onBlur={closeMore}
           >
-            <span className="text-xs font-medium tabular-nums text-muted">+{hiddenTimers}</span>
+            <span
+              className={`rounded-full px-2 py-0.5 text-xs font-medium tabular-nums transition-colors ${isMoreOpen ? 'bg-black text-white' : 'text-muted'}`}
+            >
+              +{hiddenTimers}
+            </span>
             {isMoreOpen && (
               <div className="absolute right-0 top-full z-50 pt-1">
                 <div

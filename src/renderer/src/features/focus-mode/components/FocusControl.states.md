@@ -83,18 +83,39 @@ Resolved with explicit precedence (first match wins):
   pushed aside rather than overlapped.
 - Buttons blur themselves on press, so the chip collapses on mouse-out even
   though `focus-within` is active after a click. Keyboard tab-in still opens it.
+- `expandArmed` gates all expansion classes. It is reset when the focus page
+  opens, so when the page closes with the cursor resting on the icon the
+  cluster stays collapsed until the mouse **leaves and re-enters**
+  (`onMouseEnter`/`onFocus` on the slot re-arms it). Caveat: Chromium fires
+  `mouseover` when DOM mutates under a stationary cursor — that phantom enter
+  right after close is rejected via `justClosed`, a ~350ms suppression window.
+- Normal hover expansion transitions **width only** (`bg-success` snaps on
+  instantly) so the green never fades in late behind the buttons; the color
+  transition is enabled only in `isFocusPage` where it animates the morph.
+- `buttonLock` suppresses the per-button `hover:bg` wash for ~320ms after
+  entry — during the slide animation the hourglass moves out from under the
+  cursor and the plus moves in; locking only the hover style (not
+  `pointer-events`, which swallowed fast clicks) prevents flicker while
+  keeping presses working.
 
 ### On focus page (`isFocusPage === true`)
 
-- Cluster replaced by a **single hourglass button**
-  (`bg-black ring-2 ring-success`) = "back to previous view".
-- No expansion, no plus — adding timers happens on the focus page.
-- Sibling shift disabled too (hover does nothing to layout).
+- Same DOM structure, different look — the overlay collapses to
+  `w-6 bg-black ring-2 ring-success` with the row back at `-translate-x-6`
+  (hourglass only). Because the structure is unified, entering/leaving the
+  focus page **animates as a morph**: width, `background-color`, and the ring's
+  `box-shadow` transition over 300ms while the plus slides out under the clip.
+- The plus stays in the DOM but is clipped, `pointer-events-none`,
+  `aria-hidden`, and `excludeFromTabOrder`.
+- No expansion on hover (`expandArmed` cannot arm while `isFocusPage`), and
+  the sibling shift is disabled.
 
 ## `+N` hidden-timers menu
 
 - Renders only when `timers.length > 2`.
-- Trigger: `+N` text (`role="button"`, `aria-haspopup="menu"`).
+- Trigger: `+N` text (`role="button"`, `aria-haspopup="menu"`). While hovered
+  or the menu is open, the trigger itself becomes a black pill
+  (`bg-black text-white rounded-full`) matching the menu surface.
 - Opens on hover/focus via JS state (`isMoreOpen`) with a **250ms close delay**
   — pure `group-hover` was unusable because moving diagonally to the menu
   crosses the chips and a `display:none` menu can't re-trigger hover.
