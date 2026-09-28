@@ -92,21 +92,25 @@ Resolved with explicit precedence (first match wins):
 - Normal hover expansion transitions **width only** (`bg-success` snaps on
   instantly) so the green never fades in late behind the buttons; the color
   transition is enabled only in `isFocusPage` where it animates the morph.
-- `buttonLock` suppresses the per-button `hover:bg` wash for ~320ms after
-  entry — during the slide animation the hourglass moves out from under the
-  cursor and the plus moves in; locking only the hover style (not
-  `pointer-events`, which swallowed fast clicks) prevents flicker while
-  keeping presses working.
+- `buttonLock` suppresses the per-button hover wash for ~320ms after entry —
+  during the slide animation the hourglass moves out from under the cursor and
+  the plus moves in. It works by overriding HeroUI's `--button-bg-hover` CSS
+  variable (not `hover:bg-*`, which left HeroUI's default `--default-hover`
+  gray wash visible during the lock). Locked = `transparent`, unlocked =
+  `rgb(0 0 0 / 0.2)` — the darker wash on the green chip. `pointer-events` are
+  never disabled — a lock that swallowed clicks made the plus need two presses.
 
 ### On focus page (`isFocusPage === true`)
 
 - Same DOM structure, different look — the overlay collapses to
   `w-6 bg-black ring-2 ring-success` with the row back at `-translate-x-6`
   (hourglass only). Because the structure is unified, entering/leaving the
-  focus page **animates as a morph**: width, `background-color`, and the ring's
-  `box-shadow` transition over 300ms while the plus slides out under the clip.
-- The plus stays in the DOM but is clipped, `pointer-events-none`,
-  `aria-hidden`, and `excludeFromTabOrder`.
+  focus page **animates as a morph**: `width`, `background-color`, and the
+  ring's `box-shadow` transition over 300ms while the plus slides out under
+  the clip. (A `clip-path` variant was tried and reverted — it desynced
+  differently and looked worse.)
+- The plus stays in the DOM but is clipped, `aria-hidden`, and
+  `excludeFromTabOrder`.
 - No expansion on hover (`expandArmed` cannot arm while `isFocusPage`), and
   the sibling shift is disabled.
 
@@ -119,6 +123,11 @@ Resolved with explicit precedence (first match wins):
 - Opens on hover/focus via JS state (`isMoreOpen`) with a **250ms close delay**
   — pure `group-hover` was unusable because moving diagonally to the menu
   crosses the chips and a `display:none` menu can't re-trigger hover.
+- The `+N` block is its own `MoreTimers` component holding `isOpen` internally
+  — when `hiddenTimers` reaches 0 it unmounts and the state dies with it, so a
+  re-added `+N` always starts closed (a state-reset fix failed because the
+  unmount happens without `mouseleave`, and any surviving parent-level flag
+  reopened the menu instantly).
 - Menu: right-aligned below `+N` (`right-0`, extends left), dark
   (`bg-black`, `border-white/15`), `z-50`.
 - Rows: `EditableText` name (hover border → click to edit → `renameTimer`),
