@@ -94,23 +94,23 @@ export function NotesPage(): React.JSX.Element {
         description="Capture ideas, context, and follow-ups without losing the thread."
       />
 
-      <section className="mt-10" aria-label="Notes">
-        <div className="mb-4 flex items-center justify-end gap-3">
+      <section className="mt-4" aria-label="Notes">
+        <div className="flex items-center justify-end gap-3">
           <Chip size="sm" variant="soft" className="rounded-full">
             <span className="tabular-nums">{visibleNotes.length}</span> {status}
           </Chip>
-          <div className="flex gap-1 rounded-full bg-surface-secondary p-1">
+          <div className="flex gap-1 rounded-t-2xl bg-surface-secondary p-1 mr-4">
             {filterItems.map(({ id, label, icon: Icon }) => (
               <Button
                 key={id}
                 isIconOnly
                 size="sm"
                 variant={status === id ? 'secondary' : 'ghost'}
-                className="rounded-full"
+                className="rounded-full size-6"
                 onPress={() => setFilter(id)}
                 aria-label={label}
               >
-                <Icon size={14} aria-hidden="true" />
+                <Icon className="size-3" aria-hidden="true" />
               </Button>
             ))}
           </div>
@@ -150,13 +150,13 @@ export function NotesPage(): React.JSX.Element {
                 <Table.Body>
                   {visibleNotes.map((note) => (
                     <Table.Row key={note.id} id={note.id}>
-                      <Table.Cell className="max-w-[32rem] whitespace-normal font-medium">
+                      <Table.Cell className="max-w-[32rem] whitespace-normal py-1.5 text-xs font-medium">
                         {note.body}
                       </Table.Cell>
-                      <Table.Cell className="whitespace-nowrap text-muted">
+                      <Table.Cell className="whitespace-nowrap py-1.5 text-xs text-muted">
                         {formatDate(note.created_at)}
                       </Table.Cell>
-                      <Table.Cell>
+                      <Table.Cell className="py-1.5 text-xs">
                         <Chip
                           color={
                             note.deleted === 1 ? 'danger' : note.done === 1 ? 'success' : 'warning'
@@ -167,7 +167,7 @@ export function NotesPage(): React.JSX.Element {
                           {note.deleted === 1 ? 'Deleted' : note.done === 1 ? 'Finished' : 'Open'}
                         </Chip>
                       </Table.Cell>
-                      <Table.Cell>
+                      <Table.Cell className="py-1.5 text-xs">
                         {note.attachments.length > 0 ? (
                           <Button
                             size="sm"
@@ -175,18 +175,18 @@ export function NotesPage(): React.JSX.Element {
                             onPress={() => setSelectedAttachment(note.attachments[0])}
                             aria-label={`View ${note.attachments.length} attached file${note.attachments.length === 1 ? '' : 's'}`}
                           >
-                            <Paperclip size={14} aria-hidden="true" />
+                            <Paperclip className="size-3" aria-hidden="true" />
                             {note.attachments.length}
                           </Button>
                         ) : (
                           <span className="text-muted">—</span>
                         )}
                       </Table.Cell>
-                      <Table.Cell>
+                      <Table.Cell className="py-1.5 text-xs">
                         <div className="flex justify-end gap-1">
                           <Button
+                            className="size-6"
                             isIconOnly
-                            size="sm"
                             variant="tertiary"
                             onPress={() =>
                               note.deleted === 1 ? restore(note.id) : toggle(note.id)
@@ -199,16 +199,16 @@ export function NotesPage(): React.JSX.Element {
                                   : 'Finish note'
                             }
                           >
-                            <Check size={16} aria-hidden="true" />
+                            <Check className="size-3.5" aria-hidden="true" />
                           </Button>
                           <Button
+                            className="size-6"
                             isIconOnly
-                            size="sm"
                             variant="danger-soft"
                             onPress={() => remove(note.id)}
                             aria-label="Delete note"
                           >
-                            <Trash2 size={16} aria-hidden="true" />
+                            <Trash2 className="size-3.5" aria-hidden="true" />
                           </Button>
                         </div>
                       </Table.Cell>
@@ -222,7 +222,7 @@ export function NotesPage(): React.JSX.Element {
       </section>
 
       <section
-        className="sticky bottom-0 z-10 -mx-4 mt-auto bg-background px-4 pb-4 pt-2 sm:-mx-6 sm:px-6"
+        className="sticky bottom-0 z-10 -mx-4 mt-auto bg-background/200 px-4 pb-4 pt-2 sm:-mx-6 sm:px-6"
         aria-label="Add a note"
         onDragOver={(event) => {
           event.preventDefault()
@@ -236,7 +236,7 @@ export function NotesPage(): React.JSX.Element {
         }}
       >
         <div
-          className={`mx-auto max-w-3xl rounded-2xl transition-colors ${isDragging ? 'bg-accent/10' : ''}`}
+          className={`mx-auto max-w-3xl rounded-2xl transition-colors ${isDragging ? 'bg-blue-300' : 'bg-blue-300'}`}
         >
           <PromptInput value={input} onValueChange={setInput} onSubmit={submit} className="w-full">
             <PromptInput.Shell className="border border-border shadow-none">
