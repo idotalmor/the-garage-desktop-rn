@@ -28,10 +28,6 @@ body:has(.popover-shell) {
  :root:has(.popover-shell){
     background: transparent;
  }
-.popover-shell {
-  /* border-radius: rem; */
-}
-
 ::selection {
   background: color-mix(in oklab, var(--accent) 25%, transparent);
 }
