@@ -15,6 +15,7 @@ import { initArtifactoryIpc } from './artifactory/ipc'
 import { initIntegrationsIpc } from './integrations/ipc'
 import { initAppStateIpc } from './app-state'
 import { initRecordingIpc } from './recording'
+import { initFocusModeIpc } from './focus-mode'
 
 const APP_NAME = 'The Orchestrator'
 app.setName(APP_NAME)
@@ -78,6 +79,7 @@ app.whenReady().then(() => {
   initIntegrationsIpc()
   initAppStateIpc()
   initRecordingIpc()
+  initFocusModeIpc()
   createTray()
   createMainWindow()
 })

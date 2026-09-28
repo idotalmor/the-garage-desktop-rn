@@ -1,0 +1,355 @@
+import { Clock, Hourglass, Plus, RotateCcw, Square, Timer } from 'lucide-react'
+import { Button } from '@heroui/react'
+import { AnimatePresence, motion } from 'motion/react'
+import { useEffect, useRef } from 'react'
+import type { FocusTimer } from '../../../../../shared/focus-mode/types'
+import { EditableText } from '../../../shared/components/EditableText'
+import { useFocusMode } from '../hooks/use-focus-mode'
+import { FOCUS_DURATIONS, formatTime, playFinishSound } from '../utils'
+
+const chipSpring = { type: 'spring', bounce: 0.3, duration: 0.4 } as const
+
+function formatRemaining(totalSeconds: number): string {
+  const minutes = Math.floor(totalSeconds / 60)
+  const seconds = totalSeconds % 60
+  return `${minutes}:${seconds.toString().padStart(2, '0')}`
+}
+
+function DurationMenu({
+  name,
+  onSelect,
+  onRename
+}: {
+  name: string | null
+  onSelect: (durationMs: number) => void
+  onRename: (name: string) => void
+}): React.JSX.Element {
+  const shortLabel = (durationMs: number): string =>
+    durationMs < 60_000
+      ? `${durationMs / 1000}s`
+      : durationMs < 3_600_000
+        ? `${durationMs / 60_000}m`
+        : `${durationMs / 3_600_000}h`
+
+  return (
+    <div
+      data-focus-menu
+      className="absolute right-0 top-7 z-50 w-max rounded-xl border border-white/15 bg-black p-1 shadow-overlay"
+      role="menu"
+      aria-label="Timer options"
+      onClick={(event) => event.stopPropagation()}
+    >
+      <div className="px-1 py-0.5" role="none">
+        <EditableText
+          value={name}
+          placeholder="Unknown timer"
+          onSave={onRename}
+          className="w-36 truncate rounded-md border border-transparent px-1.5 py-1 text-left text-[11px] font-medium text-white hover:border-white/25"
+          inputClassName="w-36 rounded-md border border-white/25 bg-white/10 px-1.5 py-1 text-[11px] font-medium text-white outline-none placeholder:text-white/50"
+        />
+      </div>
+      <div className="mx-2 my-0.5 h-px bg-white/15" role="separator" />
+      <div
+        className="flex items-center gap-0.5 px-1 py-0.5"
+        role="group"
+        aria-label="Timer durations"
+      >
+        <Timer className="mx-0.5 size-3! shrink-0 text-white/50" aria-hidden="true" />
+        {FOCUS_DURATIONS.map((duration) => (
+          <button
+            key={duration.label}
+            type="button"
+            role="menuitem"
+            className="rounded-md px-1.5 py-1 text-[11px] font-medium tabular-nums text-white hover:bg-white/10"
+            onClick={() => onSelect(duration.durationMs)}
+            aria-label={duration.label}
+          >
+            {shortLabel(duration.durationMs)}
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function FocusChip({
+  timer,
+  now,
+  onRequestStop,
+  onSetDuration,
+  onRename,
+  onDismiss,
+  onAgain,
+  onOpenFocusPage,
+  onPauseStop,
+  onResumeStop,
+  onCancelStop
+}: {
+  timer: FocusTimer
+  now: number
+  onRequestStop: (id: string) => void
+  onSetDuration: (id: string, durationMs: number) => void
+  onRename: (id: string, name: string) => void
+  onDismiss: (id: string) => void
+  onAgain: (id: string) => void
+  onOpenFocusPage: () => void
+  onPauseStop: (id: string) => void
+  onResumeStop: (id: string) => void
+  onCancelStop: (id: string) => void
+}): React.JSX.Element {
+  const chipRef = useRef<HTMLDivElement | null>(null)
+
+  const isScheduled = timer.state === 'scheduled'
+  const isStopping = timer.state === 'stopping'
+  const isFinished = timer.state === 'finished'
+  const remainingSeconds = Math.max(0, Math.ceil((timer.endsAt - now) / 1000))
+  const holdConfirm = isStopping
+  const hasOpenLayer = isStopping
+
+  useEffect(() => {
+    if (!holdConfirm) return
+    onPauseStop(timer.id)
+    return () => onResumeStop(timer.id)
+  }, [holdConfirm, timer.id, onPauseStop, onResumeStop])
+
+  useEffect(() => {
+    if (!isStopping) return
+    const onPointerDown = (event: PointerEvent): void => {
+      if (chipRef.current && !chipRef.current.contains(event.target as Node)) {
+        onCancelStop(timer.id)
+      }
+    }
+    document.addEventListener('pointerdown', onPointerDown)
+    return () => document.removeEventListener('pointerdown', onPointerDown)
+  }, [isStopping, timer.id, onCancelStop])
+
+  const handlePress = (): void => {
+    if (isScheduled) {
+      onOpenFocusPage()
+      return
+    }
+    if (isFinished) return
+    if (isStopping) {
+      onCancelStop(timer.id)
+      return
+    }
+    onRequestStop(timer.id)
+  }
+
+  return (
+    <motion.div
+      ref={chipRef}
+      layout
+      initial={{ opacity: 0, scale: 0.6 }}
+      animate={{ opacity: 1, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.6 }}
+      transition={chipSpring}
+      className={hasOpenLayer ? 'relative z-50' : 'relative'}
+    >
+      {hasOpenLayer && (
+        <div
+          aria-hidden="true"
+          className="fixed inset-0 z-[-1]"
+          style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
+          onPointerDown={() => onCancelStop(timer.id)}
+        />
+      )}
+      <div
+        role="button"
+        tabIndex={0}
+        aria-label={
+          isScheduled
+            ? 'Scheduled focus timer, press to open focus mode'
+            : isFinished
+              ? 'Focus timer finished, press for details or double press to dismiss'
+              : isStopping
+                ? 'Confirm stop focus mode'
+                : 'Focus session in progress'
+        }
+        className={`flex h-6 shrink-0 cursor-pointer items-center rounded-full pl-2.5 transition-colors ${
+          isFinished
+            ? 'bg-danger pr-3 text-white'
+            : isStopping
+              ? 'bg-black pr-3 text-white ring-2 ring-success'
+              : isScheduled
+                ? 'bg-surface-secondary pr-3 text-muted'
+                : 'bg-success pr-3 text-white'
+        }`}
+        onClick={(event) => {
+          if ((event.target as HTMLElement).closest('button, input')) return
+          handlePress()
+        }}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter' || event.key === ' ') handlePress()
+        }}
+      >
+        {isScheduled ? (
+          <>
+            <Clock className="size-2.5!" aria-hidden="true" />
+            <span className="ml-1.5 text-xs font-medium tabular-nums">
+              {formatTime(timer.startsAt)}
+            </span>
+          </>
+        ) : isFinished ? (
+          <>
+            <Button
+              isIconOnly
+              size="sm"
+              variant="ghost"
+              className="-ml-1 size-4! rounded-full text-white hover:bg-white/15"
+              onPress={() => onDismiss(timer.id)}
+              aria-label="Stop and remove timer"
+            >
+              <Square className="size-2.5! fill-current" aria-hidden="true" />
+            </Button>
+            <Button
+              isIconOnly
+              size="sm"
+              variant="ghost"
+              className="size-4! rounded-full text-white hover:bg-white/15"
+              onPress={() => onAgain(timer.id)}
+              aria-label="Rerun timer"
+            >
+              <RotateCcw className="size-2.5!" aria-hidden="true" />
+            </Button>
+            {timer.name ? (
+              <span className="focus-marquee text-[10px] font-medium">
+                <span>{timer.name}</span>
+              </span>
+            ) : (
+              <span className="focus-flicker text-xs font-medium tabular-nums">0:00</span>
+            )}
+          </>
+        ) : (
+          <>
+            {isStopping && (
+              <Button
+                isIconOnly
+                size="sm"
+                variant="ghost"
+                className="-ml-0.5 mr-1 size-4! rounded-full text-white hover:bg-white/15"
+                onPress={() => onRequestStop(timer.id)}
+                aria-label="Confirm stop timer"
+              >
+                <Square className="size-2.5! fill-current" aria-hidden="true" />
+              </Button>
+            )}
+            <span className="text-xs font-medium tabular-nums">
+              {formatRemaining(remainingSeconds)}
+            </span>
+          </>
+        )}
+        {isStopping && (
+          <DurationMenu
+            name={timer.name}
+            onSelect={(durationMs) => onSetDuration(timer.id, durationMs)}
+            onRename={(name) => onRename(timer.id, name)}
+          />
+        )}
+      </div>
+    </motion.div>
+  )
+}
+
+export function FocusControl({
+  isFocusPage,
+  onToggleFocusPage
+}: {
+  isFocusPage: boolean
+  onToggleFocusPage: () => void
+}): React.JSX.Element {
+  const {
+    timers,
+    now,
+    startTimer,
+    requestStop,
+    setDuration,
+    renameTimer,
+    pauseStop,
+    resumeStop,
+    cancelStop,
+    dismissTimer,
+    againTimer,
+    getFinishSound
+  } = useFocusMode()
+  const knownFinished = useRef<Set<string> | null>(null)
+
+  useEffect(() => {
+    const finished = new Set(
+      timers.filter((timer) => timer.state === 'finished').map((timer) => timer.id)
+    )
+    if (knownFinished.current === null) {
+      knownFinished.current = finished
+      return
+    }
+    const hasNew = Array.from(finished).some((id) => !knownFinished.current?.has(id))
+    knownFinished.current = finished
+    if (hasNew && document.visibilityState === 'visible') {
+      void getFinishSound().then(playFinishSound)
+    }
+  }, [timers, getFinishSound])
+
+  const hiddenTimers = Math.max(0, timers.length - 2)
+
+  return (
+    <div className="flex items-center gap-1">
+      <div className="flex items-center">
+        <Button
+          isIconOnly
+          size="sm"
+          variant="ghost"
+          className={
+            isFocusPage
+              ? 'size-7! rounded-full bg-black text-white ring-2 ring-success'
+              : 'size-7! rounded-full text-muted hover:text-foreground'
+          }
+          onPress={onToggleFocusPage}
+          aria-label={isFocusPage ? 'Back to previous view' : 'Open focus mode'}
+        >
+          <Hourglass className="size-3.5!" aria-hidden="true" />
+        </Button>
+        <Button
+          isIconOnly
+          size="sm"
+          variant="ghost"
+          className="size-7! rounded-full text-muted hover:text-foreground"
+          onPress={() => startTimer()}
+          aria-label={
+            hiddenTimers > 0 ? `Add focus timer, ${hiddenTimers} more not shown` : 'Add focus timer'
+          }
+        >
+          <Plus className="size-3.5!" aria-hidden="true" />
+        </Button>
+      </div>
+      {timers.length > 0 && (
+        <span className="mx-1 h-3.5 w-px bg-separator" role="separator" aria-hidden="true" />
+      )}
+      <AnimatePresence initial={false} mode="popLayout">
+        {timers.slice(0, 2).map((timer) => (
+          <FocusChip
+            key={timer.id}
+            timer={timer}
+            now={now}
+            onRequestStop={requestStop}
+            onSetDuration={setDuration}
+            onRename={renameTimer}
+            onDismiss={dismissTimer}
+            onAgain={againTimer}
+            onOpenFocusPage={onToggleFocusPage}
+            onPauseStop={pauseStop}
+            onResumeStop={resumeStop}
+            onCancelStop={cancelStop}
+          />
+        ))}
+      </AnimatePresence>
+      {hiddenTimers > 0 && (
+        <span
+          className="text-xs font-medium tabular-nums text-muted"
+          aria-label={`${hiddenTimers} more focus timers`}
+        >
+          +{hiddenTimers}
+        </span>
+      )}
+    </div>
+  )
+}

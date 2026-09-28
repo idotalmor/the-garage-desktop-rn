@@ -6,7 +6,7 @@ import { PromptInput } from '@heroui-pro/react'
 import { AppNavbar } from '../shared/components/AppNavbar'
 import { FeatureMenuProvider, FeatureMenuSlot } from '../shared/components/feature-menu'
 import { RecordingControl } from '../shared/components/RecordingControl'
-import { FocusControl } from '../shared/components/FocusControl'
+import { FocusControl } from '../features/focus-mode/components/FocusControl'
 import type { AppView } from '../shared/components/appNavigation'
 import { useCompact } from '../shared/hooks/useCompact'
 import { DashboardHome } from '../features/dashboard/components/DashboardHome'
@@ -16,6 +16,7 @@ import { NotesPage } from '../features/notes/components/NotesPage'
 import { NewsletterPage } from '../features/newsletter/components/NewsletterPage'
 import { CodeExplorerPage } from '../features/code-explorer/components/CodeExplorerPage'
 import { IntegrationsPage } from '../features/integrations/components/IntegrationsPage'
+import { FocusModePage } from '../features/focus-mode/components/FocusModePage'
 import { ArtifactoryPage } from '../features/artifactory/pages/artifactory-page'
 import { RecordingPage } from '../features/recording/components/RecordingPage'
 import { WindowChannel, type OpenWindow } from '../../../shared/window-channels'
@@ -31,6 +32,7 @@ export function AppShell(): React.JSX.Element {
   const isCompact = useCompact()
   const isArtifactory = new URLSearchParams(window.location.search).get('view') === 'artifactory'
   const [view, setView] = useState<AppView>('home')
+  const [previousView, setPreviousView] = useState<AppView>('home')
   const { theme, setTheme } = useTheme()
   const themeLabel = theme === 'dark' ? 'Dark' : theme === 'light' ? 'Light' : 'System'
   const [prompt, setPrompt] = useState('')
@@ -81,6 +83,15 @@ export function AppShell(): React.JSX.Element {
     setTheme(theme === 'dark' ? 'light' : theme === 'light' ? 'system' : 'dark')
   }
 
+  const toggleFocusPage = (): void => {
+    if (view === 'focus-mode') {
+      setView(previousView)
+    } else {
+      setPreviousView(view)
+      setView('focus-mode')
+    }
+  }
+
   const content =
     view === 'home' ? (
       <DashboardHome />
@@ -96,6 +107,8 @@ export function AppShell(): React.JSX.Element {
       <CodeExplorerPage />
     ) : view === 'integrations' ? (
       <IntegrationsPage />
+    ) : view === 'focus-mode' ? (
+      <FocusModePage />
     ) : view === 'recording' ? (
       <RecordingPage onBack={() => setView('home')} />
     ) : (
@@ -108,7 +121,7 @@ export function AppShell(): React.JSX.Element {
         className={
           compact
             ? 'flex h-7 min-w-0 flex-1 items-center gap-1 px-2'
-            : 'absolute left-1/2 flex h-7 w-[min(500px,calc(100%-2rem))] min-w-0 -translate-x-1/2 items-center gap-1'
+            : 'absolute left-1/2 flex h-7 w-max max-w-[calc(100%-2rem)] min-w-0 -translate-x-1/2 items-center gap-1'
         }
       >
         <div className="window-top-actions flex shrink-0 items-center gap-1">
@@ -125,10 +138,11 @@ export function AppShell(): React.JSX.Element {
             </Button>
           )}
           <RecordingControl onOpen={() => setView('recording')} />
-          <FocusControl />
         </div>
         <div
-          className="window-prompt-bar flex h-7 min-w-0 flex-1 items-center gap-1.5 rounded-md border border-border/60 bg-transparent px-2 text-xs"
+          className={`window-prompt-bar flex h-7 min-w-0 items-center gap-1.5 rounded-md border border-border/60 bg-transparent px-2 text-xs ${
+            compact ? 'flex-1' : 'w-[420px]'
+          }`}
           role="button"
           tabIndex={0}
           aria-label="Open command prompt"
@@ -142,6 +156,7 @@ export function AppShell(): React.JSX.Element {
             {prompt || promptExamples[promptIndex]}
           </span>
         </div>
+        <FocusControl isFocusPage={view === 'focus-mode'} onToggleFocusPage={toggleFocusPage} />
       </div>
       <div
         className={

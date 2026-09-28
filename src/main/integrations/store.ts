@@ -43,7 +43,7 @@ export function writeMemoryItems(items: string[]): void {
   writeMemoryContent(MEMORY_HEADER + items.map((item) => `- ${item}`).join('\n') + '\n')
 }
 
-type Settings = { anthropicApiKey?: string }
+type Settings = { anthropicApiKey?: string; focusFinishSound?: string }
 
 function readSettings(): Settings {
   try {
@@ -62,4 +62,17 @@ export function getApiKey(): string {
 export function setApiKey(key: string): void {
   ensureDirs()
   writeFileSync(SETTINGS_PATH, JSON.stringify({ ...readSettings(), anthropicApiKey: key }), 'utf-8')
+}
+
+export function getFocusFinishSound(): string {
+  return readSettings().focusFinishSound ?? ''
+}
+
+export function setFocusFinishSound(sound: string): void {
+  ensureDirs()
+  writeFileSync(
+    SETTINGS_PATH,
+    JSON.stringify({ ...readSettings(), focusFinishSound: sound }),
+    'utf-8'
+  )
 }

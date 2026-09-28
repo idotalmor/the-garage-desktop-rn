@@ -94,6 +94,23 @@ body:has(.popover-shell) {
   animation: recording-wave 900ms ease-in-out infinite alternate;
 }
 
+.focus-flicker {
+  animation: focus-flicker 900ms linear infinite;
+}
+
+.focus-marquee {
+  display: inline-block;
+  max-width: 5rem;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.focus-marquee > span {
+  display: inline-block;
+  padding-left: 100%;
+  animation: focus-marquee 6s linear infinite;
+}
+
 
 @keyframes prompt-example-in {
   from {
@@ -136,6 +153,23 @@ body:has(.popover-shell) {
   to {
     transform: scaleY(1);
     opacity: 1;
+  }
+}
+
+@keyframes focus-flicker {
+  0%,
+  54% {
+    opacity: 1;
+  }
+  55%,
+  100% {
+    opacity: 0.2;
+  }
+}
+
+@keyframes focus-marquee {
+  to {
+    transform: translateX(-100%);
   }
 }
 

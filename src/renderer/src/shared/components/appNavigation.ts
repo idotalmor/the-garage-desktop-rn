@@ -19,6 +19,7 @@ export type AppView =
   | 'newsletter'
   | 'code-explorer'
   | 'integrations'
+  | 'focus-mode'
   | 'recording'
   | 'settings'
 
