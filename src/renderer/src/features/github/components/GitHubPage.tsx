@@ -223,6 +223,12 @@ function CiBadge({ status }: { status: CiStatus }): React.JSX.Element {
   )
 }
 
+const ciSurfaceClass: Record<CiStatus, string> = {
+  passing: 'bg-success/50',
+  'in-progress': 'bg-warning/50',
+  failing: 'bg-danger/50'
+}
+
 export function GitHubPage(): React.JSX.Element {
   const [searchPrompt, setSearchPrompt] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
@@ -320,6 +326,72 @@ export function GitHubPage(): React.JSX.Element {
         </div>
       </header>
 
+      <section className="mt-6 flex flex-wrap items-center justify-between gap-2">
+        <div className="flex gap-1.5">
+          {(['all', 'mine', 'others'] as const).map((filter) => (
+            <Button
+              key={filter}
+              size="sm"
+              variant={activeFilter === filter ? 'primary' : 'outline'}
+              className="rounded-lg text-xs capitalize"
+              onPress={() => setActiveFilter(filter)}
+            >
+              {filter === 'all' ? 'All PRs' : filter === 'mine' ? 'Mine' : 'Others'}
+            </Button>
+          ))}
+        </div>
+        <div className="flex items-center gap-2 text-xs text-muted">
+          <UserRound size={14} /> Current person:{' '}
+          <span className="font-medium text-foreground">{selectedPerson ?? 'You'}</span>
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-7 rounded-lg text-xs"
+            onPress={() => {
+              setSettingsTab('people')
+              setIsSettingsOpen(true)
+            }}
+          >
+            Choose
+          </Button>
+        </div>
+      </section>
+
+      <div className="mt-6 space-y-7">
+        {visibleRepositories.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-border px-6 py-14 text-center">
+            <Search size={22} className="mx-auto text-muted" />
+            <p className="mt-3 font-medium">No worktrees or PRs match that context</p>
+          </div>
+        ) : (
+          visibleRepositories.map((repo) => (
+            <RepositorySection
+              key={repo.name}
+              repository={repo}
+              selectedPerson={selectedPerson}
+              linkedTasks={linkedTasks}
+              babysitter={babysitter}
+              selectedRecipient={selectedRecipient}
+              onRecipientChange={setSelectedRecipient}
+              onOpenPeople={() => {
+                setSettingsTab('people')
+                setIsSettingsOpen(true)
+              }}
+              onOpenSettings={() => {
+                setSettingsTab('slack')
+                setIsSettingsOpen(true)
+              }}
+              onHistory={setSelectedHistory}
+              onLinkTask={linkTask}
+              onOpenWorktree={(worktree) => setSelectedWorktree({ repo, worktree })}
+              onBabysitter={(number) =>
+                setBabysitter({ ...babysitter, [number]: !babysitter[number] })
+              }
+            />
+          ))
+        )}
+      </div>
+
       <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-[2fr_1fr]">
         <Widget>
           <Widget.Header>
@@ -391,7 +463,7 @@ export function GitHubPage(): React.JSX.Element {
             {activePromptTab === 'find' && searchQuery && (
               <p className="mt-2 text-xs text-muted" role="status">
                 Searching for: {searchQuery} ·{' '}
-                {visibleRepositories.length ? 'Matches shown below' : 'No matches'}
+                {visibleRepositories.length ? 'Matches shown above' : 'No matches'}
               </p>
             )}
             {activePromptTab === 'watch' && (
@@ -439,72 +511,6 @@ export function GitHubPage(): React.JSX.Element {
             />
           </Widget.Content>
         </Widget>
-      </div>
-
-      <section className="mt-6 flex flex-wrap items-center justify-between gap-2">
-        <div className="flex gap-1.5">
-          {(['all', 'mine', 'others'] as const).map((filter) => (
-            <Button
-              key={filter}
-              size="sm"
-              variant={activeFilter === filter ? 'primary' : 'outline'}
-              className="rounded-lg text-xs capitalize"
-              onPress={() => setActiveFilter(filter)}
-            >
-              {filter === 'all' ? 'All PRs' : filter === 'mine' ? 'Mine' : 'Others'}
-            </Button>
-          ))}
-        </div>
-        <div className="flex items-center gap-2 text-xs text-muted">
-          <UserRound size={14} /> Current person:{' '}
-          <span className="font-medium text-foreground">{selectedPerson ?? 'You'}</span>
-          <Button
-            size="sm"
-            variant="ghost"
-            className="h-7 rounded-lg text-xs"
-            onPress={() => {
-              setSettingsTab('people')
-              setIsSettingsOpen(true)
-            }}
-          >
-            Choose
-          </Button>
-        </div>
-      </section>
-
-      <div className="mt-6 space-y-7">
-        {visibleRepositories.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-border px-6 py-14 text-center">
-            <Search size={22} className="mx-auto text-muted" />
-            <p className="mt-3 font-medium">No worktrees or PRs match that context</p>
-          </div>
-        ) : (
-          visibleRepositories.map((repo) => (
-            <RepositorySection
-              key={repo.name}
-              repository={repo}
-              selectedPerson={selectedPerson}
-              linkedTasks={linkedTasks}
-              babysitter={babysitter}
-              selectedRecipient={selectedRecipient}
-              onRecipientChange={setSelectedRecipient}
-              onOpenPeople={() => {
-                setSettingsTab('people')
-                setIsSettingsOpen(true)
-              }}
-              onOpenSettings={() => {
-                setSettingsTab('slack')
-                setIsSettingsOpen(true)
-              }}
-              onHistory={setSelectedHistory}
-              onLinkTask={linkTask}
-              onOpenWorktree={(worktree) => setSelectedWorktree({ repo, worktree })}
-              onBabysitter={(number) =>
-                setBabysitter({ ...babysitter, [number]: !babysitter[number] })
-              }
-            />
-          ))
-        )}
       </div>
 
       <GitHubSettingsModal
@@ -639,32 +645,36 @@ function RepositorySection({
           </Button>
         </div>
       </div>
-      <Card className="rounded-lg">
-        <Card.Content className="flex flex-wrap items-center gap-3 p-3">
-          <GitBranch size={15} className="text-muted" />
-          <div className="flex-1">
-            <p className="text-xs font-semibold">{repository.defaultBranch} · default branch</p>
-            <p className="text-[11px] text-muted">
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+        <Widget className={`h-full ${ciSurfaceClass[repository.masterCi]}`}>
+          <Widget.Content className="m-1 flex min-h-[190px] flex-col gap-1.5 p-3">
+            <div className="flex items-center justify-between">
+              <span className="flex items-center gap-1 text-xs text-accent">
+                <GitBranch size={13} /> Default branch
+              </span>
+              <CiBadge status={repository.masterCi} />
+            </div>
+            <h3 className="text-sm font-semibold">{repository.defaultBranch}</h3>
+            <p className="flex-1 text-xs text-muted">
               Latest commit {repository.masterCommits[0]?.message ?? 'No recent commits'}
             </p>
-          </div>
-          <CiBadge status={repository.masterCi} />
-          <Button
-            size="sm"
-            variant="ghost"
-            className="rounded-lg text-xs"
-            onPress={() =>
-              onHistory({
-                title: `${repository.name}/${repository.defaultBranch}`,
-                commits: repository.masterCommits
-              })
-            }
-          >
-            History
-          </Button>
-        </Card.Content>
-      </Card>
-      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="flex flex-wrap items-center gap-1 border-t border-separator pt-2">
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-7 rounded-lg text-xs"
+                onPress={() =>
+                  onHistory({
+                    title: `${repository.name}/${repository.defaultBranch}`,
+                    commits: repository.masterCommits
+                  })
+                }
+              >
+                <GitCommit size={13} /> History
+              </Button>
+            </div>
+          </Widget.Content>
+        </Widget>
         {repository.prs.map((pr) => (
           <ReviewCard
             key={pr.number}
@@ -719,8 +729,8 @@ function ReviewCard({
   onBabysitter: () => void
 }): React.JSX.Element {
   return (
-    <Card className="h-full rounded-lg">
-      <Card.Content className="flex min-h-[190px] flex-col gap-1.5 p-3">
+    <Widget className={`h-full ${ciSurfaceClass[pr.ciStatus]}`}>
+      <Widget.Content className="m-1 flex min-h-[190px] flex-col gap-1.5 p-3">
         <div className="flex items-center justify-between">
           <span className="flex items-center gap-1 text-xs text-muted">
             <GitPullRequest size={13} /> #{pr.number} · {pr.time}
@@ -828,8 +838,8 @@ function ReviewCard({
             <option>Delete remote branch</option>
           </select>
         </div>
-      </Card.Content>
-    </Card>
+      </Widget.Content>
+    </Widget>
   )
 }
 
