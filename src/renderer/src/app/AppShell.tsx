@@ -156,7 +156,11 @@ export function AppShell(): React.JSX.Element {
             {prompt || promptExamples[promptIndex]}
           </span>
         </div>
-        <FocusControl isFocusPage={view === 'focus-mode'} onToggleFocusPage={toggleFocusPage} />
+        <FocusControl
+          isFocusPage={view === 'focus-mode'}
+          onToggleFocusPage={toggleFocusPage}
+          chipsOverlay={!compact}
+        />
       </div>
       <div
         className={

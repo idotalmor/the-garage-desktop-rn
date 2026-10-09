@@ -365,10 +365,12 @@ function MoreTimers({
 
 export function FocusControl({
   isFocusPage,
-  onToggleFocusPage
+  onToggleFocusPage,
+  chipsOverlay = false
 }: {
   isFocusPage: boolean
   onToggleFocusPage: () => void
+  chipsOverlay?: boolean
 }): React.JSX.Element {
   const {
     timers,
@@ -414,26 +416,19 @@ export function FocusControl({
     const timer = window.setTimeout(() => setJustClosed(false), 350)
     return () => window.clearTimeout(timer)
   }, [justClosed])
-  const [buttonLock, setButtonLock] = useState(false)
-  const lockTimer = useRef<number | undefined>(undefined)
   const armExpand = (): void => {
     if (justClosed || isFocusPage) return
     setExpandArmed(true)
-    window.clearTimeout(lockTimer.current)
-    setButtonLock(true)
-    lockTimer.current = window.setTimeout(() => setButtonLock(false), 320)
   }
   const hiddenTimers = Math.max(0, timers.length - 2)
   const expandedCls =
     !isFocusPage && expandArmed
       ? 'group-focus-within/focusbtns:text-white group-hover/focusbtns:text-white'
       : ''
-  const hoverBgCls = buttonLock
-    ? '[--button-bg-hover:transparent]'
-    : '[--button-bg-hover:rgb(0_0_0_/_0.2)]'
+  const hoverBgCls = '[--button-bg-hover:rgb(0_0_0_/_0.2)]'
 
   return (
-    <div className="flex items-center gap-1">
+    <div className="relative flex items-center gap-1">
       <div
         className="peer relative flex h-6 w-6 items-center"
         onMouseEnter={armExpand}
@@ -448,13 +443,20 @@ export function FocusControl({
                 : 'transition-[width]'
           }`}
         >
-          <div
-            className={`flex -translate-x-6 items-center transition-transform duration-300 ease-out ${
-              !isFocusPage && expandArmed
-                ? 'group-focus-within/focusbtns:translate-x-0 group-hover/focusbtns:translate-x-0'
-                : ''
-            }`}
-          >
+          <div className="flex items-center">
+            <Button
+              isIconOnly
+              size="sm"
+              variant="ghost"
+              className={`size-6! shrink-0 rounded-full ${isFocusPage ? 'text-white [--button-bg-hover:rgb(255_255_255_/_0.1)]' : `text-muted ${hoverBgCls} ${expandedCls}`}`}
+              onPress={(event) => {
+                ;(event.target as HTMLElement).blur()
+                onToggleFocusPage()
+              }}
+              aria-label={isFocusPage ? 'Back to previous view' : 'Open focus mode'}
+            >
+              <Hourglass className="size-3!" aria-hidden="true" />
+            </Button>
             <Button
               isIconOnly
               size="sm"
@@ -474,24 +476,11 @@ export function FocusControl({
             >
               <Plus className="size-3!" aria-hidden="true" />
             </Button>
-            <Button
-              isIconOnly
-              size="sm"
-              variant="ghost"
-              className={`size-6! shrink-0 rounded-full ${isFocusPage ? 'text-white [--button-bg-hover:rgb(255_255_255_/_0.1)]' : `text-muted ${hoverBgCls} ${expandedCls}`}`}
-              onPress={(event) => {
-                ;(event.target as HTMLElement).blur()
-                onToggleFocusPage()
-              }}
-              aria-label={isFocusPage ? 'Back to previous view' : 'Open focus mode'}
-            >
-              <Hourglass className="size-3!" aria-hidden="true" />
-            </Button>
           </div>
         </div>
       </div>
       <div
-        className={`flex items-center gap-1 transition-transform duration-300 ease-out ${isFocusPage || !expandArmed ? '' : 'peer-focus-within:translate-x-6 peer-hover:translate-x-6'}`}
+        className={`flex items-center gap-1 transition-transform duration-300 ease-out ${chipsOverlay ? 'absolute left-7 top-1/2 -translate-y-1/2' : ''} ${isFocusPage || !expandArmed ? '' : 'peer-focus-within:translate-x-6 peer-hover:translate-x-6'}`}
       >
         {timers.length > 0 && (
           <span className="mx-1 h-3.5 w-px bg-separator" role="separator" aria-hidden="true" />

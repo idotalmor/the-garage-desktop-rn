@@ -11,8 +11,16 @@ visual/interactive state and the rules that govern transitions.
   into a `+N` indicator.
 - The whole control lives inside the **centered** top bar
   (`absolute left-1/2 -translate-x-1/2` in `AppShell`) — nothing in it may change
-  layout width, or the whole bar re-centers and the cursor target drifts. All
-  expansions therefore use overlays/transforms, never layout growth.
+  layout width, or the whole bar re-centers and the cursor target drifts
+  (clicking `+` would move the button out from under the mouse on every added
+  timer). All expansions therefore use overlays/transforms, never layout
+  growth. With `chipsOverlay` (non-compact bar), the chips row itself is
+  `absolute left-7 top-1/2 -translate-y-1/2` on the control's `relative`
+  wrapper — separator, chips, and `+N` float to the right of the 24px button
+  slot without contributing layout width, so adding/removing timers never
+  moves the cluster. In the compact bar (left-aligned flex row, no
+  centering) chips stay in normal flow; overlaying them there would cover
+  the window buttons on the right.
 
 ## Timer chip states (`FocusChip`)
 
@@ -72,10 +80,10 @@ Resolved with explicit precedence (first match wins):
 ### Not on focus page (`isFocusPage === false`)
 
 - Collapsed: 24px circle, hourglass icon only.
-- Hover or `focus-within`: overlay expands `w-6 → w-12` + `bg-success`; inner
-  row `[+][hourglass]` slides `translate-x-0` from `-translate-x-6` → the
-  hourglass visibly shifts right and **plus lands under the cursor** (the
-  common action first).
+- Hover or `focus-within`: overlay expands `w-6 → w-12` + `bg-success`. The
+  inner row is `[hourglass][+]` and never translates — the hourglass stays
+  under the cursor in place, and the `+` is revealed in the newly exposed
+  right half as the pill's clip widens.
 - Expansion is an **absolutely positioned overlay** (`z-10`) — fixed 24px
   layout slot, so the centered top bar never re-centers.
 - Siblings (separator, chips, `+N`) slide right `translate-x-6` via
@@ -92,23 +100,22 @@ Resolved with explicit precedence (first match wins):
 - Normal hover expansion transitions **width only** (`bg-success` snaps on
   instantly) so the green never fades in late behind the buttons; the color
   transition is enabled only in `isFocusPage` where it animates the morph.
-- `buttonLock` suppresses the per-button hover wash for ~320ms after entry —
-  during the slide animation the hourglass moves out from under the cursor and
-  the plus moves in. It works by overriding HeroUI's `--button-bg-hover` CSS
+- Per-button hover wash is overridden via HeroUI's `--button-bg-hover` CSS
   variable (not `hover:bg-*`, which left HeroUI's default `--default-hover`
-  gray wash visible during the lock). Locked = `transparent`, unlocked =
-  `rgb(0 0 0 / 0.2)` — the darker wash on the green chip. `pointer-events` are
-  never disabled — a lock that swallowed clicks made the plus need two presses.
+  gray wash visible): `rgb(0 0 0 / 0.2)` — the darker wash on the green chip.
+  (An earlier layout slid the row so the hourglass moved out from under the
+  cursor and the plus moved in; that needed a ~320ms `buttonLock` on the hover
+  wash. Now that no icon moves under the cursor, the lock is gone.)
 
 ### On focus page (`isFocusPage === true`)
 
 - Same DOM structure, different look — the overlay collapses to
-  `w-6 bg-black ring-2 ring-success` with the row back at `-translate-x-6`
-  (hourglass only). Because the structure is unified, entering/leaving the
-  focus page **animates as a morph**: `width`, `background-color`, and the
-  ring's `box-shadow` transition over 300ms while the plus slides out under
-  the clip. (A `clip-path` variant was tried and reverted — it desynced
-  differently and looked worse.)
+  `w-6 bg-black ring-2 ring-success` showing the hourglass only (the `+` sits
+  in the clipped right half). Because the structure is unified,
+  entering/leaving the focus page **animates as a morph**: `width`,
+  `background-color`, and the ring's `box-shadow` transition over 300ms while
+  the plus slides out under the clip. (A `clip-path` variant was tried and
+  reverted — it desynced differently and looked worse.)
 - The plus stays in the DOM but is clipped, `aria-hidden`, and
   `excludeFromTabOrder`.
 - No expansion on hover (`expandArmed` cannot arm while `isFocusPage`), and
