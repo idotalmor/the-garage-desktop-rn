@@ -1,6 +1,8 @@
 import {
   Archive,
   ArrowUp,
+  Bell,
+  BellPlus,
   Check,
   CheckCircle2,
   Circle,
@@ -14,8 +16,10 @@ import { Button, Chip, Table } from '@heroui/react'
 import { PromptInput } from '@heroui-pro/react'
 import ReactMarkdown from 'react-markdown'
 import { useNotes } from '../hooks/useNotes'
-import type { NoteAttachment, NoteStatus } from '../../../../../shared/notes/types'
+import type { NewNoteReminder, NoteAttachment, NoteStatus } from '../../../../../shared/notes/types'
 import { PageHeader } from '../../../shared/components/PageHeader'
+import { ReminderPicker } from './ReminderPicker'
+import { daysLabel, formatReminderTime, nextReminderLabel } from '../utils'
 
 type NoteFilter = NoteStatus
 
@@ -40,8 +44,23 @@ function formatDate(timestamp: number): string {
 }
 
 export function NotesPage(): React.JSX.Element {
-  const { notes, input, status, setInput, setStatus, add, toggle, remove, restore } = useNotes()
+  const {
+    notes,
+    input,
+    status,
+    setInput,
+    setStatus,
+    add,
+    toggle,
+    remove,
+    restore,
+    addReminder,
+    removeReminder
+  } = useNotes()
   const [files, setFiles] = useState<File[]>([])
+  const [pendingReminders, setPendingReminders] = useState<
+    (NewNoteReminder & { label?: string })[]
+  >([])
   const [selectedAttachment, setSelectedAttachment] = useState<NoteAttachment | null>(null)
   const [isDragging, setIsDragging] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -72,8 +91,12 @@ export function NotesPage(): React.JSX.Element {
         content: await file.text()
       }))
     )
-    await add(attachments)
+    await add(
+      attachments,
+      pendingReminders.map(({ remindAt, days }) => ({ remindAt, days }))
+    )
     setFiles([])
+    setPendingReminders([])
   }
 
   const setFilter = (filter: NoteFilter): void => {
@@ -139,12 +162,13 @@ export function NotesPage(): React.JSX.Element {
         ) : (
           <Table>
             <Table.ScrollContainer>
-              <Table.Content aria-label={`${status} notes`} className="min-w-[720px]">
+              <Table.Content aria-label={`${status} notes`} className="min-w-[800px]">
                 <Table.Header>
                   <Table.Column isRowHeader>Note</Table.Column>
                   <Table.Column>Added</Table.Column>
                   <Table.Column>Status</Table.Column>
                   <Table.Column>Files</Table.Column>
+                  <Table.Column>Reminders</Table.Column>
                   <Table.Column className="text-end">Actions</Table.Column>
                 </Table.Header>
                 <Table.Body>
@@ -181,6 +205,14 @@ export function NotesPage(): React.JSX.Element {
                         ) : (
                           <span className="text-muted">—</span>
                         )}
+                      </Table.Cell>
+                      <Table.Cell className="py-1.5 text-xs">
+                        <ReminderPicker
+                          reminders={note.reminders}
+                          onAdd={(remindAt, days) => addReminder(note.id, remindAt, days)}
+                          onRemove={(reminderId) => removeReminder(note.id, reminderId)}
+                          label={nextReminderLabel(note.reminders)}
+                        />
                       </Table.Cell>
                       <Table.Cell className="py-1.5 text-xs">
                         <div className="flex justify-end gap-1">
@@ -240,29 +272,6 @@ export function NotesPage(): React.JSX.Element {
         >
           <PromptInput value={input} onValueChange={setInput} onSubmit={submit} className="w-full">
             <PromptInput.Shell className="border border-border shadow-none">
-              {files.length > 0 && (
-                <PromptInput.Attachments className="flex flex-wrap gap-2 px-4 pt-4">
-                  {files.map((file) => (
-                    <div
-                      key={`${file.name}-${file.lastModified}`}
-                      className="flex items-center gap-2 rounded-lg bg-surface-secondary px-2.5 py-1.5 text-xs"
-                    >
-                      <FileText size={14} className="text-muted" aria-hidden="true" />
-                      <span className="max-w-48 truncate">{file.name}</span>
-                      <button
-                        type="button"
-                        className="text-muted hover:text-foreground"
-                        onClick={() =>
-                          setFiles((current) => current.filter((item) => item !== file))
-                        }
-                        aria-label={`Remove ${file.name}`}
-                      >
-                        <X size={14} aria-hidden="true" />
-                      </button>
-                    </div>
-                  ))}
-                </PromptInput.Attachments>
-              )}
               <PromptInput.Content>
                 <PromptInput.TextArea
                   className="min-h-12"
@@ -280,9 +289,10 @@ export function NotesPage(): React.JSX.Element {
                   <PromptInput.Action
                     aria-label="Attach files"
                     tooltip="Attach files"
+                    className="size-6"
                     onPress={() => fileInputRef.current?.click()}
                   >
-                    <Paperclip size={16} aria-hidden="true" />
+                    <Paperclip size={14} aria-hidden="true" />
                   </PromptInput.Action>
                   <input
                     ref={fileInputRef}
@@ -294,14 +304,84 @@ export function NotesPage(): React.JSX.Element {
                       event.target.value = ''
                     }}
                   />
+                  <ReminderPicker
+                    inline
+                    onAdd={(remindAt, days, label) =>
+                      setPendingReminders((current) =>
+                        [...current, { remindAt, days, label }].sort(
+                          (a, b) => a.remindAt - b.remindAt
+                        )
+                      )
+                    }
+                    trigger={
+                      <PromptInput.Action
+                        aria-label="Add reminder"
+                        tooltip="Add reminder"
+                        className="size-6"
+                      >
+                        <BellPlus size={14} aria-hidden="true" />
+                      </PromptInput.Action>
+                    }
+                  />
+                  {(files.length > 0 || pendingReminders.length > 0) && (
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      {files.map((file) => (
+                        <div
+                          key={`${file.name}-${file.lastModified}`}
+                          className="flex items-center gap-1.5 rounded-md bg-surface-secondary px-2 py-1 text-[11px]"
+                        >
+                          <FileText size={12} className="text-muted" aria-hidden="true" />
+                          <span className="max-w-32 truncate">{file.name}</span>
+                          <button
+                            type="button"
+                            className="text-muted hover:text-foreground"
+                            onClick={() =>
+                              setFiles((current) => current.filter((item) => item !== file))
+                            }
+                            aria-label={`Remove ${file.name}`}
+                          >
+                            <X size={12} aria-hidden="true" />
+                          </button>
+                        </div>
+                      ))}
+                      {pendingReminders.map((reminder) => (
+                        <Chip
+                          key={`${reminder.remindAt}-${reminder.days.join(',')}`}
+                          color="accent"
+                          variant="primary"
+                          size="sm"
+                          className="gap-1.5 rounded-md"
+                        >
+                          <Bell size={12} aria-hidden="true" />
+                          <Chip.Label className="tabular-nums">
+                            {reminder.label ?? formatReminderTime(reminder.remindAt)}
+                            {daysLabel(reminder.days) && ` · ${daysLabel(reminder.days)}`}
+                          </Chip.Label>
+                          <button
+                            type="button"
+                            className="text-accent-foreground/70 hover:text-accent-foreground"
+                            onClick={() =>
+                              setPendingReminders((current) =>
+                                current.filter((item) => item !== reminder)
+                              )
+                            }
+                            aria-label={`Remove reminder ${reminder.label ?? formatReminderTime(reminder.remindAt)}`}
+                          >
+                            <X size={12} aria-hidden="true" />
+                          </button>
+                        </Chip>
+                      ))}
+                    </div>
+                  )}
                   {isDragging && <span className="text-xs text-accent">Drop files to attach</span>}
                 </PromptInput.ToolbarStart>
                 <PromptInput.ToolbarEnd>
                   <PromptInput.Send
                     isDisabled={!input.trim() && files.length === 0}
                     aria-label="Add note"
+                    className="size-6"
                   >
-                    <ArrowUp size={16} aria-hidden="true" />
+                    <ArrowUp size={14} aria-hidden="true" />
                   </PromptInput.Send>
                 </PromptInput.ToolbarEnd>
               </PromptInput.Toolbar>

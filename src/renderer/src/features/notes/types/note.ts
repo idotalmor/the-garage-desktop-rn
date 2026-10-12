@@ -1,4 +1,4 @@
-import type { NoteAttachment } from '../../../../../shared/notes/types'
+import type { NoteAttachment, NoteReminder } from '../../../../../shared/notes/types'
 
 export type Note = {
   id: string
@@ -7,4 +7,5 @@ export type Note = {
   deleted: number
   created_at: number
   attachments: NoteAttachment[]
+  reminders: NoteReminder[]
 }
