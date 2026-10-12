@@ -7,6 +7,7 @@ The following capabilities are implemented in the Git tab as compact UI-only moc
 
 - PR grid grouped by repository, with repository default/master branch cards
 - PR metadata: number, title, author, time, CI status, comments, and uncommitted changes
+- `Changes requested` cards show a circle with the number of comments the PR reviewer left on the requested changes (mocked via `pr.comments`; real implementation should count reviewer comments on the change request)
 - Review status chips: `Approved`, `Changes requested`, `Merged`, `Open`
 - Contextual natural-language PR search and All/Mine/Others filtering
 - "Spy" watch list for new PR topics

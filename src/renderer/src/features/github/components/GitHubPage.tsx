@@ -1,10 +1,7 @@
 import {
   Bell,
   Bot,
-  Check,
   CircleDot,
-  CircleX,
-  Clock3,
   FileText,
   GitBranch,
   GitCommit,
@@ -19,43 +16,14 @@ import {
   X
 } from 'lucide-react'
 import { useMemo, useState } from 'react'
-import { Button, Card } from '@heroui/react'
+import { Button } from '@heroui/react'
 import { PromptInput, Widget } from '@heroui-pro/react'
 import { PageHeader } from '../../../shared/components/PageHeader'
+import { CiBadge } from './CiBadge'
+import { CommitHistoryModal } from './CommitHistoryModal'
 import { GitHubSettingsModal } from './GitHubSettingsModal'
-
-type CiStatus = 'passing' | 'failing' | 'in-progress'
-type Commit = { hash: string; message: string; ciStatus: CiStatus }
-type PullRequest = {
-  number: number
-  title: string
-  author: string
-  time: string
-  ciStatus: CiStatus
-  comments: number
-  status: string
-  hasUncommitted: boolean
-  commits: Commit[]
-  task?: string
-}
-type Worktree = {
-  name: string
-  branch: string
-  author: string
-  changes: string
-  hasUncommitted: boolean
-  prNumber?: number
-}
-type Repository = {
-  name: string
-  detail: string
-  color: string
-  defaultBranch: string
-  masterCi: CiStatus
-  masterCommits: Commit[]
-  prs: PullRequest[]
-  worktrees: Worktree[]
-}
+import { Modal } from './Modal'
+import type { CiStatus, PullRequest, Repository, Worktree } from './types'
 
 const favoritePeople = ['Maya Chen', 'Ava Patel', 'Noah Williams']
 const otherPeople = ['Priya Shah', 'Liam Jones']
@@ -201,32 +169,17 @@ function getSearchTerms(prompt: string): string[] {
     .filter((word) => word.length > 2 && !stop.has(word))
 }
 
-function CiBadge({ status }: { status: CiStatus }): React.JSX.Element {
-  const labels = { passing: 'Passing', 'in-progress': 'In progress', failing: 'Failing' }
-  const icons = {
-    passing: <Check size={12} />,
-    'in-progress': <Clock3 size={12} />,
-    failing: <CircleX size={12} />
-  }
-  const styles = {
-    passing: 'bg-success/15 text-success',
-    'in-progress': 'bg-warning/15 text-warning',
-    failing: 'bg-danger/15 text-danger'
-  }
-  return (
-    <span
-      className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] ${styles[status]}`}
-    >
-      {icons[status]}
-      {labels[status]}
-    </span>
-  )
-}
-
 const ciSurfaceClass: Record<CiStatus, string> = {
   passing: 'bg-success/50',
   'in-progress': 'bg-warning/50',
   failing: 'bg-danger/50'
+}
+
+const prStatusStyle: Record<string, string> = {
+  'Changes requested': 'text-danger',
+  Approved: 'text-success',
+  Merged: 'text-violet-500',
+  Open: 'text-warning'
 }
 
 export function GitHubPage(): React.JSX.Element {
@@ -240,10 +193,7 @@ export function GitHubPage(): React.JSX.Element {
   const [settingsTab, setSettingsTab] = useState<'people' | 'slack'>('people')
   const [selectedPerson, setSelectedPerson] = useState<string | null>(null)
   const [selectedRecipient, setSelectedRecipient] = useState('Default · #eng-review')
-  const [selectedHistory, setSelectedHistory] = useState<{
-    title: string
-    commits: Commit[]
-  } | null>(null)
+  const [selectedHistory, setSelectedHistory] = useState<string | null>(null)
   const [selectedWorktree, setSelectedWorktree] = useState<{
     repo: Repository
     worktree: Worktree
@@ -522,24 +472,7 @@ export function GitHubPage(): React.JSX.Element {
         onSelectPerson={setSelectedPerson}
       />
       {selectedHistory && (
-        <Modal
-          title={`Commit history · ${selectedHistory.title}`}
-          onClose={() => setSelectedHistory(null)}
-        >
-          <div className="space-y-2">
-            {selectedHistory.commits.map((commit) => (
-              <div
-                key={commit.hash}
-                className="flex items-center gap-2 rounded-lg border border-border p-2 text-xs"
-              >
-                <CiBadge status={commit.ciStatus} />
-                <GitCommit size={14} className="text-muted" />
-                <code>{commit.hash}</code>
-                <span className="flex-1">{commit.message}</span>
-              </div>
-            ))}
-          </div>
-        </Modal>
+        <CommitHistoryModal title={selectedHistory} onClose={() => setSelectedHistory(null)} />
       )}
       {selectedWorktree && (
         <CreatePrModal
@@ -595,7 +528,7 @@ function RepositorySection({
   onRecipientChange: (value: string) => void
   onOpenPeople: () => void
   onOpenSettings: () => void
-  onHistory: (history: { title: string; commits: Commit[] }) => void
+  onHistory: (title: string) => void
   onLinkTask: (key: string) => void
   onOpenWorktree: (worktree: Worktree) => void
   onBabysitter: (number: number) => void
@@ -648,27 +581,23 @@ function RepositorySection({
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
         <Widget className={`h-full ${ciSurfaceClass[repository.masterCi]}`}>
           <Widget.Content className="m-1 flex min-h-[190px] flex-col gap-1.5 p-3">
-            <div className="flex items-center justify-between">
-              <span className="flex items-center gap-1 text-xs text-accent">
-                <GitBranch size={13} /> Default branch
-              </span>
-              <CiBadge status={repository.masterCi} />
-            </div>
             <h3 className="text-sm font-semibold">{repository.defaultBranch}</h3>
-            <p className="flex-1 text-xs text-muted">
+            <span className="flex items-center gap-1 text-xs text-accent">
+              <GitBranch size={13} /> Default branch
+            </span>
+            <button
+              type="button"
+              className="flex-1 cursor-pointer rounded-md border border-transparent px-1.5 py-0.5 text-left text-xs text-muted transition-colors hover:border-border hover:text-foreground"
+              onClick={() => onHistory(`${repository.name}/${repository.defaultBranch}`)}
+            >
               Latest commit {repository.masterCommits[0]?.message ?? 'No recent commits'}
-            </p>
+            </button>
             <div className="flex flex-wrap items-center gap-1 border-t border-separator pt-2">
               <Button
                 size="sm"
                 variant="ghost"
                 className="h-7 rounded-lg text-xs"
-                onPress={() =>
-                  onHistory({
-                    title: `${repository.name}/${repository.defaultBranch}`,
-                    commits: repository.masterCommits
-                  })
-                }
+                onPress={() => onHistory(`${repository.name}/${repository.defaultBranch}`)}
               >
                 <GitCommit size={13} /> History
               </Button>
@@ -688,22 +617,9 @@ function RepositorySection({
             onBabysitter={() => onBabysitter(pr.number)}
           />
         ))}
-      </div>
-      <div className="rounded-lg border border-dashed border-border bg-surface-secondary/40 p-3">
-        <div className="mb-2 flex items-center justify-between">
-          <div>
-            <p className="text-xs font-semibold">Local worktrees</p>
-            <p className="text-[11px] text-muted">
-              Every checkout, including branches without a PR.
-            </p>
-          </div>
-          <GitBranch size={15} className="text-muted" />
-        </div>
-        <div className="grid grid-cols-1 gap-2 md:grid-cols-2 lg:grid-cols-3">
-          {repository.worktrees.map((tree) => (
-            <WorktreeCard key={tree.name} worktree={tree} onOpen={() => onOpenWorktree(tree)} />
-          ))}
-        </div>
+        {repository.worktrees.map((tree) => (
+          <WorktreeCard key={tree.name} worktree={tree} onOpen={() => onOpenWorktree(tree)} />
+        ))}
       </div>
     </section>
   )
@@ -724,29 +640,49 @@ function ReviewCard({
   linkedTask?: string
   isBabysitter: boolean
   onRecipientChange: (value: string) => void
-  onHistory: (history: { title: string; commits: Commit[] }) => void
+  onHistory: (title: string) => void
   onLinkTask: () => void
   onBabysitter: () => void
 }): React.JSX.Element {
   return (
     <Widget className={`h-full ${ciSurfaceClass[pr.ciStatus]}`}>
       <Widget.Content className="m-1 flex min-h-[190px] flex-col gap-1.5 p-3">
-        <div className="flex items-center justify-between">
-          <span className="flex items-center gap-1 text-xs text-muted">
-            <GitPullRequest size={13} /> #{pr.number} · {pr.time}
-          </span>
-          <CiBadge status={pr.ciStatus} />
+        <div className="flex items-start justify-between gap-2">
+          <h3 className="text-sm font-semibold">{pr.title}</h3>
+          {pr.hasUncommitted && (
+            <span className="shrink-0 text-[11px] text-muted">Uncommitted changes</span>
+          )}
         </div>
-        <h3 className="text-sm font-semibold">{pr.title}</h3>
-        <p className="text-xs text-muted">
-          Opened by {pr.author} · {pr.status} · {pr.comments} comments
-        </p>
-        {pr.hasUncommitted && (
-          <span className="w-fit rounded bg-warning/15 px-1.5 py-0.5 text-[10px] text-warning">
-            Uncommitted changes
+        <p className="text-xs text-muted">Opened by {pr.author}</p>
+        <div className="flex items-center gap-2">
+          <p className={`text-sm font-semibold ${prStatusStyle[pr.status] ?? 'text-warning'}`}>
+            {pr.status === 'Open' ? 'Waiting for review' : pr.status}
+          </p>
+          {/* Number of comments the PR reviewer left on the requested changes */}
+          {pr.status === 'Changes requested' && pr.comments > 0 && (
+            <span
+              className="flex size-4 items-center justify-center rounded-full bg-danger/15 text-[10px] font-semibold text-danger"
+              title="Review comments"
+            >
+              {pr.comments}
+            </span>
+          )}
+        </div>
+        <button
+          type="button"
+          className="flex flex-1 cursor-pointer items-start gap-1.5 rounded-md border border-transparent px-1.5 py-0.5 text-left text-xs text-muted transition-colors hover:border-border hover:text-foreground"
+          onClick={() => onHistory(`#${pr.number}`)}
+        >
+          <span>
+            #{pr.number} · {pr.commits.at(-1)?.message ?? 'No commits'} · {pr.time}
           </span>
-        )}
-        <p className="flex-1 text-xs text-muted">{pr.commits.at(-1)?.message ?? 'No commits'}</p>
+          {pr.status === 'Changes requested' && pr.comments > 0 && (
+            <span className="inline-flex shrink-0 items-center gap-0.5 text-[10px]">
+              <MessageCircle size={11} fill="currentColor" aria-hidden="true" />
+              {pr.comments}
+            </span>
+          )}
+        </button>
         <div className="flex flex-wrap items-center gap-1 border-t border-separator pt-2">
           <Button size="sm" variant="primary" className="h-7 rounded-lg text-xs" onPress={() => {}}>
             <MessageCircle size={13} /> Send review
@@ -798,7 +734,7 @@ function ReviewCard({
             size="sm"
             variant="ghost"
             className="h-6 rounded text-[10px]"
-            onPress={() => onHistory({ title: `#${pr.number}`, commits: pr.commits })}
+            onPress={() => onHistory(`#${pr.number}`)}
           >
             <GitCommit size={11} /> History
           </Button>
@@ -851,76 +787,45 @@ function WorktreeCard({
   onOpen: () => void
 }): React.JSX.Element {
   return (
-    <Card className="rounded-lg">
-      <Card.Content className="space-y-2 p-3">
-        <div className="flex items-start justify-between">
-          <div>
-            <p className="text-xs font-semibold">{worktree.name}</p>
-            <p className="font-mono text-[10px] text-muted">{worktree.branch}</p>
+    <Widget className="h-full bg-neutral-500/50">
+      <Widget.Content className="m-1 flex min-h-[190px] flex-col gap-1.5 p-3">
+        <div className="flex items-start justify-between gap-2">
+          <h3 className="text-sm font-semibold">{worktree.branch}</h3>
+          <div className="flex shrink-0 items-center gap-1.5">
+            {worktree.hasUncommitted && (
+              <span className="text-[11px] text-muted">Uncommitted changes</span>
+            )}
+            <Button size="sm" variant="primary" className="h-7 rounded-lg text-xs" onPress={onOpen}>
+              <GitPullRequest size={13} /> {worktree.prNumber ? 'Open PR' : 'Create PR'}
+            </Button>
           </div>
-          {worktree.hasUncommitted && (
-            <span className="rounded bg-warning/15 px-1.5 py-0.5 text-[10px] text-warning">
-              Changes
-            </span>
-          )}
         </div>
-        <p className="text-[11px] text-muted">
+        <span className="flex items-center gap-1 text-xs text-muted">
+          <GitBranch size={13} /> Local worktree · {worktree.name}
+        </span>
+        <p className="text-xs text-muted">
           {worktree.author} · {worktree.changes}
         </p>
-        <div className="flex gap-1">
-          <Button
-            size="sm"
-            variant="primary"
-            className="h-7 flex-1 rounded-lg text-xs"
-            onPress={onOpen}
-          >
-            <GitPullRequest size={12} /> {worktree.prNumber ? 'Open PR' : 'Create PR'}
-          </Button>
+        <div className="flex-1" />
+        <div className="flex flex-wrap items-center gap-1 border-t border-separator pt-2">
           <select
             aria-label={`Open ${worktree.name} in IDE`}
             defaultValue=""
             className="h-7 rounded-lg border border-border bg-surface px-1 text-[10px]"
           >
             <option value="" disabled>
-              IDE
+              Open in IDE
             </option>
             <option>Cursor</option>
             <option>VS Code</option>
             <option>Terminal</option>
           </select>
         </div>
-      </Card.Content>
-    </Card>
+      </Widget.Content>
+    </Widget>
   )
 }
 
-function Modal({
-  title,
-  children,
-  onClose
-}: {
-  title: string
-  children: React.ReactNode
-  onClose: () => void
-}): React.JSX.Element {
-  return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
-      role="dialog"
-      aria-modal="true"
-    >
-      <Card className="w-full max-w-lg" onClick={(event) => event.stopPropagation()}>
-        <Card.Header className="flex items-center justify-between border-b border-separator px-4 py-3">
-          <h3 className="text-sm font-semibold">{title}</h3>
-          <Button isIconOnly size="sm" variant="ghost" onPress={onClose} aria-label="Close">
-            <X size={14} />
-          </Button>
-        </Card.Header>
-        <Card.Content className="p-4">{children}</Card.Content>
-      </Card>
-    </div>
-  )
-}
 function CreatePrModal({
   repo,
   worktree,
