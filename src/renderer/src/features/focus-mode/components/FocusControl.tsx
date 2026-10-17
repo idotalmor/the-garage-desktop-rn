@@ -403,44 +403,21 @@ export function FocusControl({
     }
   }, [timers, getFinishSound])
 
-  const [expandArmed, setExpandArmed] = useState(true)
-  const [justClosed, setJustClosed] = useState(false)
-  const [wasFocusPage, setWasFocusPage] = useState(isFocusPage)
-  if (isFocusPage !== wasFocusPage) {
-    setWasFocusPage(isFocusPage)
-    if (isFocusPage) setExpandArmed(false)
-    else setJustClosed(true)
-  }
-  useEffect(() => {
-    if (!justClosed) return
-    const timer = window.setTimeout(() => setJustClosed(false), 350)
-    return () => window.clearTimeout(timer)
-  }, [justClosed])
-  const armExpand = (): void => {
-    if (justClosed || isFocusPage) return
-    setExpandArmed(true)
-  }
   const hiddenTimers = Math.max(0, timers.length - 2)
-  const expandedCls =
-    !isFocusPage && expandArmed
-      ? 'group-focus-within/focusbtns:text-white group-hover/focusbtns:text-white'
-      : ''
+  const expandedCls = 'group-focus-within/focusbtns:text-white group-hover/focusbtns:text-white'
   const hoverBgCls = '[--button-bg-hover:rgb(0_0_0_/_0.2)]'
+  const focusBtnCls = isFocusPage
+    ? 'text-white [--button-bg-hover:rgb(255_255_255_/_0.1)]'
+    : `text-muted ${hoverBgCls} ${expandedCls}`
 
   return (
     <div className="relative flex items-center gap-1">
-      <div
-        className="peer relative flex h-6 w-6 items-center"
-        onMouseEnter={armExpand}
-        onFocus={armExpand}
-      >
+      <div className="peer relative flex h-6 w-6 items-center">
         <div
           className={`group/focusbtns absolute left-0 top-0 z-10 flex h-6 w-6 items-center overflow-hidden rounded-full duration-300 ease-out ${
             isFocusPage
-              ? 'bg-black text-white ring-2 ring-success transition-[width,background-color,box-shadow]'
-              : expandArmed
-                ? 'focus-within:w-12 focus-within:bg-success hover:w-12 hover:bg-success transition-[width]'
-                : 'transition-[width]'
+              ? 'bg-black text-white ring-2 ring-success transition-[width,background-color,box-shadow] hover:w-12 focus-within:w-12'
+              : 'focus-within:w-12 focus-within:bg-success hover:w-12 hover:bg-success transition-[width]'
           }`}
         >
           <div className="flex items-center">
@@ -448,7 +425,7 @@ export function FocusControl({
               isIconOnly
               size="sm"
               variant="ghost"
-              className={`size-6! shrink-0 rounded-full ${isFocusPage ? 'text-white [--button-bg-hover:rgb(255_255_255_/_0.1)]' : `text-muted ${hoverBgCls} ${expandedCls}`}`}
+              className={`size-6! shrink-0 rounded-full ${focusBtnCls}`}
               onPress={(event) => {
                 ;(event.target as HTMLElement).blur()
                 onToggleFocusPage()
@@ -461,9 +438,7 @@ export function FocusControl({
               isIconOnly
               size="sm"
               variant="ghost"
-              className={`size-6! shrink-0 rounded-full text-muted ${hoverBgCls} ${expandedCls}`}
-              excludeFromTabOrder={isFocusPage}
-              aria-hidden={isFocusPage || undefined}
+              className={`size-6! shrink-0 rounded-full ${focusBtnCls}`}
               onPress={(event) => {
                 ;(event.target as HTMLElement).blur()
                 startTimer()
@@ -480,7 +455,7 @@ export function FocusControl({
         </div>
       </div>
       <div
-        className={`flex items-center gap-1 transition-transform duration-300 ease-out ${chipsOverlay ? 'absolute left-7 top-1/2 -translate-y-1/2' : ''} ${isFocusPage || !expandArmed ? '' : 'peer-focus-within:translate-x-6 peer-hover:translate-x-6'}`}
+        className={`flex items-center gap-1 transition-transform duration-300 ease-out ${chipsOverlay ? 'absolute left-7 top-1/2 -translate-y-1/2' : ''} peer-focus-within:translate-x-6 peer-hover:translate-x-6`}
       >
         {timers.length > 0 && (
           <span className="mx-1 h-3.5 w-px bg-separator" role="separator" aria-hidden="true" />

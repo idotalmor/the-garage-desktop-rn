@@ -18,6 +18,11 @@ import { useState } from 'react'
 import { Avatar, Button, Card, Chip, ProgressBar } from '@heroui/react'
 import { PromptInput } from '@heroui-pro/react'
 import garageDoorSvg from '../../../assets/garage-door-2.svg?raw'
+import floppyDisk1Svg from '../../../assets/floppy-disk-1.svg?raw'
+import floppyDisk2Svg from '../../../assets/floppy-disk-2.svg?raw'
+import floppyDisk3Svg from '../../../assets/floppy-disk-3.svg?raw'
+import garageDoorAltSvg from '../../../assets/garage-door-alt.svg?raw'
+import garageDoorAltInvSvg from '../../../assets/garage-door-alt-inverted.svg?raw'
 
 type MetricProps = {
   label: string
@@ -182,6 +187,24 @@ export function DashboardHome(): React.JSX.Element {
           aria-label="The Garage icon"
           dangerouslySetInnerHTML={{ __html: garageDoorSvg }}
         />
+        <div className="mt-8 flex items-start justify-center gap-10">
+          {[
+            { svg: floppyDisk1Svg, label: 'Test 1' },
+            { svg: floppyDisk2Svg, label: 'Test 2' },
+            { svg: floppyDisk3Svg, label: 'Test 3' },
+            { svg: garageDoorAltSvg, label: 'Test 4' },
+            { svg: garageDoorAltInvSvg, label: 'Inverted' }
+          ].map((candidate) => (
+            <div key={candidate.label} className="flex flex-col items-center gap-2">
+              <div
+                className="w-32 text-foreground"
+                aria-label={`${candidate.label} icon candidate`}
+                dangerouslySetInnerHTML={{ __html: candidate.svg }}
+              />
+              <span className="text-xs text-muted">{candidate.label}</span>
+            </div>
+          ))}
+        </div>
         <h1 id="garage-title" className="mt-5 text-4xl font-semibold tracking-tight sm:text-5xl">
           The Garage
         </h1>

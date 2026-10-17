@@ -91,12 +91,6 @@ Resolved with explicit precedence (first match wins):
   pushed aside rather than overlapped.
 - Buttons blur themselves on press, so the chip collapses on mouse-out even
   though `focus-within` is active after a click. Keyboard tab-in still opens it.
-- `expandArmed` gates all expansion classes. It is reset when the focus page
-  opens, so when the page closes with the cursor resting on the icon the
-  cluster stays collapsed until the mouse **leaves and re-enters**
-  (`onMouseEnter`/`onFocus` on the slot re-arms it). Caveat: Chromium fires
-  `mouseover` when DOM mutates under a stationary cursor — that phantom enter
-  right after close is rejected via `justClosed`, a ~350ms suppression window.
 - Normal hover expansion transitions **width only** (`bg-success` snaps on
   instantly) so the green never fades in late behind the buttons; the color
   transition is enabled only in `isFocusPage` where it animates the morph.
@@ -109,17 +103,17 @@ Resolved with explicit precedence (first match wins):
 
 ### On focus page (`isFocusPage === true`)
 
-- Same DOM structure, different look — the overlay collapses to
-  `w-6 bg-black ring-2 ring-success` showing the hourglass only (the `+` sits
-  in the clipped right half). Because the structure is unified,
-  entering/leaving the focus page **animates as a morph**: `width`,
-  `background-color`, and the ring's `box-shadow` transition over 300ms while
-  the plus slides out under the clip. (A `clip-path` variant was tried and
-  reverted — it desynced differently and looked worse.)
-- The plus stays in the DOM but is clipped, `aria-hidden`, and
-  `excludeFromTabOrder`.
-- No expansion on hover (`expandArmed` cannot arm while `isFocusPage`), and
-  the sibling shift is disabled.
+- Same DOM structure, different look — the overlay is
+  `w-6 bg-black ring-2 ring-success` showing the hourglass (the `+` sits in the
+  clipped right half). Because the structure is unified, entering/leaving the
+  focus page **animates as a morph**: `width`, `background-color`, and the
+  ring's `box-shadow` transition over 300ms while the plus slides out under
+  the clip. (A `clip-path` variant was tried and reverted — it desynced
+  differently and looked worse.)
+- Hover or `focus-within` expands `w-6 → w-12` just like the normal state, but
+  the pill **stays black** (no `bg-success`) and the `+` button is a live
+  control with the white-on-black hover wash. Sibling chips still shift
+  `translate-x-6`.
 
 ## `+N` hidden-timers menu
 

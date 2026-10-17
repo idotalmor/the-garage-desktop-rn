@@ -1,6 +1,7 @@
 // Renders an SVG asset to the app's icon PNGs.
-// Usage: ELECTRON_RUN_AS_NODE= npx electron scripts/render-icons.mjs [svgPath]
+// Usage: ELECTRON_RUN_AS_NODE= npx electron scripts/render-icons.mjs [svgPath] [target]
 //   svgPath defaults to src/renderer/src/assets/warehouse.svg
+//   target: 'all' (default) | 'tray' | 'app'
 // Outputs:
 //   resources/tray-icon.png  — transparent silhouette for the menu bar tray
 //   build/icon.png           — 1024px white-squircle source for electron-builder
@@ -12,20 +13,23 @@ import { join } from 'node:path'
 
 const root = join(import.meta.dirname, '..')
 const svgPath = process.argv[2] || join(root, 'src/renderer/src/assets/warehouse.svg')
+const target = process.argv[3] || 'all'
 const svg = readFileSync(svgPath, 'utf8')
 
 const jobs = [
   {
+    name: 'tray',
     out: join(root, 'resources/tray-icon.png'),
     size: 1024,
     body: `<div style="width:100%;height:100%;color:#000;display:flex">${svg}</div>`
   },
   {
+    name: 'app',
     out: join(root, 'build/icon.png'),
     size: 1024,
     body: `<div style="width:100%;height:100%;background:#ffffff;border-radius:22%;display:flex;align-items:center;justify-content:center"><div style="width:82%;height:82%;color:#000;display:flex">${svg}</div></div>`
   }
-]
+].filter((job) => target === 'all' || job.name === target)
 
 app.whenReady().then(async () => {
   const win = new BrowserWindow({

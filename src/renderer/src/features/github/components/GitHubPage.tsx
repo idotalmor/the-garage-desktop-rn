@@ -1,7 +1,9 @@
 import {
   Bell,
   Bot,
+  ChevronDown,
   CircleDot,
+  CodeXml,
   FileText,
   GitBranch,
   GitCommit,
@@ -307,7 +309,7 @@ export function GitHubPage(): React.JSX.Element {
         </div>
       </section>
 
-      <div className="mt-6 space-y-7">
+      <div className="mt-4 space-y-6">
         {visibleRepositories.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-border px-6 py-14 text-center">
             <Search size={22} className="mx-auto text-muted" />
@@ -566,7 +568,7 @@ function RepositorySection({
   onBabysitter: (number: number) => void
 }): React.JSX.Element {
   return (
-    <section aria-labelledby={`${repository.name}-heading`} className="space-y-3">
+    <section aria-labelledby={`${repository.name}-heading`} className="space-y-2">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <span className={`size-3 rounded-full ${repository.color}`} />
@@ -610,9 +612,9 @@ function RepositorySection({
           </Button>
         </div>
       </div>
-      <div className="grid grid-cols-2 gap-2 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 md:grid-cols-3">
         <Widget className={`h-full ${ciSurfaceClass[repository.masterCi]}`}>
-          <Widget.Content className="m-1 flex min-h-[190px] flex-col gap-1.5 p-3">
+          <Widget.Content className="m-1 flex min-h-[140px] flex-col gap-1 p-2.5">
             <h3 className="text-sm font-semibold">{repository.defaultBranch}</h3>
             <span className="flex items-center gap-1 text-xs text-accent">
               <GitBranch size={13} /> Default branch
@@ -625,7 +627,7 @@ function RepositorySection({
               Latest commit {repository.masterCommits[0]?.message ?? 'No recent commits'}
             </button>
             <div className="flex-1" />
-            <div className="flex flex-wrap items-center gap-1 border-t border-separator pt-2">
+            <div className="flex flex-wrap items-center gap-1 border-t border-separator pt-1.5">
               <Button
                 size="sm"
                 variant="ghost"
@@ -684,7 +686,7 @@ function ReviewCard({
   const disabledActionsClass = isMerged ? 'pointer-events-none opacity-50' : ''
   return (
     <Widget className={`h-full ${isMerged ? 'bg-violet-600/50' : ciSurfaceClass[pr.ciStatus]}`}>
-      <Widget.Content className="m-1 flex min-h-[190px] flex-col gap-1.5 p-3">
+      <Widget.Content className="m-1 flex min-h-[140px] flex-col gap-1 p-2.5">
         <div className="flex items-start justify-between gap-2">
           <h3 className="text-sm font-semibold">{pr.title}</h3>
           <div className="flex shrink-0 items-center gap-1.5">
@@ -737,7 +739,7 @@ function ReviewCard({
         </button>
         <div className="flex-1" />
         <div
-          className={`flex flex-wrap items-center gap-1 border-t border-separator pt-2 ${disabledActionsClass}`}
+          className={`flex items-center gap-1 border-t border-separator pt-1.5 ${disabledActionsClass}`}
           aria-disabled={isMerged}
         >
           <IconAction
@@ -777,52 +779,28 @@ function ReviewCard({
               onPress={() => {}}
             />
           )}
-          <IconAction
-            label="Rerun CI"
-            icon={<Bot size={12} />}
-            className="size-6 rounded"
-            onPress={() => {}}
-          />
-          <IconAction
-            label="Slack"
-            icon={<MessageCircle size={12} />}
-            className="size-6 rounded"
-            onPress={() => {}}
-          />
-          <IconAction
-            label="Lint"
-            icon={<Terminal size={12} />}
-            className="size-6 rounded"
-            onPress={() => {}}
-          />
-          <IconAction
-            label="History"
-            icon={<GitCommit size={12} />}
-            className="size-6 rounded"
-            onPress={() => onHistory(`#${pr.number}`)}
-          />
-          <IconAction
-            label={linkedTask ?? 'Link task'}
-            icon={<Link2 size={12} />}
-            className="size-6 rounded"
-            onPress={onLinkTask}
-          />
-          <IconAction
-            label="Jira"
-            icon={<FileText size={12} />}
-            className="size-6 rounded"
-            onPress={() => window.open('https://jira', '_blank')}
-          />
           <select
+            value=""
+            onChange={(event) => {
+              const action = event.target.value
+              if (action === 'history') onHistory(`#${pr.number}`)
+              else if (action === 'link-task') onLinkTask()
+              else if (action === 'jira') window.open('https://jira', '_blank')
+            }}
             aria-label={`More actions for PR ${pr.number}`}
-            className="h-6 rounded border border-border bg-surface px-1 text-[10px]"
-            defaultValue=""
+            className="ml-auto h-7 rounded-lg border border-border bg-surface px-1 text-[10px]"
           >
             <option value="" disabled>
               •••
             </option>
-            <option>Delete local worktree</option>
-            <option>Delete remote branch</option>
+            <option value="rerun-ci">Rerun CI</option>
+            <option value="slack">Notify Slack</option>
+            <option value="lint">Run lint</option>
+            <option value="history">History</option>
+            <option value="link-task">{linkedTask ?? 'Link task'}</option>
+            <option value="jira">Open in Jira</option>
+            <option value="delete-worktree">Delete local worktree</option>
+            <option value="delete-branch">Delete remote branch</option>
           </select>
         </div>
       </Widget.Content>
@@ -838,6 +816,85 @@ function GithubIcon({ size = 14 }: { size?: number }): React.JSX.Element {
   )
 }
 
+function CursorLogo({ size = 12 }: { size?: number }): React.JSX.Element {
+  return (
+    <svg viewBox="0 0 24 24" width={size} height={size} aria-hidden="true">
+      <path
+        d="M11.925 24l10.425-6-10.425-6L1.5 18l10.425 6z"
+        fill="currentColor"
+        fillOpacity="0.35"
+      />
+      <path d="M22.35 18V6L11.925 0v12l10.425 6z" fill="currentColor" fillOpacity="0.6" />
+      <path d="M11.925 0L1.5 6v12l10.425-6V0z" fill="currentColor" />
+      <path d="M22.35 6L11.925 24V12L22.35 6z" fill="currentColor" fillOpacity="0.85" />
+      <path d="M22.35 6l-10.425 6L1.5 6l10.425-6z" fill="currentColor" fillOpacity="0.5" />
+    </svg>
+  )
+}
+
+const ides = [
+  { id: 'cursor', name: 'Cursor', icon: <CursorLogo size={12} /> },
+  { id: 'vscode', name: 'VS Code', icon: <CodeXml size={12} /> },
+  { id: 'terminal', name: 'Terminal', icon: <Terminal size={12} /> }
+] as const
+
+function IdePicker({ worktreeName }: { worktreeName: string }): React.JSX.Element {
+  const [selectedIde, setSelectedIde] = useState<(typeof ides)[number]['id']>('cursor')
+  const [isOpen, setIsOpen] = useState(false)
+  const selected = ides.find((ide) => ide.id === selectedIde) ?? ides[0]
+  return (
+    <div className="relative flex h-7 items-stretch rounded-lg border border-border bg-surface text-[10px]">
+      <button
+        type="button"
+        aria-label={`Open ${worktreeName} in ${selected.name}`}
+        className="flex items-center gap-1.5 rounded-l-lg px-2 hover:bg-surface-secondary"
+        onClick={() => {}}
+      >
+        {selected.icon}
+        {selected.name}
+      </button>
+      <span className="w-px bg-separator" aria-hidden="true" />
+      <button
+        type="button"
+        aria-label={`Choose IDE for ${worktreeName}`}
+        aria-haspopup="menu"
+        aria-expanded={isOpen}
+        className="flex items-center rounded-r-lg px-1.5 text-muted hover:bg-surface-secondary hover:text-foreground"
+        onClick={() => setIsOpen((open) => !open)}
+      >
+        <ChevronDown size={11} aria-hidden="true" />
+      </button>
+      {isOpen && (
+        <div
+          role="menu"
+          aria-label="Choose IDE"
+          className="absolute left-0 top-8 z-50 w-36 rounded-xl border border-border bg-overlay p-1.5 shadow-overlay"
+        >
+          {ides.map((ide) => (
+            <button
+              key={ide.id}
+              type="button"
+              role="menuitemradio"
+              aria-checked={ide.id === selectedIde}
+              className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-xs text-foreground hover:bg-surface-secondary"
+              onClick={() => {
+                setSelectedIde(ide.id)
+                setIsOpen(false)
+              }}
+            >
+              {ide.icon}
+              <span>{ide.name}</span>
+              {ide.id === selectedIde && (
+                <span className="ml-auto size-1.5 shrink-0 rounded-full bg-accent" />
+              )}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 function WorktreeCard({
   worktree,
   onOpen
@@ -846,16 +903,21 @@ function WorktreeCard({
   onOpen: () => void
 }): React.JSX.Element {
   return (
-    <Widget className="h-full bg-neutral-500/50">
-      <Widget.Content className="m-1 flex min-h-[190px] flex-col gap-1.5 p-3">
+    <Widget className="h-full overflow-visible bg-neutral-500/50">
+      <Widget.Content className="m-1 flex min-h-[140px] flex-col gap-1 overflow-visible p-2.5">
         <div className="flex items-start justify-between gap-2">
           <h3 className="text-sm font-semibold">{worktree.branch}</h3>
           <div className="flex shrink-0 items-center gap-1.5">
             {worktree.hasUncommitted && (
               <span className="text-[11px] text-muted">Uncommitted changes</span>
             )}
-            <Button size="sm" variant="primary" className="h-7 rounded-lg text-xs" onPress={onOpen}>
-              <GitPullRequest size={13} /> {worktree.prNumber ? 'Open PR' : 'Create PR'}
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-6 rounded-md px-2 text-[11px]"
+              onPress={onOpen}
+            >
+              <GitPullRequest size={12} /> {worktree.prNumber ? 'Open PR' : 'Create PR'}
             </Button>
           </div>
         </div>
@@ -866,19 +928,8 @@ function WorktreeCard({
           {worktree.author} · {worktree.changes}
         </p>
         <div className="flex-1" />
-        <div className="flex flex-wrap items-center gap-1 border-t border-separator pt-2">
-          <select
-            aria-label={`Open ${worktree.name} in IDE`}
-            defaultValue=""
-            className="h-7 rounded-lg border border-border bg-surface px-1 text-[10px]"
-          >
-            <option value="" disabled>
-              Open in IDE
-            </option>
-            <option>Cursor</option>
-            <option>VS Code</option>
-            <option>Terminal</option>
-          </select>
+        <div className="flex flex-wrap items-center gap-1 border-t border-separator pt-1.5">
+          <IdePicker worktreeName={worktree.name} />
         </div>
       </Widget.Content>
     </Widget>
