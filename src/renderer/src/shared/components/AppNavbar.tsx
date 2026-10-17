@@ -18,6 +18,7 @@ type AppNavbarProps = {
   onViewChange: (view: AppView) => void
   onThemeChange: () => void
   position?: 'left' | 'right'
+  accountControl?: React.ReactNode
 }
 
 export function NavButton({
@@ -55,7 +56,8 @@ export function AppNavbar({
   themeLabel,
   onViewChange,
   onThemeChange,
-  position = 'left'
+  position = 'left',
+  accountControl
 }: AppNavbarProps): React.JSX.Element {
   const ThemeIcon = themeLabel === 'Dark' ? Moon : Sun
   const contribution = useFeatureMenuContribution()
@@ -132,11 +134,12 @@ export function AppNavbar({
         >
           <ThemeIcon size={17} aria-hidden={true} />
         </Button>
-        {isLeft && (
-          <Avatar className="mt-1 size-6" aria-label="Account">
-            <Avatar.Fallback>IO</Avatar.Fallback>
-          </Avatar>
-        )}
+        {isLeft &&
+          (accountControl ?? (
+            <Avatar className="mt-1 size-6" aria-label="Account">
+              <Avatar.Fallback>IO</Avatar.Fallback>
+            </Avatar>
+          ))}
       </div>
     </aside>
   )

@@ -10,6 +10,7 @@ import {
 } from './main-window'
 import { WindowChannel } from '../shared/window-channels'
 import { createTray, focusMainOrCreate, hidePopover, promotePopoverToWindow } from './popover'
+import { initAuthIpc } from './auth/ipc'
 import { initNotesIpc } from './notes'
 import { initArtifactoryIpc } from './artifactory/ipc'
 import { initIntegrationsIpc } from './integrations/ipc'
@@ -74,6 +75,7 @@ app.whenReady().then(() => {
     promotePopoverToWindow()
   })
 
+  initAuthIpc()
   initNotesIpc()
   initArtifactoryIpc()
   initIntegrationsIpc()

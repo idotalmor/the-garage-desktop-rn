@@ -19,6 +19,7 @@ import { IntegrationsPage } from '../features/integrations/components/Integratio
 import { FocusModePage } from '../features/focus-mode/components/FocusModePage'
 import { ArtifactoryPage } from '../features/artifactory/pages/artifactory-page'
 import { RecordingPage } from '../features/recording/components/RecordingPage'
+import { AuthControl } from '../features/auth/components/AuthControl'
 import { WindowChannel, type OpenWindow } from '../../../shared/window-channels'
 import { WindowDragRegion } from '../shared/components/WindowDragRegion'
 
@@ -305,6 +306,7 @@ export function AppShell(): React.JSX.Element {
               themeLabel={themeLabel}
               onViewChange={setView}
               onThemeChange={cycleTheme}
+              accountControl={<AuthControl />}
             />
             <FeatureMenuSlot className="flex pt-10" />
             <main
@@ -333,6 +335,7 @@ export function AppShell(): React.JSX.Element {
           themeLabel={themeLabel}
           onViewChange={setView}
           onThemeChange={cycleTheme}
+          accountControl={<AuthControl />}
         />
         <FeatureMenuSlot className="flex pt-10" />
         <main

@@ -1,7 +1,12 @@
 import { AppShell } from './app/AppShell'
+import { AuthGate } from './features/auth/components/AuthGate'
 
 function App(): React.JSX.Element {
-  return <AppShell />
+  return (
+    <AuthGate>
+      <AppShell />
+    </AuthGate>
+  )
 }
 
 export default App

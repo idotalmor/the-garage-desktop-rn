@@ -1,9 +1,18 @@
-import { contextBridge, webUtils } from 'electron'
+import { contextBridge, ipcRenderer, webUtils } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
+import { AuthChannel } from '../shared/auth/channels'
+import type { GoogleCredential } from '../shared/auth/types'
 
 // Custom APIs for renderer
 const api = {
-  getPathForFile: (file: File): string => webUtils.getPathForFile(file)
+  getPathForFile: (file: File): string => webUtils.getPathForFile(file),
+  auth: {
+    signInWithGoogle: (): Promise<GoogleCredential | null> =>
+      ipcRenderer.invoke(AuthChannel.SignInWithGoogle),
+    cancelSignIn: (): void => {
+      ipcRenderer.send(AuthChannel.CancelSignIn)
+    }
+  }
 }
 
 // Use `contextBridge` APIs to expose Electron APIs to
