@@ -17,11 +17,6 @@ export function recurrenceLabel(reminder: Pick<NoteReminder, 'recurrence' | 'day
   return ''
 }
 
-export function nextReminderLabel(reminders: NoteReminder[]): string {
-  const next = reminders.find((reminder) => reminder.fired === 0)
-  return next ? formatReminderTime(next.remind_at) : 'Remind me'
-}
-
 export function formatReminderTime(timestamp: number): string {
   const date = new Date(timestamp)
   return new Intl.DateTimeFormat(undefined, {

@@ -19,7 +19,7 @@ import { useNotes } from '../hooks/useNotes'
 import type { NewNoteReminder, NoteAttachment, NoteStatus } from '../../../../../shared/notes/types'
 import { PageHeader } from '../../../shared/components/PageHeader'
 import { ReminderPicker } from './ReminderPicker'
-import { daysLabel, formatReminderTime, nextReminderLabel } from '../utils'
+import { daysLabel, formatReminderTime, recurrenceLabel } from '../utils'
 
 type NoteFilter = NoteStatus
 
@@ -207,12 +207,40 @@ export function NotesPage(): React.JSX.Element {
                         )}
                       </Table.Cell>
                       <Table.Cell className="py-1.5 text-xs">
-                        <ReminderPicker
-                          reminders={note.reminders}
-                          onAdd={(remindAt, days) => addReminder(note.id, remindAt, days)}
-                          onRemove={(reminderId) => removeReminder(note.id, reminderId)}
-                          label={nextReminderLabel(note.reminders)}
-                        />
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <ReminderPicker
+                            onAdd={(remindAt, days) => addReminder(note.id, remindAt, days)}
+                          />
+                          {note.reminders.map((reminder) => (
+                            <Chip
+                              key={reminder.id}
+                              color="accent"
+                              variant={reminder.fired === 1 ? 'soft' : 'primary'}
+                              size="sm"
+                              className="gap-1.5 rounded-md"
+                            >
+                              <Bell size={12} aria-hidden="true" />
+                              <Chip.Label
+                                className={`tabular-nums ${reminder.fired === 1 ? 'line-through' : ''}`}
+                              >
+                                {formatReminderTime(reminder.remind_at)}
+                                {recurrenceLabel(reminder) && ` · ${recurrenceLabel(reminder)}`}
+                              </Chip.Label>
+                              <button
+                                type="button"
+                                className={
+                                  reminder.fired === 1
+                                    ? 'text-accent-soft-foreground/70 hover:text-accent-soft-foreground'
+                                    : 'text-accent-foreground/70 hover:text-accent-foreground'
+                                }
+                                onClick={() => removeReminder(note.id, reminder.id)}
+                                aria-label={`Remove reminder ${formatReminderTime(reminder.remind_at)}`}
+                              >
+                                <X size={12} aria-hidden="true" />
+                              </button>
+                            </Chip>
+                          ))}
+                        </div>
                       </Table.Cell>
                       <Table.Cell className="py-1.5 text-xs">
                         <div className="flex justify-end gap-1">
@@ -305,7 +333,6 @@ export function NotesPage(): React.JSX.Element {
                     }}
                   />
                   <ReminderPicker
-                    inline
                     onAdd={(remindAt, days, label) =>
                       setPendingReminders((current) =>
                         [...current, { remindAt, days, label }].sort(
