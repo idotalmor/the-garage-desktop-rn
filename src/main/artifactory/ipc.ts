@@ -2,8 +2,15 @@ import { app, dialog, ipcMain, shell } from 'electron'
 import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'fs'
 import { basename, extname, join } from 'path'
 import { ArtifactoryChannel } from '../../shared/artifactory/channels'
-import type { ImportMode, MdFile, Tag } from '../../shared/artifactory/types'
-import { listArtifactoryFiles, saveArtifactoryFile } from './repository'
+import type { ArtifactoryBox, ImportMode, MdFile, Tag } from '../../shared/artifactory/types'
+import {
+  listArtifactoryBoxes,
+  listArtifactoryFiles,
+  removeArtifactoryBox,
+  saveArtifactoryBox,
+  saveArtifactoryFile,
+  updateArtifactoryFileTags
+} from './repository'
 
 const ARTIFACTORY_DIR = join(app.getPath('home'), '.devflow', 'artifactory')
 
@@ -97,4 +104,17 @@ export function initArtifactoryIpc(): void {
   ipcMain.handle(ArtifactoryChannel.ShowInFolder, (_, path: string): void => {
     shell.showItemInFolder(path)
   })
+
+  ipcMain.handle(ArtifactoryChannel.ListBoxes, () => listArtifactoryBoxes())
+
+  ipcMain.handle(ArtifactoryChannel.SaveBox, (_, box: ArtifactoryBox) => saveArtifactoryBox(box))
+
+  ipcMain.handle(ArtifactoryChannel.DeleteBox, (_, name: string) => removeArtifactoryBox(name))
+
+  ipcMain.handle(
+    ArtifactoryChannel.SetFileTags,
+    (_, payload: { path: string; tags: Tag[] }): void => {
+      updateArtifactoryFileTags(payload.path, payload.tags)
+    }
+  )
 }

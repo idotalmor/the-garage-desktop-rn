@@ -16,6 +16,7 @@ type ImportFilesModalProps = {
   onClose: () => void
   paths: string[]
   existingTags: Tag[]
+  initialTag?: Tag
   onConfirm: (mode: ImportMode, tag?: Tag) => void
 }
 
@@ -76,6 +77,7 @@ export function ImportFilesModal({
   onClose,
   paths,
   existingTags,
+  initialTag,
   onConfirm
 }: ImportFilesModalProps): React.JSX.Element | null {
   const [mode, setMode] = useState<ImportMode>('copy')
@@ -83,6 +85,16 @@ export function ImportFilesModal({
   const [isCreating, setIsCreating] = useState(false)
   const [newTagName, setNewTagName] = useState('')
   const [newTagColor, setNewTagColor] = useState<Color>(randomColor())
+  const [prevOpen, setPrevOpen] = useState(isOpen)
+  if (prevOpen !== isOpen) {
+    setPrevOpen(isOpen)
+    if (isOpen) {
+      setMode('copy')
+      setSelectedTag(initialTag ?? null)
+      setIsCreating(false)
+      setNewTagName('')
+    }
+  }
 
   const selectedTagColor = useMemo(
     () => (selectedTag ? selectedTag.color : newTagColor.toString('hex')),

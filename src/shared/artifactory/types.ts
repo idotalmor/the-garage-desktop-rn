@@ -15,6 +15,13 @@ export type Tag = {
   color: string
 }
 
+export type ArtifactoryBox = {
+  name: string
+  color: string
+  ticketKey?: string
+  createdAt: number
+}
+
 export type MdFile = {
   path: string
   name: string

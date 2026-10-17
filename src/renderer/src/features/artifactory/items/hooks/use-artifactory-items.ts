@@ -17,6 +17,7 @@ export function useArtifactoryItems(): {
   closeFile: (path: string) => void
   openPath: (path: string) => void
   setActive: (value: string | null) => void
+  setFileTags: (path: string, tags: Tag[]) => Promise<void>
   tags: Tag[]
 } {
   const [files, setFiles] = useState<MdFile[]>([])
@@ -110,6 +111,16 @@ export function useArtifactoryItems(): {
     setActive(path)
   }, [])
 
+  const setFileTags = useCallback(async (path: string, nextTags: Tag[]): Promise<void> => {
+    await window.electron.ipcRenderer.invoke(ArtifactoryChannel.SetFileTags, {
+      path,
+      tags: nextTags
+    })
+    setFiles((prev) =>
+      prev.map((item) => (item.path === path ? { ...item, tags: nextTags } : item))
+    )
+  }, [])
+
   const tags = useMemo(() => {
     const registry = new Map<string, Tag>()
     for (const file of files) {
@@ -131,6 +142,7 @@ export function useArtifactoryItems(): {
     closeFile,
     openPath,
     setActive,
+    setFileTags,
     tags
   }
 }
