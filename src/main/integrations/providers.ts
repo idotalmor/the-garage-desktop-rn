@@ -105,7 +105,7 @@ function removeMemoryBlock(path: string): void {
 }
 
 function memoryFileContent(content: string): string {
-  return `---\ndescription: Orchestrator shared memory\nalwaysApply: true\n---\n\n${content.trim()}\n`
+  return `---\ndescription: Garage shared memory\nalwaysApply: true\n---\n\n${content.trim()}\n`
 }
 
 export function isProviderInstalled(def: ProviderDef): boolean {

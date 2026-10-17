@@ -2,10 +2,10 @@ import { existsSync, writeFileSync } from 'fs'
 import { join } from 'path'
 import { BIN_DIR, ensureDirs } from './store'
 
-export const MCP_SERVER_PATH = join(BIN_DIR, 'orchestrator-mcp.mjs')
+export const MCP_SERVER_PATH = join(BIN_DIR, 'garage-mcp.mjs')
 
 const MCP_SERVER_SCRIPT = `#!/usr/bin/env node
-// The Orchestrator MCP server — exposes ~/.devflow/memory.md over stdio.
+// The Garage MCP server — exposes ~/.devflow/memory.md over stdio.
 import { createInterface } from 'node:readline'
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs'
 import { join } from 'node:path'
@@ -33,12 +33,12 @@ const searchMemory = (query) =>
 const tools = [
   {
     name: 'memory_read',
-    description: 'Read the shared Orchestrator memory',
+    description: 'Read the shared Garage memory',
     inputSchema: { type: 'object', properties: {} }
   },
   {
     name: 'memory_write',
-    description: 'Replace the shared Orchestrator memory content',
+    description: 'Replace the shared Garage memory content',
     inputSchema: {
       type: 'object',
       properties: { content: { type: 'string' } },
@@ -47,7 +47,7 @@ const tools = [
   },
   {
     name: 'memory_append',
-    description: 'Append a bullet item to the shared Orchestrator memory',
+    description: 'Append a bullet item to the shared Garage memory',
     inputSchema: {
       type: 'object',
       properties: { item: { type: 'string' } },
@@ -56,7 +56,7 @@ const tools = [
   },
   {
     name: 'memory_search',
-    description: 'Search lines of the shared Orchestrator memory',
+    description: 'Search lines of the shared Garage memory',
     inputSchema: {
       type: 'object',
       properties: { query: { type: 'string' } },
@@ -84,7 +84,7 @@ rl.on('line', (line) => {
     reply(id, {
       protocolVersion: params?.protocolVersion ?? '2024-11-05',
       capabilities: { tools: {} },
-      serverInfo: { name: 'orchestrator', version: '1.0.0' }
+      serverInfo: { name: 'garage', version: '1.0.0' }
     })
   } else if (method === 'ping') {
     reply(id, {})

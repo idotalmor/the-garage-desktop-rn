@@ -17,7 +17,7 @@ import { initAppStateIpc } from './app-state'
 import { initRecordingIpc } from './recording'
 import { initFocusModeIpc } from './focus-mode'
 
-const APP_NAME = 'The Orchestrator'
+const APP_NAME = 'The Garage'
 app.setName(APP_NAME)
 
 app.whenReady().then(() => {

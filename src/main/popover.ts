@@ -1,7 +1,7 @@
 import { app, BrowserWindow, Menu, Tray, nativeImage, screen } from 'electron'
 import { join } from 'path'
 import { is } from '@electron-toolkit/utils'
-import brainIcon from '../../resources/brain.png?asset'
+import trayIconSource from '../../resources/tray-icon.png?asset'
 import { createMainWindow, getMainWindow, registerAppWindow, showAppWindow } from './main-window'
 
 const POPOVER_WIDTH = process.platform === 'darwin' ? 500 : 360
@@ -189,10 +189,10 @@ export function showOrCreatePopover(): void {
 }
 
 export function createTray(): void {
-  const trayIcon = nativeImage.createFromPath(brainIcon).resize({ width: 18, height: 18 })
+  const trayIcon = nativeImage.createFromPath(trayIconSource).resize({ width: 18, height: 18 })
   if (process.platform === 'darwin') trayIcon.setTemplateImage(true)
   tray = new Tray(trayIcon)
-  tray.setToolTip('The Orchestrator')
+  tray.setToolTip('The Garage')
   const contextMenu = Menu.buildFromTemplate([{ label: 'Quit', click: () => app.quit() }])
   tray.on('click', () => showOrCreatePopover())
   tray.on('right-click', () => tray?.popUpContextMenu(contextMenu))

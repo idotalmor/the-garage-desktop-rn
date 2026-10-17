@@ -16,7 +16,7 @@ import {
   X
 } from 'lucide-react'
 import { useMemo, useState } from 'react'
-import { Button } from '@heroui/react'
+import { Button, Tooltip } from '@heroui/react'
 import { PromptInput, Widget } from '@heroui-pro/react'
 import { PageHeader } from '../../../shared/components/PageHeader'
 import { CiBadge } from './CiBadge'
@@ -178,7 +178,7 @@ const ciSurfaceClass: Record<CiStatus, string> = {
 const prStatusStyle: Record<string, string> = {
   'Changes requested': 'text-danger',
   Approved: 'text-success',
-  Merged: 'text-violet-500',
+  Merged: 'text-violet-600',
   Open: 'text-warning'
 }
 
@@ -486,6 +486,38 @@ export function GitHubPage(): React.JSX.Element {
   )
 }
 
+function IconAction({
+  label,
+  icon,
+  onPress,
+  variant = 'ghost',
+  className
+}: {
+  label: string
+  icon: React.ReactNode
+  onPress: () => void
+  variant?: 'primary' | 'ghost' | 'danger-soft'
+  className?: string
+}): React.JSX.Element {
+  return (
+    <Tooltip>
+      <Tooltip.Trigger>
+        <Button
+          isIconOnly
+          size="sm"
+          variant={variant}
+          className={className}
+          onPress={onPress}
+          aria-label={label}
+        >
+          {icon}
+        </Button>
+      </Tooltip.Trigger>
+      <Tooltip.Content>{label}</Tooltip.Content>
+    </Tooltip>
+  )
+}
+
 function AutomationButton({
   icon,
   label
@@ -578,7 +610,7 @@ function RepositorySection({
           </Button>
         </div>
       </div>
-      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid grid-cols-2 gap-2 lg:grid-cols-3">
         <Widget className={`h-full ${ciSurfaceClass[repository.masterCi]}`}>
           <Widget.Content className="m-1 flex min-h-[190px] flex-col gap-1.5 p-3">
             <h3 className="text-sm font-semibold">{repository.defaultBranch}</h3>
@@ -587,11 +619,12 @@ function RepositorySection({
             </span>
             <button
               type="button"
-              className="flex-1 cursor-pointer rounded-md border border-transparent px-1.5 py-0.5 text-left text-xs text-muted transition-colors hover:border-border hover:text-foreground"
+              className="w-fit cursor-pointer rounded-md border border-transparent px-1.5 py-0.5 text-left text-xs text-muted transition-colors hover:border-border hover:text-foreground"
               onClick={() => onHistory(`${repository.name}/${repository.defaultBranch}`)}
             >
               Latest commit {repository.masterCommits[0]?.message ?? 'No recent commits'}
             </button>
+            <div className="flex-1" />
             <div className="flex flex-wrap items-center gap-1 border-t border-separator pt-2">
               <Button
                 size="sm"
@@ -608,6 +641,7 @@ function RepositorySection({
           <ReviewCard
             key={pr.number}
             pr={pr}
+            repoDetail={repository.detail}
             selectedRecipient={selectedRecipient}
             linkedTask={linkedTasks[`pr-${pr.number}`]}
             isBabysitter={Boolean(babysitter[pr.number])}
@@ -627,6 +661,7 @@ function RepositorySection({
 
 function ReviewCard({
   pr,
+  repoDetail,
   selectedRecipient,
   linkedTask,
   isBabysitter,
@@ -636,6 +671,7 @@ function ReviewCard({
   onBabysitter
 }: {
   pr: PullRequest
+  repoDetail: string
   selectedRecipient: string
   linkedTask?: string
   isBabysitter: boolean
@@ -644,14 +680,30 @@ function ReviewCard({
   onLinkTask: () => void
   onBabysitter: () => void
 }): React.JSX.Element {
+  const isMerged = pr.status === 'Merged'
+  const disabledActionsClass = isMerged ? 'pointer-events-none opacity-50' : ''
   return (
-    <Widget className={`h-full ${ciSurfaceClass[pr.ciStatus]}`}>
+    <Widget className={`h-full ${isMerged ? 'bg-violet-600/50' : ciSurfaceClass[pr.ciStatus]}`}>
       <Widget.Content className="m-1 flex min-h-[190px] flex-col gap-1.5 p-3">
         <div className="flex items-start justify-between gap-2">
           <h3 className="text-sm font-semibold">{pr.title}</h3>
-          {pr.hasUncommitted && (
-            <span className="shrink-0 text-[11px] text-muted">Uncommitted changes</span>
-          )}
+          <div className="flex shrink-0 items-center gap-1.5">
+            {pr.hasUncommitted && (
+              <span className="text-[11px] text-muted">Uncommitted changes</span>
+            )}
+            <Button
+              isIconOnly
+              size="sm"
+              variant="ghost"
+              className="size-6 min-h-6 text-muted hover:text-foreground"
+              onPress={() =>
+                window.open(`https://github.com/${repoDetail}/pull/${pr.number}`, '_blank')
+              }
+              aria-label={`Open PR #${pr.number} on GitHub`}
+            >
+              <GithubIcon size={14} />
+            </Button>
+          </div>
         </div>
         <p className="text-xs text-muted">Opened by {pr.author}</p>
         <div className="flex items-center gap-2">
@@ -670,7 +722,7 @@ function ReviewCard({
         </div>
         <button
           type="button"
-          className="flex flex-1 cursor-pointer items-start gap-1.5 rounded-md border border-transparent px-1.5 py-0.5 text-left text-xs text-muted transition-colors hover:border-border hover:text-foreground"
+          className="flex w-fit cursor-pointer items-center gap-1.5 rounded-md border border-transparent px-1.5 py-0.5 text-left text-xs text-muted transition-colors hover:border-border hover:text-foreground"
           onClick={() => onHistory(`#${pr.number}`)}
         >
           <span>
@@ -683,10 +735,18 @@ function ReviewCard({
             </span>
           )}
         </button>
-        <div className="flex flex-wrap items-center gap-1 border-t border-separator pt-2">
-          <Button size="sm" variant="primary" className="h-7 rounded-lg text-xs" onPress={() => {}}>
-            <MessageCircle size={13} /> Send review
-          </Button>
+        <div className="flex-1" />
+        <div
+          className={`flex flex-wrap items-center gap-1 border-t border-separator pt-2 ${disabledActionsClass}`}
+          aria-disabled={isMerged}
+        >
+          <IconAction
+            label="Send review"
+            icon={<MessageCircle size={14} />}
+            variant="primary"
+            className="size-7 rounded-lg"
+            onPress={() => {}}
+          />
           <select
             value={selectedRecipient}
             onChange={(event) => onRecipientChange(event.target.value)}
@@ -701,67 +761,58 @@ function ReviewCard({
               <option key={person}>{person}</option>
             ))}
           </select>
-          <Button
-            size="sm"
+          <IconAction
+            label="Babysitter"
+            icon={<Bot size={14} />}
             variant={isBabysitter ? 'primary' : 'ghost'}
-            className="h-7 rounded-lg text-xs"
+            className="size-7 rounded-lg"
             onPress={onBabysitter}
-          >
-            <Bot size={13} /> Babysitter
-          </Button>
+          />
           {pr.ciStatus === 'failing' && (
-            <Button
-              size="sm"
+            <IconAction
+              label="Fix CI"
+              icon={<Wrench size={14} />}
               variant="danger-soft"
-              className="h-7 rounded-lg text-xs"
+              className="size-7 rounded-lg"
               onPress={() => {}}
-            >
-              <Wrench size={13} /> Fix CI
-            </Button>
+            />
           )}
-        </div>
-        <div className="flex flex-wrap gap-1">
-          <Button size="sm" variant="ghost" className="h-6 rounded text-[10px]" onPress={() => {}}>
-            <Bot size={11} /> Rerun CI
-          </Button>
-          <Button size="sm" variant="ghost" className="h-6 rounded text-[10px]" onPress={() => {}}>
-            <MessageCircle size={11} /> Slack
-          </Button>
-          <Button size="sm" variant="ghost" className="h-6 rounded text-[10px]" onPress={() => {}}>
-            <Terminal size={11} /> Lint
-          </Button>
-          <Button
-            size="sm"
-            variant="ghost"
-            className="h-6 rounded text-[10px]"
+          <IconAction
+            label="Rerun CI"
+            icon={<Bot size={12} />}
+            className="size-6 rounded"
+            onPress={() => {}}
+          />
+          <IconAction
+            label="Slack"
+            icon={<MessageCircle size={12} />}
+            className="size-6 rounded"
+            onPress={() => {}}
+          />
+          <IconAction
+            label="Lint"
+            icon={<Terminal size={12} />}
+            className="size-6 rounded"
+            onPress={() => {}}
+          />
+          <IconAction
+            label="History"
+            icon={<GitCommit size={12} />}
+            className="size-6 rounded"
             onPress={() => onHistory(`#${pr.number}`)}
-          >
-            <GitCommit size={11} /> History
-          </Button>
-          <Button
-            size="sm"
-            variant="ghost"
-            className="h-6 rounded text-[10px]"
+          />
+          <IconAction
+            label={linkedTask ?? 'Link task'}
+            icon={<Link2 size={12} />}
+            className="size-6 rounded"
             onPress={onLinkTask}
-          >
-            <Link2 size={11} /> {linkedTask ?? 'Link task'}
-          </Button>
-          <Button
-            size="sm"
-            variant="ghost"
-            className="h-6 rounded text-[10px]"
-            onPress={() => window.open('https://github.com', '_blank')}
-          >
-            <GitPullRequest size={11} /> GitHub
-          </Button>
-          <Button
-            size="sm"
-            variant="ghost"
-            className="h-6 rounded text-[10px]"
+          />
+          <IconAction
+            label="Jira"
+            icon={<FileText size={12} />}
+            className="size-6 rounded"
             onPress={() => window.open('https://jira', '_blank')}
-          >
-            <FileText size={11} /> Jira
-          </Button>
+          />
           <select
             aria-label={`More actions for PR ${pr.number}`}
             className="h-6 rounded border border-border bg-surface px-1 text-[10px]"
@@ -776,6 +827,14 @@ function ReviewCard({
         </div>
       </Widget.Content>
     </Widget>
+  )
+}
+
+function GithubIcon({ size = 14 }: { size?: number }): React.JSX.Element {
+  return (
+    <svg viewBox="0 0 24 24" width={size} height={size} fill="currentColor" aria-hidden="true">
+      <path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12" />
+    </svg>
   )
 }
 

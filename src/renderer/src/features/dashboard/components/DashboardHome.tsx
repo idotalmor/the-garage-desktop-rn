@@ -3,7 +3,6 @@ import {
   ArrowUpRight,
   BellRing,
   Bot,
-  Brain,
   CheckCircle2,
   CircleAlert,
   Flame,
@@ -12,11 +11,13 @@ import {
   ListChecks,
   MessagesSquare,
   Sparkles,
-  StickyNote
+  StickyNote,
+  Warehouse
 } from 'lucide-react'
 import { useState } from 'react'
 import { Avatar, Button, Card, Chip, ProgressBar } from '@heroui/react'
 import { PromptInput } from '@heroui-pro/react'
+import garageDoorSvg from '../../../assets/garage-door-2.svg?raw'
 
 type MetricProps = {
   label: string
@@ -168,16 +169,21 @@ export function DashboardHome(): React.JSX.Element {
     <main className="mx-auto w-full max-w-7xl px-4 pb-10 pt-14 sm:px-6 lg:pt-16">
       <section
         className="mx-auto flex max-w-3xl flex-col items-center text-center"
-        aria-labelledby="orchestrator-title"
+        aria-labelledby="garage-title"
       >
-        <div className="flex size-11 items-center justify-center rounded-2xl bg-accent/10 text-accent">
-          <Brain size={22} aria-hidden="true" />
+        <div className="flex items-center gap-2 rounded-2xl border border-border bg-surface px-3 py-2">
+          <span className="flex size-6 items-center justify-center rounded-lg bg-accent/10 text-accent">
+            <Warehouse size={15} aria-hidden={true} />
+          </span>
+          <span className="text-sm font-semibold">The Garage</span>
         </div>
-        <h1
-          id="orchestrator-title"
-          className="mt-5 text-4xl font-semibold tracking-tight sm:text-5xl"
-        >
-          The Orchestrator
+        <div
+          className="mx-auto mt-6 w-44 text-foreground"
+          aria-label="The Garage icon"
+          dangerouslySetInnerHTML={{ __html: garageDoorSvg }}
+        />
+        <h1 id="garage-title" className="mt-5 text-4xl font-semibold tracking-tight sm:text-5xl">
+          The Garage
         </h1>
         <p className="mt-4 max-w-2xl text-base leading-7 text-muted">
           Bring your repos, decisions, and next actions into one calm workspace.
@@ -196,7 +202,7 @@ export function DashboardHome(): React.JSX.Element {
               <PromptInput.TextArea
                 className="min-h-28"
                 placeholder="What should we move forward?"
-                aria-label="Ask The Orchestrator"
+                aria-label="Ask The Garage"
               />
             </PromptInput.Content>
             <PromptInput.Toolbar>
@@ -306,9 +312,9 @@ export function DashboardHome(): React.JSX.Element {
                   Signals from Slack
                 </Card.Title>
                 <Card.Description>
-                  Why this is here: the Orchestrator reads your Slack and surfaces threads that
-                  mention your tasks, PRs, or past work — so decisions and blockers find you instead
-                  of getting lost in channels.
+                  Why this is here: the Garage reads your Slack and surfaces threads that mention
+                  your tasks, PRs, or past work — so decisions and blockers find you instead of
+                  getting lost in channels.
                 </Card.Description>
               </div>
               <Chip size="sm" variant="soft" className="shrink-0">

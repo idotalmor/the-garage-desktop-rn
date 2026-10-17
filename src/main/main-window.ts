@@ -34,7 +34,7 @@ function createWorkspaceWindow(): BrowserWindow {
     width: 900,
     height: 670,
     show: false,
-    title: 'The Orchestrator',
+    title: 'The Garage',
     autoHideMenuBar: true,
     ...(process.platform === 'darwin'
       ? {
@@ -97,7 +97,7 @@ export function listAppWindows(): OpenWindow[] {
     .filter((window) => !window.isDestroyed())
     .map((window) => ({
       id: window.id,
-      title: window.getTitle() || 'The Orchestrator',
+      title: window.getTitle() || 'The Garage',
       isFocused: window.isFocused()
     }))
 }

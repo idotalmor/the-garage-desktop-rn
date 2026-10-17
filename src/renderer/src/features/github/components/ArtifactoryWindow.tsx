@@ -29,7 +29,7 @@ export function ArtifactoryWindow(): React.JSX.Element {
         </Button>
       </header>
 
-      <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      <section className="grid grid-cols-2 gap-3">
         {contextFiles.map((file) => (
           <div
             key={file.name}

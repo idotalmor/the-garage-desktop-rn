@@ -74,7 +74,7 @@ export function ArtifactoryViewer({
               variant="ghost"
               className="rounded-lg"
               onPress={onExpand}
-              aria-label="Open artifactory in a new window"
+              aria-label="Open Artifactory in a new window"
             >
               <Maximize2 size={14} aria-hidden="true" />
             </Button>

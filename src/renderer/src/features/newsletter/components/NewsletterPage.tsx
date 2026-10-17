@@ -141,7 +141,7 @@ export function NewsletterPage(): React.JSX.Element {
               <div className="flex size-10 items-center justify-center rounded-xl bg-accent/10 text-accent">
                 <Sparkles size={19} aria-hidden="true" />
               </div>
-              <p className="mt-4 text-sm font-medium">Let the Orchestrator find the story</p>
+              <p className="mt-4 text-sm font-medium">Let the Garage find the story</p>
               <p className="mt-2 text-sm leading-6 text-muted">
                 Summarize merged PRs, notable incidents, and the decisions your team should carry
                 into next week.

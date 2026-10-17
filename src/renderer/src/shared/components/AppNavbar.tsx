@@ -35,16 +35,18 @@ export function NavButton({
 }): React.JSX.Element {
   const isCurrent = view === id
   return (
-    <Button
-      isIconOnly
-      size="sm"
-      variant={isCurrent ? 'secondary' : 'ghost'}
-      onPress={() => onViewChange(id)}
-      aria-label={label}
-      className={isCurrent ? 'text-accent' : 'text-muted'}
-    >
-      <Icon size={18} aria-hidden={true} />
-    </Button>
+    <span title={label} className="inline-flex">
+      <Button
+        isIconOnly
+        size="sm"
+        variant={isCurrent ? 'secondary' : 'ghost'}
+        onPress={() => onViewChange(id)}
+        aria-label={label}
+        className={isCurrent ? 'text-accent' : 'text-muted'}
+      >
+        <Icon size={18} aria-hidden={true} />
+      </Button>
+    </span>
   )
 }
 

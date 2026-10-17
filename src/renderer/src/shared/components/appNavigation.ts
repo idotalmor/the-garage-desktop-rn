@@ -1,4 +1,4 @@
-import { Blocks, FileText, Home, Mail, Package, ScanSearch } from 'lucide-react'
+import { Blocks, FileText, Home, Mail, ScanSearch, Warehouse } from 'lucide-react'
 import { createElement, type ReactElement } from 'react'
 
 function GitHubIcon({ size = 18 }: { size?: number }): ReactElement {
@@ -27,7 +27,7 @@ export const navItems = [
   { id: 'home' as const, label: 'Home', icon: Home },
   { id: 'github' as const, label: 'GitHub', icon: GitHubIcon },
   { id: 'notes' as const, label: 'Notes', icon: FileText },
-  { id: 'artifactory' as const, label: 'Artifactory', icon: Package },
+  { id: 'artifactory' as const, label: 'Artifactory', icon: Warehouse },
   { id: 'newsletter' as const, label: 'Newsletter', icon: Mail },
   { id: 'code-explorer' as const, label: 'Code Explorer', icon: ScanSearch },
   { id: 'integrations' as const, label: 'Integrations', icon: Blocks }
