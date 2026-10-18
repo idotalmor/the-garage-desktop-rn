@@ -1,4 +1,4 @@
-import { Blocks, FileText, Library, Mail, ScanSearch } from 'lucide-react'
+import { Blocks, FileText, LibraryBig, Mail, ScanSearch } from 'lucide-react'
 import { createElement, type ReactElement } from 'react'
 
 function AppMarkIcon({ size = 18 }: { size?: number }): ReactElement {
@@ -30,8 +30,8 @@ export type AppView =
 
 export const navItems = [
   { id: 'home' as const, label: 'Home', icon: AppMarkIcon },
+  { id: 'artifactory' as const, label: 'Artifactory', icon: LibraryBig },
   { id: 'notes' as const, label: 'Notes', icon: FileText },
-  { id: 'artifactory' as const, label: 'Artifactory', icon: Library },
   { id: 'newsletter' as const, label: 'Newsletter', icon: Mail },
   { id: 'code-explorer' as const, label: 'Code Explorer', icon: ScanSearch },
   { id: 'integrations' as const, label: 'Integrations', icon: Blocks }
