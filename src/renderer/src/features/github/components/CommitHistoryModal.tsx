@@ -53,14 +53,26 @@ const mockCommits: MockCommit[] = [
 
 export function CommitHistoryModal({
   title,
+  hasUncommitted,
   onClose
 }: {
   title: string
+  hasUncommitted?: boolean
   onClose: () => void
 }): React.JSX.Element {
   return (
     <Modal title={`Commit history · ${title}`} onClose={onClose}>
       <ul className="space-y-2">
+        {hasUncommitted && (
+          <li className="flex items-center gap-2 rounded-lg border border-dashed border-warning/50 bg-warning/10 p-2 text-xs">
+            <span className="size-2 shrink-0 rounded-full bg-warning" />
+            <GitCommit size={14} className="text-warning" />
+            <span className="min-w-0 flex-1 truncate font-medium text-warning">
+              Uncommitted changes
+            </span>
+            <span className="shrink-0 text-[10px] text-muted">Working tree</span>
+          </li>
+        )}
         {mockCommits.map((commit) => (
           <li
             key={commit.hash}
