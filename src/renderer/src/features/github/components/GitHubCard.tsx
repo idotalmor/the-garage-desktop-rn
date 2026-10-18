@@ -30,23 +30,20 @@ export function GitHubCard({
 }: Omit<GitHubCardSpec, 'key'>): React.JSX.Element {
   return (
     <Widget
-      className={`w-80 shadow-surface ${overflowVisible ? 'overflow-visible' : ''} ${surfaceClass ?? ''}`}
+      className={`w-52 sm:w-80 shadow-surface ${overflowVisible ? 'overflow-visible' : ''} ${surfaceClass ?? ''}`}
     >
       <Widget.Content
         className={`m-1 flex min-h-[140px] flex-col gap-1 p-2.5 ${overflowVisible ? 'overflow-visible' : ''}`}
       >
         <div className="flex items-start justify-between gap-2">
-          <div className="flex min-w-0 flex-1 flex-col gap-2">
-            <h3 className="text-sm font-semibold">
-              <GitBranch
-                size={13}
-                className="mr-1.5 inline-block align-[-0.15em] text-muted"
-                aria-hidden="true"
-              />
-              {title}
-            </h3>
-            {body}
-          </div>
+          <h3 className="line-clamp-3 min-w-0 text-sm font-semibold">
+            <GitBranch
+              size={13}
+              className="mr-1.5 inline-block align-[-0.15em] text-muted"
+              aria-hidden="true"
+            />
+            {title}
+          </h3>
           {(aside || history) && (
             <div className="flex shrink-0 items-start gap-1">
               {history && (
@@ -69,6 +66,7 @@ export function GitHubCard({
             </div>
           )}
         </div>
+        {body}
         <div className="flex-1" />
         {footer && (
           <div

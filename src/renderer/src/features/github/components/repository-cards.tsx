@@ -198,12 +198,12 @@ function branchCard(repository: Repository, onHistory: (title: string) => void):
     history: { onOpen: () => onHistory(historyKey) },
     body: (
       <>
-        <span className="flex items-center gap-1 text-xs text-accent">
+        <span className="line-clamp-2 flex items-center gap-1 text-xs text-accent">
           <GitBranch size={13} /> Default branch
         </span>
         <button
           type="button"
-          className="w-fit cursor-pointer rounded-md border border-transparent px-1.5 py-0.5 text-left text-xs text-muted transition-colors hover:border-border hover:text-foreground"
+          className="line-clamp-2 w-fit cursor-pointer rounded-md border border-transparent px-1.5 py-0.5 text-left text-xs text-muted transition-colors hover:border-border hover:text-foreground"
           onClick={() => onHistory(historyKey)}
         >
           Latest commit {repository.masterCommits[0]?.message ?? 'No recent commits'}
@@ -271,9 +271,11 @@ function prCard(
     },
     body: (
       <>
-        <p className="text-xs text-muted">Opened by {pr.author}</p>
+        <p className="line-clamp-2 text-xs text-muted">Opened by {pr.author}</p>
         <div className="flex items-center gap-2">
-          <p className={`text-sm font-semibold ${prStatusStyle[pr.status] ?? 'text-warning'}`}>
+          <p
+            className={`line-clamp-2 text-sm font-semibold ${prStatusStyle[pr.status] ?? 'text-warning'}`}
+          >
             {pr.status === 'Open' ? 'Waiting for review' : pr.status}
           </p>
           {/* Number of comments the PR reviewer left on the requested changes */}
@@ -286,7 +288,7 @@ function prCard(
             </span>
           )}
         </div>
-        <p className="flex items-center gap-1.5 px-1.5 py-0.5 text-xs text-muted">
+        <p className="line-clamp-2 flex items-center gap-1.5 px-1.5 py-0.5 text-xs text-muted">
           <span>
             #{pr.number} · {pr.commits.at(-1)?.message ?? 'No commits'} · {pr.time}
           </span>
@@ -399,10 +401,10 @@ function worktreeCard(
     },
     body: (
       <>
-        <span className="flex items-center gap-1 text-xs text-muted">
+        <span className="line-clamp-2 flex items-center gap-1 text-xs text-muted">
           <GitBranch size={13} /> Local worktree · {worktree.name}
         </span>
-        <p className="text-xs text-muted">
+        <p className="line-clamp-2 text-xs text-muted">
           {worktree.author} · {worktree.changes}
         </p>
       </>

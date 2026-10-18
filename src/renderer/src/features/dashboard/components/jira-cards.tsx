@@ -78,8 +78,10 @@ export function buildJiraCards({
     ),
     body: (
       <>
-        <p className={`text-sm font-semibold ${statusStyle[ticket.status]}`}>{ticket.status}</p>
-        <p className="text-xs text-muted">
+        <p className={`line-clamp-2 text-sm font-semibold ${statusStyle[ticket.status]}`}>
+          {ticket.status}
+        </p>
+        <p className="line-clamp-2 text-xs text-muted">
           {ticket.assignee} · {ticket.points} pts · {ticket.priority} priority
         </p>
       </>

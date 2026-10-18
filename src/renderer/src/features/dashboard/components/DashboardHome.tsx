@@ -31,6 +31,12 @@ export function DashboardHome(): React.JSX.Element {
 
   return (
     <main className="mx-auto w-full max-w-[1600px] px-3 pb-8 pt-14 sm:px-5 lg:px-6">
+      <section className="mb-8 mt-4 flex justify-center">
+        <span className="text-4xl font-semibold tracking-tight sm:text-5xl lg:text-7xl">
+          The Garage
+        </span>
+      </section>
+
       <section aria-labelledby="jira-heading" className="space-y-2">
         <h2 id="jira-heading" className="text-sm font-semibold">
           <button
