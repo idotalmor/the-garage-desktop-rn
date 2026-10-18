@@ -5,6 +5,11 @@
 @import '@heroui-pro/react/css';
 @plugin '../hero.ts';
 
+:root {
+  --accent: #10b981;
+  --accent-foreground: var(--eclipse);
+}
+
 html,
 body,
 #root {

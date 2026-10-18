@@ -1,5 +1,7 @@
 import { Button, Link } from '@heroui/react'
+import { ArrowUpLeft } from 'lucide-react'
 import { motion } from 'motion/react'
+import { WindowChannel } from '../../../../../shared/window-channels'
 // Uncomment to restore the email/password form and Facebook sign-in:
 // import { useState } from 'react'
 // import { FieldError, Form, InputGroup, Label, TextField } from '@heroui/react'
@@ -43,6 +45,17 @@ function GoogleLogo(): React.JSX.Element {
 //   )
 // }
 
+const iconMask: React.CSSProperties = {
+  maskImage: `url(${trayIconUrl})`,
+  WebkitMaskImage: `url(${trayIconUrl})`,
+  maskSize: 'contain',
+  WebkitMaskSize: 'contain',
+  maskRepeat: 'no-repeat',
+  WebkitMaskRepeat: 'no-repeat',
+  maskPosition: 'center',
+  WebkitMaskPosition: 'center'
+}
+
 export function LoginPage(): React.JSX.Element {
   const { isConfigured, signingIn, error, signIn } = useAuth()
 
@@ -60,11 +73,25 @@ export function LoginPage(): React.JSX.Element {
     <div className="flex h-screen flex-col bg-background text-foreground">
       <WindowDragRegion className="fixed inset-x-0 top-0 z-30 h-10" />
 
-      <main className="mx-auto flex w-full max-w-lgs flex-1 flex-col items-center justify-center gap-16 px-6">
-        <div className="flex -translate-x-10 items-center gap-4">
+      <div className="fixed left-2 top-0 z-40 flex h-10 items-center">
+        <Button
+          isIconOnly
+          size="sm"
+          variant="ghost"
+          className="size-7 rounded-full text-muted hover:text-foreground"
+          style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
+          onPress={() => window.electron.ipcRenderer.send(WindowChannel.Promote)}
+          aria-label="Open in desktop window"
+        >
+          <ArrowUpLeft size={15} aria-hidden="true" />
+        </Button>
+      </div>
+
+      <main className="mx-auto flex w-full max-w-lgs flex-1 flex-col items-center justify-center gap-8 px-6 lg:gap-16">
+        <div className="flex -translate-x-6 items-center gap-3 sm:-translate-x-8 sm:gap-4 lg:-translate-x-10">
           <motion.span
             aria-hidden="true"
-            className="size-34"
+            className="size-20 sm:size-28 lg:size-34"
             initial={{ scale: 2.6, opacity: 0, y: -30, rotate: 0 }}
             animate={{
               scale: 1,
@@ -81,22 +108,15 @@ export function LoginPage(): React.JSX.Element {
               backgroundPosition: { duration: 5, repeat: Infinity, ease: 'linear' }
             }}
             style={{
+              ...iconMask,
               backgroundImage:
-                'linear-gradient(120deg, var(--accent), #a78bfa, #f472b6, #60a5fa, var(--accent))',
-              backgroundSize: '300% 300%',
-              maskImage: `url(${trayIconUrl})`,
-              WebkitMaskImage: `url(${trayIconUrl})`,
-              maskSize: 'contain',
-              WebkitMaskSize: 'contain',
-              maskRepeat: 'no-repeat',
-              WebkitMaskRepeat: 'no-repeat',
-              maskPosition: 'center',
-              WebkitMaskPosition: 'center'
+                'linear-gradient(120deg, var(--accent), #059669, #0d9488, #10b981, var(--accent))',
+              backgroundSize: '300% 300%'
             }}
           />
           <div className="flex flex-col">
             <motion.span
-              className="text-xl text-muted"
+              className="text-base text-muted sm:text-lg lg:text-xl"
               initial={{ opacity: 0, x: -28 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.5, ease: 'easeOut', delay: 0.55 }}
@@ -104,7 +124,7 @@ export function LoginPage(): React.JSX.Element {
               Welcome to
             </motion.span>
             <motion.span
-              className="text-7xl font-semibold tracking-tight"
+              className="text-4xl font-semibold tracking-tight sm:text-5xl lg:text-7xl"
               initial={{ opacity: 0, x: 36 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ type: 'spring', stiffness: 80, damping: 16, delay: 0.65 }}
@@ -255,7 +275,7 @@ export function LoginPage(): React.JSX.Element {
       </main>
 
       <motion.footer
-        className="px-12 py-8 text-center text-sm text-muted"
+        className="px-6 py-4 text-center text-xs text-muted sm:px-12 sm:py-8 sm:text-sm"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 0.5, ease: 'easeOut', delay: 1.1 }}
