@@ -34,17 +34,19 @@ async function exchangeCode(
   const response = await fetch(GOOGLE_TOKEN_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    signal: AbortSignal.timeout(30_000),
     body: new URLSearchParams({
       code,
       client_id: clientId,
-      client_secret: clientSecret,
+      ...(clientSecret ? { client_secret: clientSecret } : {}),
       redirect_uri: redirectUri,
       grant_type: 'authorization_code',
       code_verifier: codeVerifier
     })
   })
   if (!response.ok) {
-    throw new Error(`Google token exchange failed with status ${response.status}`)
+    const body = await response.text().catch(() => '')
+    throw new Error(`Google token exchange failed (${response.status}): ${body}`)
   }
   const tokens = (await response.json()) as { id_token?: string; access_token?: string }
   if (!tokens.id_token) throw new Error('Google token response did not include an id_token')
@@ -90,7 +92,7 @@ function runGoogleSignIn(): Promise<GoogleCredential | null> {
       const error = url.searchParams.get('error')
       const code = url.searchParams.get('code')
 
-      if (error || (!code && req.url !== '/favicon.ico')) {
+      if (error) {
         res.writeHead(200, { 'Content-Type': 'text/html' }).end(FAILURE_PAGE)
         finish(() => resolve(null))
         return
@@ -107,8 +109,12 @@ function runGoogleSignIn(): Promise<GoogleCredential | null> {
 
       res.writeHead(200, { 'Content-Type': 'text/html' }).end(SUCCESS_PAGE)
       const address = server.address() as AddressInfo
+      console.log('[auth] received OAuth callback, exchanging code')
       void exchangeCode(code, `http://127.0.0.1:${address.port}`, codeVerifier)
-        .then((credential) => finish(() => resolve(credential)))
+        .then((credential) => {
+          console.log('[auth] token exchange succeeded')
+          finish(() => resolve(credential))
+        })
         .catch((err) => finish(() => reject(err)))
     })
 
