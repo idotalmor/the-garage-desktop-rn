@@ -10,7 +10,6 @@ import { FocusControl } from '../features/focus-mode/components/FocusControl'
 import type { AppView } from '../shared/components/appNavigation'
 import { useCompact } from '../shared/hooks/useCompact'
 import { DashboardHome } from '../features/dashboard/components/DashboardHome'
-import { GitHubPage } from '../features/github/components/GitHubPage'
 import { ArtifactoryWindow } from '../features/github/components/ArtifactoryWindow'
 import { NotesPage } from '../features/notes/components/NotesPage'
 import { NewsletterPage } from '../features/newsletter/components/NewsletterPage'
@@ -96,8 +95,6 @@ export function AppShell(): React.JSX.Element {
   const content =
     view === 'home' ? (
       <DashboardHome />
-    ) : view === 'github' ? (
-      <GitHubPage />
     ) : view === 'notes' ? (
       <NotesPage />
     ) : view === 'artifactory' ? (

@@ -3,8 +3,8 @@ import { Button, Dropdown } from '@heroui/react'
 import { GithubIcon, IdePicker, type GitHubCardSpec } from './GitHubCard'
 import type { CiStatus, PullRequest, Repository, Worktree } from './types'
 
-export const favoritePeople = ['Maya Chen', 'Ava Patel', 'Noah Williams']
-export const otherPeople = ['Priya Shah', 'Liam Jones']
+const favoritePeople = ['Maya Chen', 'Ava Patel', 'Noah Williams']
+const otherPeople = ['Priya Shah', 'Liam Jones']
 
 export const repositories: Repository[] = [
   {
