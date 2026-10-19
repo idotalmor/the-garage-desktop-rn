@@ -30,12 +30,8 @@ export function DashboardHome(): React.JSX.Element {
     setLinkedTasks((current) => ({ ...current, [key]: current[key] ? '' : 'DEV-192' }))
 
   return (
-    <main className="mx-auto w-full max-w-[1600px] px-3 pb-8 pt-14 sm:px-5 lg:px-6">
-      <section className="mb-8 mt-4 flex justify-center">
-        <span className="text-4xl font-semibold tracking-tight sm:text-5xl lg:text-7xl">
-          The Garage
-        </span>
-      </section>
+    <main className="mx-auto w-full max-w-[1600px] px-3 pb-8 pt-14 sm:px-5 lg:px-6 lg:pt-16">
+      <h1 className="mb-6 text-3xl font-semibold tracking-tight sm:text-4xl">The Garage</h1>
 
       <section aria-labelledby="jira-heading" className="space-y-2">
         <h2 id="jira-heading" className="text-sm font-semibold">

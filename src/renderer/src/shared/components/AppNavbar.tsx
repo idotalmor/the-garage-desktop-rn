@@ -25,12 +25,18 @@ export function NavButton({
   id,
   label,
   icon: Icon,
+  iconSize,
   view,
   onViewChange
 }: {
   id: AppView
   label: string
-  icon: React.ComponentType<{ size?: number; 'aria-hidden'?: boolean }>
+  icon: React.ComponentType<{
+    size?: number
+    style?: React.CSSProperties
+    'aria-hidden'?: boolean
+  }>
+  iconSize?: number
   view: AppView
   onViewChange: (view: AppView) => void
 }): React.JSX.Element {
@@ -45,7 +51,11 @@ export function NavButton({
         aria-label={label}
         className={isCurrent ? 'text-accent' : 'text-muted'}
       >
-        <Icon size={18} aria-hidden={true} />
+        <Icon
+          size={iconSize ?? 18}
+          style={iconSize != null ? { width: iconSize, height: iconSize } : undefined}
+          aria-hidden={true}
+        />
       </Button>
     </span>
   )
