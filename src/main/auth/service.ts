@@ -9,7 +9,7 @@ const GOOGLE_TOKEN_URL = 'https://oauth2.googleapis.com/token'
 const SCOPES = ['openid', 'email', 'profile']
 const SIGN_IN_TIMEOUT_MS = 180_000
 
-const SUCCESS_PAGE = `<!doctype html><html><body style="font-family:system-ui;display:flex;align-items:center;justify-content:center;height:100vh;margin:0"><p>Signed in to The Garage. You can close this tab.</p><script>window.close()</script></body></html>`
+const SUCCESS_PAGE = `<!doctype html><html><body style="font-family:system-ui;display:flex;align-items:center;justify-content:center;height:100vh;margin:0"><p>Signed in to The Garage. You can close this tab.</p></body></html>`
 const FAILURE_PAGE = `<!doctype html><html><body style="font-family:system-ui;display:flex;align-items:center;justify-content:center;height:100vh;margin:0"><p>Sign-in did not complete. You can close this tab.</p></body></html>`
 
 function base64Url(buffer: Buffer): string {
