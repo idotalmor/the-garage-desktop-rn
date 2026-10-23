@@ -74,7 +74,8 @@ erDiagram
 ```
 
 Each column's comment says what it stores. Booleans are `0`/`1`, times are epoch ms, and `JSON …`
-columns hold JSON text of the named type from `src/shared/local-repos/types.ts`.
+columns hold JSON text of the named type from `src/shared/local-repos/types.ts` (typed `Json<T>` in the row types, see
+[`../utils/json.ts`](../utils/json.ts)).
 
 `scan_folders` has no foreign keys: it is linked to repos only through paths. Deleting a repo
 cascades to its worktrees.

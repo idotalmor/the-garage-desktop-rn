@@ -1,7 +1,7 @@
 /** `local_worktrees` table: the checkouts of each repo (main checkout + linked worktrees). */
 import type Database from 'better-sqlite3'
 import type { CommitSummary, LocalWorktree } from '../../../../shared/local-repos/types'
-import { parseJson, toJson } from '../utils/json'
+import { parseJson, toJson, type Json } from '../utils/json'
 
 export const LOCAL_WORKTREES_TABLE = 'local_worktrees'
 
@@ -38,7 +38,7 @@ export type LocalWorktreeRow = {
   /** Uncommitted files: modified, staged, untracked or conflicted, from `git status`. */
   changed_files: number
   /** JSON `CommitSummary`: the latest commit on this checkout's HEAD. */
-  last_commit: string | null
+  last_commit: Json<CommitSummary> | null
 }
 
 export const CREATE_LOCAL_WORKTREES_TABLE = `
@@ -101,7 +101,7 @@ export function toLocalWorktree(row: LocalWorktreeRow): LocalWorktree {
     ahead: row.ahead,
     behind: row.behind,
     changedFiles: row.changed_files,
-    lastCommit: parseJson<CommitSummary | null>(row.last_commit, null)
+    lastCommit: parseJson(row.last_commit, null)
   }
 }
 

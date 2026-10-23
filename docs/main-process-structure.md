@@ -83,8 +83,8 @@ subscribe((snapshot) => {
      Table files don't import `connection.ts`, so there are no import cycles.
 - `index.ts`: the feature's public DB API. It calls `getDb()`, composes table functions, and wraps
   multi-table writes in `db.transaction(...)`. Services import `./db`, never `./db/tables/*`.
-- Nested objects are JSON columns parsed with a safe `parseJson(value, fallback)` from
-  `db/utils/json.ts`. Helpers that aren't a table go in `db/utils/`, not `db/tables/`.
+- Nested objects are JSON columns typed `Json<T>` in the row type (e.g. `remotes: Json<GitRemote[]>`),
+  written with `toJson` and read with a safe `parseJson(value, fallback)` from `db/utils/json.ts`. Helpers that aren't a table go in `db/utils/`, not `db/tables/`.
 - **Document the database** in `db/tables/README.md`, next to the table files (example:
   `src/main/local-repos/db/tables/README.md`), and list it in `docs/README.md`:
   - what one row of each table represents and which flow creates/updates/deletes it

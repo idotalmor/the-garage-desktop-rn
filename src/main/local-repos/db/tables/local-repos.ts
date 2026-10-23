@@ -8,7 +8,7 @@ import type {
   LocalWorktree,
   ScannedRepository
 } from '../../../../shared/local-repos/types'
-import { parseJson, toJson } from '../utils/json'
+import { parseJson, toJson, type Json } from '../utils/json'
 
 export const LOCAL_REPOS_TABLE = 'local_repos'
 
@@ -43,14 +43,14 @@ export type LocalRepoRow = {
   /** Raw URL of the primary remote (`origin`, else the first remote), as in `git remote -v`. */
   remote_url: string | null
   /** JSON `GitRemote[]`: every remote from `git config --get-regexp remote.*.url`, with its parsed slug. */
-  remotes: string
+  remotes: Json<GitRemote[]>
   /**
    * The repo's main branch: what `origin/HEAD` points to, else the first of main/master/develop/trunk
    * that exists. Null if none is found.
    */
   default_branch: string | null
   /** JSON `CommitSummary`: latest commit on the default branch (the remote's copy when there is one). */
-  default_branch_commit: string | null
+  default_branch_commit: Json<CommitSummary> | null
   /** When this repo was last read from disk by a scan or a live refresh (epoch ms). */
   scanned_at: number
 }
@@ -83,7 +83,7 @@ export function toLocalRepoRow(repo: ScannedRepository): LocalRepoRow {
     full_name: repo.fullName,
     slug: repo.slug,
     remote_url: repo.remoteUrl,
-    remotes: JSON.stringify(repo.remotes),
+    remotes: toJson(repo.remotes),
     default_branch: repo.defaultBranch,
     default_branch_commit: toJson(repo.defaultBranchCommit),
     scanned_at: repo.scannedAt
@@ -104,9 +104,9 @@ export function toLocalRepository(
     fullName: row.full_name,
     slug: row.slug,
     remoteUrl: row.remote_url,
-    remotes: parseJson<GitRemote[]>(row.remotes, []),
+    remotes: parseJson(row.remotes, []),
     defaultBranch: row.default_branch,
-    defaultBranchCommit: parseJson<CommitSummary | null>(row.default_branch_commit, null),
+    defaultBranchCommit: parseJson(row.default_branch_commit, null),
     scanFolderIds,
     worktrees,
     scannedAt: row.scanned_at
