@@ -25,7 +25,11 @@ export type LocalRepoRow = {
    * `~/code/app/.git`, or `~/code/app.git` for a bare repo. Unique: one row per repo on disk.
    */
   common_dir: string
-  /** 1 = bare repo: only the git database, no checked-out files. From `git rev-parse --is-bare-repository`. 0 or 1. */
+  /**
+   * 1 = bare repo (`git clone --bare`): only the git database, no folder of files to work in; its
+   * checkouts are linked worktrees. From `git rev-parse --is-bare-repository`. Not related to
+   * uncommitted changes (those are `local_worktrees.changed_files`). 0 or 1.
+   */
   is_bare: number
   /** Host of the primary remote: `github`, `other` (GitLab, Bitbucket…), or `none` (no remote). */
   provider: string

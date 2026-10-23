@@ -44,7 +44,7 @@ erDiagram
     TEXT id PK "sha1 of common_dir, stable across scans"
     TEXT name "display name: remote repo name, else the folder name"
     TEXT common_dir UK "shared .git folder all checkouts of this repo use"
-    INTEGER is_bare "1 = bare repo: only the git database, no checked-out files"
+    INTEGER is_bare "1 = bare repo (git clone --bare): only the git database, no folder of files; not about uncommitted changes"
     TEXT provider "host of the main remote: github, other or none (no remote)"
     TEXT full_name "owner/repo of the main remote (origin, else the first remote)"
     TEXT slug "lower-cased host/owner/repo, the key for matching the GitHub repo"
