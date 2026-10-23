@@ -8,6 +8,8 @@ import {
 } from 'firebase/auth'
 import { getFirebaseAuth, isFirebaseConfigured } from './firebase'
 import { AuthContext, type AuthContextValue, type AuthStatus } from './auth-context'
+import { loadPreferences, type Preference } from '../firestore/preferences'
+import { upsertUser } from '../firestore/users'
 
 export function AuthProvider({ children }: { children: React.ReactNode }): React.JSX.Element {
   const configured = isFirebaseConfigured()
@@ -15,12 +17,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }): React
   const [status, setStatus] = useState<AuthStatus>(configured ? 'loading' : 'signed-out')
   const [signingIn, setSigningIn] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [preferences, setPreferences] = useState<Preference[]>([])
 
   useEffect(() => {
     if (!configured) return
     return onAuthStateChanged(getFirebaseAuth(), (nextUser) => {
       setUser(nextUser)
       setStatus(nextUser ? 'signed-in' : 'signed-out')
+      if (nextUser) {
+        void upsertUser(nextUser)
+          .then(() => loadPreferences(nextUser.uid))
+          .then(setPreferences)
+          .catch((err: unknown) => console.error('Failed to sync user profile', err))
+      } else {
+        setPreferences([])
+      }
     })
   }, [configured])
 
@@ -47,8 +58,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }): React
   }, [])
 
   const value = useMemo<AuthContextValue>(
-    () => ({ user, status, isConfigured: configured, signingIn, error, signIn, logOut }),
-    [user, status, configured, signingIn, error, signIn, logOut]
+    () => ({
+      user,
+      status,
+      isConfigured: configured,
+      signingIn,
+      error,
+      preferences,
+      signIn,
+      logOut
+    }),
+    [user, status, configured, signingIn, error, preferences, signIn, logOut]
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
