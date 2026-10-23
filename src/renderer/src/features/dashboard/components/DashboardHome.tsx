@@ -1,13 +1,18 @@
-import { ChevronDown } from 'lucide-react'
+import { ChevronDown, FolderPlus, FolderSearch, Loader2 } from 'lucide-react'
 import { useState } from 'react'
+import { Button } from '@heroui/react'
 import { CommitHistoryModal } from '../../github/components/CommitHistoryModal'
 import { CreatePrModal } from '../../github/components/CreatePrModal'
 import { GitHubCard } from '../../github/components/GitHubCard'
-import { buildRepositoryCards, repositories } from '../../github/components/repository-cards'
+import { buildRepositoryCards } from '../../github/components/repository-cards'
+import { ScanFoldersModal } from '../../github/components/ScanFoldersModal'
 import type { Repository, Worktree } from '../../github/components/types'
+import { useLocalRepositories } from '../../github/hooks/useLocalRepositories'
 import { buildJiraCards } from './jira-cards'
 
 export function DashboardHome(): React.JSX.Element {
+  const { snapshot, repositories, addFolders, removeFolder, rescan } = useLocalRepositories()
+  const [isScanFoldersOpen, setIsScanFoldersOpen] = useState(false)
   const [selectedRecipient, setSelectedRecipient] = useState('Default · #eng-review')
   const [linkedTasks, setLinkedTasks] = useState<Record<string, string>>({})
   const [babysitter, setBabysitter] = useState<Record<number, boolean>>({})
@@ -34,46 +39,106 @@ export function DashboardHome(): React.JSX.Element {
       <h1 className="mb-6 text-3xl font-semibold tracking-tight sm:text-4xl">The Garage</h1>
 
       <section aria-labelledby="github-heading" className="space-y-4">
-        <h2 id="github-heading" className="text-sm font-semibold">
-          <button
-            type="button"
-            onClick={() => toggleCollapsed('github')}
-            aria-expanded={!collapsed['github']}
-            aria-controls="github-section"
-            className="flex items-center gap-1.5"
+        <div className="flex items-center gap-2">
+          <h2 id="github-heading" className="text-sm font-semibold">
+            <button
+              type="button"
+              onClick={() => toggleCollapsed('github')}
+              aria-expanded={!collapsed['github']}
+              aria-controls="github-section"
+              className="flex items-center gap-1.5"
+            >
+              <ChevronDown
+                size={14}
+                className={`text-muted transition-transform ${collapsed['github'] ? '-rotate-90' : ''}`}
+                aria-hidden="true"
+              />
+              GitHub
+            </button>
+          </h2>
+          {snapshot?.scanning && (
+            <span className="flex items-center gap-1 text-xs text-muted">
+              <Loader2 size={12} className="animate-spin" aria-hidden="true" />
+              Scanning
+              {snapshot.progress ? ` · ${snapshot.progress.reposFound} repos` : '…'}
+            </span>
+          )}
+          <Button
+            size="sm"
+            variant="ghost"
+            className="ml-auto h-7 rounded-lg text-xs text-muted hover:text-foreground"
+            onPress={() => setIsScanFoldersOpen(true)}
           >
-            <ChevronDown
-              size={14}
-              className={`text-muted transition-transform ${collapsed['github'] ? '-rotate-90' : ''}`}
-              aria-hidden="true"
-            />
-            GitHub
-          </button>
-        </h2>
+            <FolderSearch size={13} /> Scan folders
+            {snapshot && snapshot.roots.length > 0 ? ` (${snapshot.roots.length})` : ''}
+          </Button>
+        </div>
         {!collapsed['github'] && (
           <div id="github-section" className="space-y-4">
+            {snapshot && repositories.length === 0 && (
+              <div className="flex flex-col items-start gap-2 rounded-xl border border-dashed border-border p-4 text-xs text-muted">
+                {snapshot.roots.length === 0 ? (
+                  <>
+                    <p>Add the folders where you keep your repositories and worktrees.</p>
+                    <Button
+                      size="sm"
+                      variant="primary"
+                      className="h-7 rounded-lg text-xs"
+                      onPress={() => void addFolders()}
+                    >
+                      <FolderPlus size={13} /> Add folders to scan
+                    </Button>
+                  </>
+                ) : snapshot.scanning ? (
+                  <p>
+                    Scanning your folders
+                    {snapshot.progress
+                      ? ` · ${snapshot.progress.dirsVisited} folders checked`
+                      : '…'}
+                  </p>
+                ) : (
+                  <>
+                    <p>No git repositories found in your scan folders.</p>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-7 rounded-lg text-xs"
+                      onPress={() => setIsScanFoldersOpen(true)}
+                    >
+                      <FolderSearch size={13} /> Manage folders
+                    </Button>
+                  </>
+                )}
+              </div>
+            )}
             {repositories.map((repo) => (
-              <div key={repo.name} className="space-y-2">
+              <div key={repo.id ?? repo.name} className="space-y-2">
                 <h3 className="flex items-center gap-2 text-sm font-semibold">
                   <button
                     type="button"
-                    onClick={() => toggleCollapsed(repo.name)}
-                    aria-expanded={!collapsed[repo.name]}
+                    onClick={() => toggleCollapsed(repo.id ?? repo.name)}
+                    aria-expanded={!collapsed[repo.id ?? repo.name]}
                     className="flex items-center gap-1.5"
                   >
                     <ChevronDown
                       size={13}
-                      className={`text-muted transition-transform ${collapsed[repo.name] ? '-rotate-90' : ''}`}
+                      className={`text-muted transition-transform ${collapsed[repo.id ?? repo.name] ? '-rotate-90' : ''}`}
                       aria-hidden="true"
                     />
                     <span className={`size-3 rounded-full ${repo.color}`} />
                     {repo.name}
                   </button>
-                  <span className="text-xs font-normal text-muted">
-                    {repo.detail} · {repo.prs.length} PRs · {repo.worktrees.length} worktrees
+                  <span className="truncate text-xs font-normal text-muted" title={repo.detail}>
+                    {[
+                      repo.detail,
+                      repo.isLocal ? null : `${repo.prs.length} PRs`,
+                      `${repo.worktrees.length} worktrees`
+                    ]
+                      .filter(Boolean)
+                      .join(' · ')}
                   </span>
                 </h3>
-                {!collapsed[repo.name] && (
+                {!collapsed[repo.id ?? repo.name] && (
                   <div className="flex flex-wrap gap-2">
                     {buildRepositoryCards({
                       repository: repo,
@@ -131,6 +196,15 @@ export function DashboardHome(): React.JSX.Element {
           title={selectedHistory.title}
           hasUncommitted={selectedHistory.hasUncommitted}
           onClose={() => setSelectedHistory(null)}
+        />
+      )}
+      {isScanFoldersOpen && (
+        <ScanFoldersModal
+          snapshot={snapshot}
+          onAdd={() => void addFolders()}
+          onRemove={(id) => void removeFolder(id)}
+          onRescan={(rootId) => void rescan(rootId)}
+          onClose={() => setIsScanFoldersOpen(false)}
         />
       )}
       {selectedWorktree && (

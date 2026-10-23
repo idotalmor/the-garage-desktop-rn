@@ -6,6 +6,8 @@ import type { CiStatus, PullRequest, Repository, Worktree } from './types'
 const favoritePeople = ['Maya Chen', 'Ava Patel', 'Noah Williams']
 const otherPeople = ['Priya Shah', 'Liam Jones']
 
+// Mock data for offline UI work. The dashboard now renders scanned local repositories
+// (see hooks/useLocalRepositories.ts); kept so it can be re-applied later.
 export const repositories: Repository[] = [
   {
     name: 'platform-api',
@@ -139,7 +141,8 @@ export const repositories: Repository[] = [
 const ciSurfaceClass: Record<CiStatus, string> = {
   passing: 'bg-success/50',
   'in-progress': 'bg-warning/50',
-  failing: 'bg-danger/50'
+  failing: 'bg-danger/50',
+  none: ''
 }
 
 const prStatusStyle: Record<string, string> = {
@@ -192,7 +195,7 @@ export function buildRepositoryCards({
 function branchCard(repository: Repository, onHistory: (title: string) => void): GitHubCardSpec {
   const historyKey = `${repository.name}/${repository.defaultBranch}`
   return {
-    key: `branch-${repository.name}`,
+    key: `branch-${repository.id ?? repository.name}`,
     title: repository.defaultBranch,
     surfaceClass: ciSurfaceClass[repository.masterCi],
     history: { onOpen: () => onHistory(historyKey) },
@@ -367,7 +370,7 @@ function worktreeCard(
   onHistory: (title: string, hasUncommitted?: boolean) => void
 ): GitHubCardSpec {
   return {
-    key: `worktree-${worktree.name}`,
+    key: `worktree-${worktree.path ?? worktree.name}`,
     title: worktree.branch,
     overflowVisible: true,
     aside: worktree.prNumber ? (
@@ -402,10 +405,11 @@ function worktreeCard(
     body: (
       <>
         <span className="line-clamp-2 flex items-center gap-1 text-xs text-muted">
-          <GitBranch size={13} /> Local worktree · {worktree.name}
+          <GitBranch size={13} /> {worktree.isMain ? 'Main checkout' : 'Local worktree'} ·{' '}
+          {worktree.name}
         </span>
-        <p className="line-clamp-2 text-xs text-muted">
-          {worktree.author} · {worktree.changes}
+        <p className="line-clamp-2 text-xs text-muted" title={worktree.path}>
+          {[worktree.author, worktree.changes].filter(Boolean).join(' · ')}
         </p>
       </>
     ),

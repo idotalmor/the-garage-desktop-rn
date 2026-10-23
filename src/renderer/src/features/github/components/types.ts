@@ -1,4 +1,4 @@
-export type CiStatus = 'passing' | 'failing' | 'in-progress'
+export type CiStatus = 'passing' | 'failing' | 'in-progress' | 'none'
 
 export type Commit = {
   hash: string
@@ -26,9 +26,16 @@ export type Worktree = {
   changes: string
   hasUncommitted: boolean
   prNumber?: number
+  path?: string
+  isMain?: boolean
+  isDetached?: boolean
+  ahead?: number | null
+  behind?: number | null
+  lastCommitAt?: number
 }
 
 export type Repository = {
+  id?: string
   name: string
   detail: string
   color: string
@@ -37,4 +44,5 @@ export type Repository = {
   masterCommits: Commit[]
   prs: PullRequest[]
   worktrees: Worktree[]
+  isLocal?: boolean
 }
