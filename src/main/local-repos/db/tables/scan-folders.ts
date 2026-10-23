@@ -9,11 +9,17 @@ export const SCAN_FOLDERS_TABLE = 'scan_folders'
 export const DEFAULT_MAX_DEPTH = 4
 
 export type ScanFolderRow = {
+  /** Random UUID made when the folder is added. */
   id: string
+  /** Absolute path of the folder the user picked in "Scan folders" (unique). */
   path: string
+  /** How many folder levels below `path` the scanner searches for repos (default 4). */
   max_depth: number
+  /** When the user added the folder (epoch ms). */
   added_at: number
+  /** When the last scan of this folder finished (epoch ms). Null until the first scan finishes. */
   last_scanned_at: number | null
+  /** Why the last scan failed, e.g. the folder was deleted or can't be read. Null if it worked. */
   last_error: string | null
 }
 

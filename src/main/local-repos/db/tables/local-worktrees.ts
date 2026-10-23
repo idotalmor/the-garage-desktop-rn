@@ -6,26 +6,38 @@ import { parseJson, toJson } from '../utils/json'
 export const LOCAL_WORKTREES_TABLE = 'local_worktrees'
 
 export type LocalWorktreeRow = {
+  /** Absolute path of the checkout folder, from `git worktree list`. Primary key: one row per checkout. */
   path: string
+  /** The `local_repos.id` this checkout belongs to. Deleting the repo deletes its checkouts. */
   repo_id: string
-  /** Order within the repo; 0 is the main checkout when there is one. */
+  /** Order within the repo, as `git worktree list` prints them; 0 is the main checkout when there is one. */
   position: number
+  /** The checkout folder's name, e.g. `feat-x` for `~/wt/feat-x`. */
   name: string
-  /** 0 or 1. */
+  /** 1 = the main checkout (where the repo was cloned), 0 = a linked worktree from `git worktree add`. 0 or 1. */
   is_main: number
+  /** Checked-out branch, e.g. `main`. Null when no branch is checked out (detached HEAD). */
   branch: string | null
-  /** 0 or 1. */
+  /** 1 = a commit is checked out directly instead of a branch (detached HEAD). 0 or 1. */
   is_detached: number
+  /** Full SHA of the checked-out commit. */
   head: string | null
-  /** 0 or 1. */
+  /** 1 = locked with `git worktree lock`, so `git worktree prune` won't remove it. 0 or 1. */
   is_locked: number
-  /** 0 or 1. */
+  /**
+   * 1 = git still lists this worktree but its folder is gone (e.g. deleted by hand); `git worktree prune`
+   * would remove it. Status fields are not read for it. 0 or 1.
+   */
   is_prunable: number
+  /** Remote branch the checked-out branch tracks, e.g. `origin/main`. Null if it tracks none. */
   upstream: string | null
+  /** Local commits not pushed to `upstream` yet. Null without an upstream. */
   ahead: number | null
+  /** Commits on `upstream` not pulled yet (as of the last `git fetch`). Null without an upstream. */
   behind: number | null
+  /** Uncommitted files: modified, staged, untracked or conflicted, from `git status`. */
   changed_files: number
-  /** JSON `CommitSummary`. */
+  /** JSON `CommitSummary`: the latest commit on this checkout's HEAD. */
   last_commit: string | null
 }
 
