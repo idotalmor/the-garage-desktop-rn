@@ -53,6 +53,12 @@ export type LocalRepoDbEntity = {
   default_branch_commit: Json<CommitSummary> | null
   /** When this repo was last read from disk by a scan or a live refresh (epoch ms). */
   scanned_at: number
+  /**
+   * When something last happened in one of its checkouts (epoch ms). A scan sets it from the newest
+   * commit in any checkout; a live change that alters a checkout (commit, branch switch, file edit,
+   * worktree added or removed) sets it to that moment. Never moves backwards.
+   */
+  updated_at: number
 }
 
 export const CREATE_LOCAL_REPOS_TABLE = `
@@ -68,7 +74,8 @@ export const CREATE_LOCAL_REPOS_TABLE = `
     remotes TEXT NOT NULL DEFAULT '[]',
     default_branch TEXT,
     default_branch_commit TEXT,
-    scanned_at INTEGER NOT NULL
+    scanned_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL DEFAULT 0
   );
   CREATE INDEX IF NOT EXISTS idx_${LOCAL_REPOS_TABLE}_slug ON ${LOCAL_REPOS_TABLE}(slug);
 `
@@ -86,7 +93,8 @@ export function toLocalRepoDbEntity(repo: ScannedRepository): LocalRepoDbEntity 
     remotes: toJson(repo.remotes),
     default_branch: repo.defaultBranch,
     default_branch_commit: toJson(repo.defaultBranchCommit),
-    scanned_at: repo.scannedAt
+    scanned_at: repo.scannedAt,
+    updated_at: repo.updatedAt
   }
 }
 
@@ -109,7 +117,8 @@ export function toLocalRepository(
     defaultBranchCommit: parseJson(row.default_branch_commit, null),
     sourceIds,
     worktrees,
-    scannedAt: row.scanned_at
+    scannedAt: row.scanned_at,
+    updatedAt: row.updated_at
   }
 }
 
@@ -122,16 +131,17 @@ export function upsertLocalRepo(db: Database.Database, repo: ScannedRepository):
     `
     INSERT INTO ${LOCAL_REPOS_TABLE} (
       id, name, common_dir, is_bare, provider, full_name, slug, remote_url, remotes,
-      default_branch, default_branch_commit, scanned_at
+      default_branch, default_branch_commit, scanned_at, updated_at
     ) VALUES (
       @id, @name, @common_dir, @is_bare, @provider, @full_name, @slug, @remote_url, @remotes,
-      @default_branch, @default_branch_commit, @scanned_at
+      @default_branch, @default_branch_commit, @scanned_at, @updated_at
     )
     ON CONFLICT(id) DO UPDATE SET
       name = excluded.name, is_bare = excluded.is_bare, provider = excluded.provider,
       full_name = excluded.full_name, slug = excluded.slug, remote_url = excluded.remote_url,
       remotes = excluded.remotes, default_branch = excluded.default_branch,
-      default_branch_commit = excluded.default_branch_commit, scanned_at = excluded.scanned_at
+      default_branch_commit = excluded.default_branch_commit, scanned_at = excluded.scanned_at,
+      updated_at = MAX(excluded.updated_at, ${LOCAL_REPOS_TABLE}.updated_at)
   `
   ).run(toLocalRepoDbEntity(repo))
 }

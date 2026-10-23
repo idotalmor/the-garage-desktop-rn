@@ -55,7 +55,8 @@ export async function inspectRepository(
     defaultBranch,
     defaultBranchCommit,
     worktrees,
-    scannedAt: Date.now()
+    scannedAt: Date.now(),
+    updatedAt: Math.max(0, ...worktrees.map((tree) => tree.lastCommit?.committedAt ?? 0))
   }
 }
 

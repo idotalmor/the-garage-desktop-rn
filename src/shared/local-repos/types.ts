@@ -105,6 +105,11 @@ export type LocalRepository = {
   worktrees: LocalWorktree[]
   /** When this repo was last inspected (epoch ms). */
   scannedAt: number
+  /**
+   * When something last happened in one of its checkouts (epoch ms): the newest commit in any
+   * checkout, or a live change that altered a checkout. Used for "Recently updated" sorting.
+   */
+  updatedAt: number
 }
 
 /** A repo as the scanner reads it from disk, before the DB adds `sourceIds`. */

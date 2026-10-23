@@ -63,6 +63,7 @@ export function toUiRepository(repo: LocalRepository): Repository {
       : [],
     prs: [],
     worktrees: repo.worktrees.map(toUiWorktree),
-    isLocal: true
+    isLocal: true,
+    updatedAt: repo.updatedAt
   }
 }

@@ -1,6 +1,6 @@
-import { ChevronDown, FolderPlus, FolderSearch, Loader2 } from 'lucide-react'
+import { ArrowDownUp, ChevronDown, FolderPlus, FolderSearch, Loader2 } from 'lucide-react'
 import { useState } from 'react'
-import { Button } from '@heroui/react'
+import { Button, Dropdown } from '@heroui/react'
 import { CommitHistoryModal } from '../../github/components/CommitHistoryModal'
 import { CreatePrModal } from '../../github/components/CreatePrModal'
 import { GitHubCard } from '../../github/components/GitHubCard'
@@ -8,10 +8,16 @@ import { buildRepositoryCards } from '../../github/components/repository-cards'
 import { SourcesModal } from '../../github/components/SourcesModal'
 import type { Repository, Worktree } from '../../github/components/types'
 import { useLocalRepositories } from '../../github/hooks/useLocalRepositories'
+import {
+  REPO_SORTS,
+  useRepositoryOrder,
+  type RepoSort
+} from '../../github/hooks/useRepositoryOrder'
 import { buildJiraCards } from './jira-cards'
 
 export function DashboardHome(): React.JSX.Element {
   const { snapshot, repositories, addFolders, removeFolder, rescan, reset } = useLocalRepositories()
+  const { sort, sorted: sortedRepositories, sortBy } = useRepositoryOrder(repositories)
   const [isSourcesOpen, setIsSourcesOpen] = useState(false)
   const [selectedRecipient, setSelectedRecipient] = useState('Default · #eng-review')
   const [linkedTasks, setLinkedTasks] = useState<Record<string, string>>({})
@@ -63,15 +69,40 @@ export function DashboardHome(): React.JSX.Element {
               {snapshot.progress ? ` · ${snapshot.progress.reposFound} repos` : '…'}
             </span>
           )}
-          <Button
-            size="sm"
-            variant="ghost"
-            className="ml-auto h-7 rounded-lg text-xs text-muted hover:text-foreground"
-            onPress={() => setIsSourcesOpen(true)}
-          >
-            <FolderSearch size={13} /> Sources
-            {snapshot && snapshot.sources.length > 0 ? ` (${snapshot.sources.length})` : ''}
-          </Button>
+          <div className="ml-auto flex items-center gap-1">
+            {repositories.length > 1 && (
+              <Dropdown>
+                <Dropdown.Trigger
+                  className="flex h-7 items-center gap-1.5 rounded-lg px-2 text-xs text-muted hover:bg-surface-secondary hover:text-foreground"
+                  aria-label="Sort repositories"
+                >
+                  <ArrowDownUp size={13} aria-hidden="true" />
+                  {REPO_SORTS.find((option) => option.id === sort)?.label}
+                </Dropdown.Trigger>
+                <Dropdown.Popover placement="bottom end">
+                  <Dropdown.Menu
+                    aria-label="Sort repositories"
+                    onAction={(key) => sortBy(key as RepoSort)}
+                  >
+                    {REPO_SORTS.map((option) => (
+                      <Dropdown.Item key={option.id} id={option.id}>
+                        {option.label}
+                      </Dropdown.Item>
+                    ))}
+                  </Dropdown.Menu>
+                </Dropdown.Popover>
+              </Dropdown>
+            )}
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-7 rounded-lg text-xs text-muted hover:text-foreground"
+              onPress={() => setIsSourcesOpen(true)}
+            >
+              <FolderSearch size={13} /> Sources
+              {snapshot && snapshot.sources.length > 0 ? ` (${snapshot.sources.length})` : ''}
+            </Button>
+          </div>
         </div>
         {!collapsed['github'] && (
           <div id="github-section" className="space-y-4">
@@ -111,7 +142,7 @@ export function DashboardHome(): React.JSX.Element {
                 )}
               </div>
             )}
-            {repositories.map((repo) => (
+            {sortedRepositories.map((repo) => (
               <div key={repo.id ?? repo.name} className="space-y-2">
                 <h3 className="flex items-center gap-2 text-sm font-semibold">
                   <button

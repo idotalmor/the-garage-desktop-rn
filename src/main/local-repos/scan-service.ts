@@ -16,6 +16,7 @@ import type {
   LocalReposSnapshot,
   LocalRepository,
   Source,
+  ScannedRepository,
   ScanProgress
 } from '../../shared/local-repos/types'
 import * as db from './db'
@@ -223,7 +224,13 @@ async function refreshRepositories(repoIds: string[]): Promise<void> {
       return undefined
     })
     if (fresh === null) gone.push(repo.id)
-    else if (fresh) db.saveRepository(fresh)
+    else if (fresh) db.saveRepository(withActivity(repo, fresh))
   }
   db.deleteRepositories(gone)
+}
+
+/** A live change that altered a checkout (commit, branch, changed files, worktrees) marks the repo updated now. */
+function withActivity(before: LocalRepository, after: ScannedRepository): ScannedRepository {
+  const changed = JSON.stringify(before.worktrees) !== JSON.stringify(after.worktrees)
+  return { ...after, updatedAt: changed ? Date.now() : Math.max(before.updatedAt, after.updatedAt) }
 }

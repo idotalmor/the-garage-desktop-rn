@@ -45,4 +45,6 @@ export type Repository = {
   prs: PullRequest[]
   worktrees: Worktree[]
   isLocal?: boolean
+  /** Last activity in any checkout (epoch ms); local repos only. */
+  updatedAt?: number
 }

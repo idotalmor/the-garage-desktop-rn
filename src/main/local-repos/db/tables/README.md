@@ -11,9 +11,11 @@ The machine-local SQLite database behind the GitHub section's "local repositorie
 
 None of this is synced to Firestore. Paths, branches and dirty state only make sense on this machine.
 
-There are no migrations yet. Tables are created if they're missing, and nothing else is changed. After
-a schema change, use **Reset local data** in the Sources dialog: it drops every table in the file
-(including ones older builds left behind) and creates them again empty.
+There are no migrations yet. When a table changes, bump `SCHEMA_VERSION` in
+[../connection.ts](../connection.ts): a DB with another version (`PRAGMA user_version`) is dropped
+and recreated empty when the app opens it. **Reset local data** in the Sources dialog does the same
+on demand: it drops every table in the file (including ones older builds left behind) and creates
+them again empty.
 
 ## Tables at a glance
 
@@ -57,6 +59,7 @@ erDiagram
     TEXT default_branch "remote default branch (e.g. main), else a local guess"
     TEXT default_branch_commit "JSON CommitSummary: latest commit on default_branch"
     INTEGER scanned_at "when this repo was last inspected (epoch ms)"
+    INTEGER updated_at "newest commit in any checkout, or the last live change to a checkout (epoch ms)"
   }
   local_worktrees {
     TEXT path PK "absolute path of the checkout"
@@ -235,7 +238,8 @@ null `slug`.
     "author": "Ido Talmor",
     "committedAt": 1792700000000
   },
-  "scanned_at": 1792761190000
+  "scanned_at": 1792761190000,
+  "updated_at": 1792761100000
 }
 ```
 
