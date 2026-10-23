@@ -3,8 +3,11 @@
 The machine-local SQLite database behind the GitHub section's "local repositories" view.
 
 - File: `~/.devflow/local-repos.db`
-- Code: `src/main/local-repos/db/` (one file per table in `db/tables/`)
-- App-facing types: `src/shared/local-repos/types.ts`
+- Table files (this folder): [scan-folders.ts](scan-folders.ts), [local-repos.ts](local-repos.ts),
+  [local-worktrees.ts](local-worktrees.ts), [local-repo-scan-folders.ts](local-repo-scan-folders.ts)
+- Multi-table operations: [../index.ts](../index.ts) · connection and table creation:
+  [../connection.ts](../connection.ts)
+- App-facing types: [src/shared/local-repos/types.ts](../../../../shared/local-repos/types.ts)
 
 None of this is synced to Firestore. Paths, branches and dirty state only make sense on this machine.
 

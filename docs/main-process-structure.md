@@ -21,6 +21,7 @@ src/main/<feature>/
     connection.ts
     index.ts
     tables/<table>.ts
+    tables/README.md  what each table is + diagrams (see below)
     utils/            DB-only helpers (e.g. json.ts)
   utils/              small pure helpers with no feature state (parsing, concurrency, formatting)
 ```
@@ -82,13 +83,17 @@ subscribe((snapshot) => {
   multi-table writes in `db.transaction(...)`. Services import `./db`, never `./db/tables/*`.
 - Nested objects are JSON columns parsed with a safe `parseJson(value, fallback)` from
   `db/utils/json.ts`. Helpers that aren't a table go in `db/utils/`, not `db/tables/`.
-- **Document the database** in `docs/<feature>-db.md` (example: `docs/local-repos-db.md`):
+- **Document the database** in `db/tables/README.md`, next to the table files (example:
+  `src/main/local-repos/db/tables/README.md`), and list it in `docs/README.md`:
   - what one row of each table represents and which flow creates/updates/deletes it
   - a JSON example row per table
   - a mermaid `erDiagram` of the tables and a mermaid `flowchart` of the flow that writes them
     Update it in the same change whenever a table, column or write flow changes.
 
 ## File conventions
+
+- Docs live next to the code they describe (`README.md` in that folder). `docs/` only holds
+  cross-cutting guides and the index (`docs/README.md`).
 
 - Every file starts with a short `/** … */` summary: what it does and, if it isn't obvious, why it
   exists. Keep it to 1–5 lines.
