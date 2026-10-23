@@ -1,0 +1,101 @@
+/**
+ * Step 2 of a scan: turn one discovered repo into a `LocalRepository` with all its checkouts.
+ *
+ * Asks git for the repo's checkouts, remotes and default branch, then reads branch/status/last
+ * commit of each checkout.
+ */
+import { createHash } from 'crypto'
+import { basename, dirname } from 'path'
+import type { LocalRepository, LocalWorktree } from '../../../shared/local-repos/types'
+import type { PorcelainWorktree } from '../git/parsers'
+import {
+  isBareRepository,
+  lastCommit,
+  listWorktrees,
+  readRemotes,
+  readStatus,
+  resolveDefaultBranch
+} from '../git/queries'
+import { GIT_CONCURRENCY, mapLimit } from '../utils/concurrency'
+import { providerForHost } from '../utils/remote-url'
+import type { Candidate } from './discover'
+
+export async function inspectRepository(
+  commonDir: string,
+  candidate: Candidate,
+  scanFolderId: string
+): Promise<LocalRepository> {
+  const [listed, remotes, isBare] = await Promise.all([
+    listWorktrees(candidate.dir),
+    readRemotes(candidate.dir),
+    isBareRepository(commonDir)
+  ])
+  const primary = remotes.find((remote) => remote.name === 'origin') ?? remotes[0] ?? null
+
+  const worktrees = (
+    await mapLimit(listed, GIT_CONCURRENCY, async (entry, index) => {
+      if (entry.isBare) return null
+      return inspectWorktree(entry, index === 0 && !isBare)
+    })
+  ).filter((tree): tree is LocalWorktree => tree !== null)
+
+  const { defaultBranch, defaultRef } = await resolveDefaultBranch(candidate.dir, primary?.name)
+  const defaultBranchCommit = defaultRef ? await lastCommit(candidate.dir, defaultRef) : null
+
+  return {
+    id: createHash('sha1').update(commonDir).digest('hex').slice(0, 16),
+    name: primary?.repo ?? repoNameFromPaths(commonDir, worktrees),
+    commonDir,
+    isBare,
+    provider: providerForHost(primary?.host ?? null),
+    fullName: primary?.owner && primary.repo ? `${primary.owner}/${primary.repo}` : null,
+    slug: primary?.slug ?? null,
+    remoteUrl: primary?.url ?? null,
+    remotes,
+    defaultBranch,
+    defaultBranchCommit,
+    scanFolderIds: [scanFolderId],
+    worktrees,
+    scannedAt: Date.now()
+  }
+}
+
+async function inspectWorktree(entry: PorcelainWorktree, isMain: boolean): Promise<LocalWorktree> {
+  const base: LocalWorktree = {
+    path: entry.path,
+    name: basename(entry.path),
+    isMain,
+    branch: entry.branch,
+    isDetached: entry.isDetached,
+    head: entry.head,
+    isLocked: entry.isLocked,
+    isPrunable: entry.isPrunable,
+    upstream: null,
+    ahead: null,
+    behind: null,
+    changedFiles: 0,
+    lastCommit: null
+  }
+  if (entry.isPrunable) return base
+
+  const [status, commit] = await Promise.all([readStatus(entry.path), lastCommit(entry.path)])
+  if (!status) return { ...base, lastCommit: commit }
+  return {
+    ...base,
+    branch: status.branch ?? base.branch,
+    head: status.head ?? base.head,
+    upstream: status.upstream,
+    ahead: status.ahead,
+    behind: status.behind,
+    changedFiles: status.changedFiles,
+    lastCommit: commit
+  }
+}
+
+/** Fallback name for repos without a remote: the main checkout's folder, else the repo folder. */
+function repoNameFromPaths(commonDir: string, worktrees: LocalWorktree[]): string {
+  const main = worktrees.find((tree) => tree.isMain)
+  if (main) return main.name
+  const name = basename(commonDir)
+  return name === '.git' ? basename(dirname(commonDir)) : name.replace(/\.git$/, '')
+}

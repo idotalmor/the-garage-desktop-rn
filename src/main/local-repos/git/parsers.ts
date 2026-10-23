@@ -1,54 +1,9 @@
-import { execFile } from 'child_process'
-import { existsSync } from 'fs'
-import type { CommitSummary } from '../../shared/local-repos/types'
+/**
+ * Pure parsers for git's machine-readable output. No I/O here, so these are easy to unit test.
+ */
+import type { CommitSummary } from '../../../shared/local-repos/types'
 
-const GIT_CANDIDATES = ['/opt/homebrew/bin/git', '/usr/local/bin/git', '/usr/bin/git']
-
-// Apps launched from Finder don't inherit the login-shell PATH, so resolve git explicitly.
-const gitBinary = GIT_CANDIDATES.find((candidate) => existsSync(candidate)) ?? 'git'
-
-const GIT_ENV = {
-  ...process.env,
-  GIT_OPTIONAL_LOCKS: '0',
-  GIT_TERMINAL_PROMPT: '0',
-  LC_ALL: 'C'
-}
-
-export class GitError extends Error {
-  constructor(
-    message: string,
-    readonly exitCode: number | null
-  ) {
-    super(message)
-  }
-}
-
-export function git(cwd: string, args: string[], timeoutMs = 15_000): Promise<string> {
-  return new Promise((resolve, reject) => {
-    execFile(
-      gitBinary,
-      ['-C', cwd, ...args],
-      { env: GIT_ENV, timeout: timeoutMs, maxBuffer: 16 * 1024 * 1024, windowsHide: true },
-      (error, stdout, stderr) => {
-        if (error) {
-          const code = typeof error.code === 'number' ? error.code : null
-          reject(new GitError(String(stderr || error.message).trim(), code))
-          return
-        }
-        resolve(stdout)
-      }
-    )
-  })
-}
-
-export async function gitOrNull(cwd: string, args: string[]): Promise<string | null> {
-  try {
-    return await git(cwd, args)
-  } catch {
-    return null
-  }
-}
-
+/** One entry of `git worktree list --porcelain`. */
 export type PorcelainWorktree = {
   path: string
   head: string | null
@@ -59,7 +14,7 @@ export type PorcelainWorktree = {
   isPrunable: boolean
 }
 
-/** Parses `git worktree list --porcelain`. The first entry is the main worktree (or bare repo). */
+/** Parses `git worktree list --porcelain`. The first entry is the main checkout (or the bare repo). */
 export function parseWorktreeList(output: string): PorcelainWorktree[] {
   const worktrees: PorcelainWorktree[] = []
   for (const block of output.split(/\n\n+/)) {
@@ -89,6 +44,7 @@ export function parseWorktreeList(output: string): PorcelainWorktree[] {
   return worktrees
 }
 
+/** Branch info and dirty-file count of one checkout. */
 export type BranchStatus = {
   head: string | null
   branch: string | null
@@ -136,11 +92,11 @@ export function parseStatusV2(output: string): BranchStatus {
   return status
 }
 
-const LOG_FORMAT = '--format=%H%x00%s%x00%an%x00%ct'
+/** `git log` format matching `parseLogLine`: hash, subject, author, commit time (unix seconds). */
+export const LOG_FORMAT = '--format=%H%x00%s%x00%an%x00%ct'
 
-export async function lastCommit(cwd: string, ref = 'HEAD'): Promise<CommitSummary | null> {
-  const output = await gitOrNull(cwd, ['log', '-1', LOG_FORMAT, ref, '--'])
-  if (!output) return null
+/** Parses one `git log -1 ${LOG_FORMAT}` line. */
+export function parseLogLine(output: string): CommitSummary | null {
   const [hash, message, author, committedAt] = output.trim().split('\0')
   if (!hash) return null
   return {
@@ -149,4 +105,15 @@ export async function lastCommit(cwd: string, ref = 'HEAD'): Promise<CommitSumma
     author: author ?? '',
     committedAt: Number(committedAt) * 1000
   }
+}
+
+/** Parses `git config --get-regexp '^remote\..*\.url$'` into `{ name, url }` pairs. */
+export function parseRemoteConfig(output: string): { name: string; url: string }[] {
+  return output
+    .split('\n')
+    .filter(Boolean)
+    .map((line) => {
+      const [key, ...rest] = line.split(' ')
+      return { name: key.replace(/^remote\./, '').replace(/\.url$/, ''), url: rest.join(' ') }
+    })
 }

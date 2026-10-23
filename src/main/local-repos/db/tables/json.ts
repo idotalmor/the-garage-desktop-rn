@@ -1,0 +1,13 @@
+/** JSON helpers for columns that store nested objects as text. */
+export function parseJson<T>(value: string | null, fallback: T): T {
+  if (!value) return fallback
+  try {
+    return JSON.parse(value) as T
+  } catch {
+    return fallback
+  }
+}
+
+export function toJson(value: unknown): string | null {
+  return value == null ? null : JSON.stringify(value)
+}
