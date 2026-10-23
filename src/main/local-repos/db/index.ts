@@ -9,7 +9,7 @@
 import type Database from 'better-sqlite3'
 import type { LocalRepository, Source, ScannedRepository } from '../../../shared/local-repos/types'
 import { coveringSourceIds } from '../utils/paths'
-import { getDb } from './connection'
+import { getDb, resetDb } from './connection'
 import {
   deleteLocalRepos,
   hasLocalRepo,
@@ -28,6 +28,11 @@ import {
   listSources as listSourceDbEntities,
   markSourceScanned
 } from './tables/sources'
+
+/** Deletes every source, repo and worktree. */
+export function resetDatabase(): void {
+  resetDb()
+}
 
 export function listSources(): Source[] {
   return listSourceDbEntities(getDb())

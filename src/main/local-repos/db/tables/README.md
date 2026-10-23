@@ -11,6 +11,10 @@ The machine-local SQLite database behind the GitHub section's "local repositorie
 
 None of this is synced to Firestore. Paths, branches and dirty state only make sense on this machine.
 
+There are no migrations yet. Tables are created if they're missing, and nothing else is changed. After
+a schema change, use **Reset local data** in the Sources dialog: it drops every table in the file
+(including ones older builds left behind) and creates them again empty.
+
 ## Tables at a glance
 
 | Table             | One row is…                                               | Created/updated by                            |
@@ -126,6 +130,9 @@ flowchart TD
 
 **Removing a source** deletes its `sources` row, then deletes every `local_repos` row that
 no remaining source covers. A repo another folder also covers stays.
+
+**Reset local data** (`local-repos:reset`) waits for the running job, drops every table and creates
+them again empty. Watchers are closed because no sources are left.
 
 ## Scenarios: what each situation stores
 

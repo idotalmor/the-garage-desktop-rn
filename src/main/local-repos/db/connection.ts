@@ -18,17 +18,32 @@ export function getDb(): Database.Database {
   db = new Database(join(dbDir, 'local-repos.db'))
   db.pragma('journal_mode = DELETE')
   db.pragma('foreign_keys = ON')
-  // Older builds called the sources table `scan_folders`; rename it so saved folders are kept.
-  const hasLegacySources = db
-    .prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'scan_folders'")
-    .get()
-  if (hasLegacySources) db.exec('ALTER TABLE scan_folders RENAME TO sources')
-  db.exec(CREATE_SOURCES_TABLE)
-  db.exec(CREATE_LOCAL_REPOS_TABLE)
-  db.exec(CREATE_LOCAL_WORKTREES_TABLE)
-  // Older builds stored scan folder ↔ repo links; that is now worked out from paths.
-  db.exec('DROP TABLE IF EXISTS local_repo_scan_folders')
+  createTables(db)
 
   app.on('before-quit', () => db?.close())
   return db
+}
+
+/** Drops every table in the file, including ones older builds left behind, and creates them again empty. */
+export function resetDb(): void {
+  const db = getDb()
+  const tables = db
+    .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'")
+    .pluck()
+    .all() as string[]
+  db.pragma('foreign_keys = OFF')
+  try {
+    db.transaction(() => {
+      for (const table of tables) db.exec(`DROP TABLE IF EXISTS "${table}"`)
+      createTables(db)
+    })()
+  } finally {
+    db.pragma('foreign_keys = ON')
+  }
+}
+
+function createTables(db: Database.Database): void {
+  db.exec(CREATE_SOURCES_TABLE)
+  db.exec(CREATE_LOCAL_REPOS_TABLE)
+  db.exec(CREATE_LOCAL_WORKTREES_TABLE)
 }

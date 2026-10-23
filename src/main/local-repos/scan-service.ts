@@ -88,6 +88,16 @@ export function rescan(sourceId?: string): LocalReposSnapshot {
   return getSnapshot()
 }
 
+/** Wipes the local repos DB (sources, repos, worktrees) after the running job finishes. */
+export async function reset(): Promise<LocalReposSnapshot> {
+  if (changeTimer) clearTimeout(changeTimer)
+  changeTimer = null
+  changedRepoIds.clear()
+  changedSourceIds.clear()
+  await enqueue(async () => db.resetDatabase(), false)
+  return getSnapshot()
+}
+
 /** Starts watching, the initial scan and the rescan-on-focus behavior. Call once at app startup. */
 export function startScanService(): void {
   app.on('browser-window-focus', rescanIfStale)
@@ -148,7 +158,7 @@ function enqueueScan(sourceIds?: string[]): void {
   enqueue(() => runScan(sourceIds, true), true)
 }
 
-function enqueue(job: () => Promise<void>, visible: boolean): void {
+function enqueue(job: () => Promise<void>, visible: boolean): Promise<void> {
   if (visible) {
     pendingScans++
     notify()
@@ -162,6 +172,7 @@ function enqueue(job: () => Promise<void>, visible: boolean): void {
       syncWatching()
       notify()
     })
+  return queue
 }
 
 async function runScan(sourceIds: string[] | undefined, visible: boolean): Promise<void> {

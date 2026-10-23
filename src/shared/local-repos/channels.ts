@@ -8,6 +8,8 @@ export const LocalReposChannel = {
   RemoveSource: 'local-repos:remove-source',
   /** Rescans one source (by id), or all of them when no id is given. */
   Rescan: 'local-repos:rescan',
+  /** Deletes every source, repo and worktree from the local DB. */
+  Reset: 'local-repos:reset',
   /** Main → renderer push with a fresh `LocalReposSnapshot` whenever anything changes. */
   Changed: 'local-repos:changed'
 } as const

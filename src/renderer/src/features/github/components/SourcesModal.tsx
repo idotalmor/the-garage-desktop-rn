@@ -1,4 +1,5 @@
 import { AlertTriangle, FolderPlus, Loader2, RefreshCw, Trash2 } from 'lucide-react'
+import { useState } from 'react'
 import { Button } from '@heroui/react'
 import type { LocalReposSnapshot } from '../../../../../shared/local-repos/types'
 import { Modal } from './Modal'
@@ -21,17 +22,20 @@ export function SourcesModal({
   onAdd,
   onRemove,
   onRescan,
+  onReset,
   onClose
 }: {
   snapshot: LocalReposSnapshot | null
   onAdd: () => void
   onRemove: (id: string) => void
   onRescan: (sourceId?: string) => void
+  onReset: () => void
   onClose: () => void
 }): React.JSX.Element {
   const sources = snapshot?.sources ?? []
   const repositories = snapshot?.repositories ?? []
   const scanning = Boolean(snapshot?.scanning)
+  const [confirmingReset, setConfirmingReset] = useState(false)
 
   return (
     <Modal title="Sources" onClose={onClose}>
@@ -129,6 +133,47 @@ export function SourcesModal({
           </Button>
         </div>
       </section>
+
+      <div className="mt-5 flex items-center gap-2 border-t border-separator pt-3">
+        {confirmingReset ? (
+          <>
+            <span className="text-[11px] text-danger">
+              Delete all folders, repositories and worktrees saved on this machine?
+            </span>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="ml-auto rounded-lg text-xs"
+              onPress={() => setConfirmingReset(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              variant="danger"
+              className="rounded-lg text-xs"
+              onPress={() => {
+                setConfirmingReset(false)
+                onReset()
+              }}
+            >
+              <Trash2 size={13} /> Reset
+            </Button>
+          </>
+        ) : (
+          <>
+            <span className="text-[11px] text-muted">Start over with an empty local database.</span>
+            <Button
+              size="sm"
+              variant="danger-soft"
+              className="ml-auto rounded-lg text-xs"
+              onPress={() => setConfirmingReset(true)}
+            >
+              Reset local data
+            </Button>
+          </>
+        )}
+      </div>
     </Modal>
   )
 }

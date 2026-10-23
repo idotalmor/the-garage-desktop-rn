@@ -11,7 +11,7 @@ import { useLocalRepositories } from '../../github/hooks/useLocalRepositories'
 import { buildJiraCards } from './jira-cards'
 
 export function DashboardHome(): React.JSX.Element {
-  const { snapshot, repositories, addFolders, removeFolder, rescan } = useLocalRepositories()
+  const { snapshot, repositories, addFolders, removeFolder, rescan, reset } = useLocalRepositories()
   const [isSourcesOpen, setIsSourcesOpen] = useState(false)
   const [selectedRecipient, setSelectedRecipient] = useState('Default · #eng-review')
   const [linkedTasks, setLinkedTasks] = useState<Record<string, string>>({})
@@ -204,6 +204,7 @@ export function DashboardHome(): React.JSX.Element {
           onAdd={() => void addFolders()}
           onRemove={(id) => void removeFolder(id)}
           onRescan={(sourceId) => void rescan(sourceId)}
+          onReset={() => void reset()}
           onClose={() => setIsSourcesOpen(false)}
         />
       )}
