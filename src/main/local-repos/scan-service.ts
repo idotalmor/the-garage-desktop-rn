@@ -175,7 +175,6 @@ async function runScan(scanFolderIds: string[] | undefined, visible: boolean): P
       if (!stats.isDirectory()) throw new Error('Not a folder')
       const repositories = await scanFolder(
         folder.path,
-        folder.id,
         folder.maxDepth,
         visible ? onProgress : undefined
       )
@@ -188,15 +187,34 @@ async function runScan(scanFolderIds: string[] | undefined, visible: boolean): P
     }
     if (visible) notify()
   }
+  await deleteMissingRepositories()
 }
 
-/** Re-checks changed repos. A repo that is gone triggers a rescan of the folders that found it. */
-async function refreshRepositories(repoIds: string[]): Promise<void> {
-  const lostScanFolderIds = new Set<string>()
-  for (const repo of db.listRepositories().filter((repo) => repoIds.includes(repo.id))) {
-    const fresh = await reinspectRepository(repo).catch(() => null)
-    if (fresh) db.saveRepository(fresh)
-    else repo.scanFolderIds.forEach((id) => lostScanFolderIds.add(id))
+/** Deletes repos whose git dir is gone, including ones another scan folder still covers. */
+async function deleteMissingRepositories(): Promise<void> {
+  const missing: string[] = []
+  for (const repo of db.listRepositories()) {
+    if (
+      !(await fs.access(repo.commonDir).then(
+        () => true,
+        () => false
+      ))
+    )
+      missing.push(repo.id)
   }
-  if (lostScanFolderIds.size > 0) await runScan([...lostScanFolderIds], false)
+  db.deleteRepositories(missing)
+}
+
+/** Re-checks changed repos. A repo whose git dir is gone is deleted. */
+async function refreshRepositories(repoIds: string[]): Promise<void> {
+  const gone: string[] = []
+  for (const repo of db.listRepositories().filter((repo) => repoIds.includes(repo.id))) {
+    const fresh = await reinspectRepository(repo).catch((error) => {
+      console.error('[local-repos] refresh failed for', repo.commonDir, error)
+      return undefined
+    })
+    if (fresh === null) gone.push(repo.id)
+    else if (fresh) db.saveRepository(fresh)
+  }
+  db.deleteRepositories(gone)
 }

@@ -99,13 +99,16 @@ export type LocalRepository = {
   defaultBranch: string | null
   /** Latest commit on the default branch. */
   defaultBranchCommit: CommitSummary | null
-  /** Ids of the scan folders that found this repo (a repo can be inside several). */
+  /** Ids of the scan folders that contain this repo's git dir or one of its checkouts. Worked out from paths, not stored. */
   scanFolderIds: string[]
   /** Every checkout of this repo, main checkout first. */
   worktrees: LocalWorktree[]
   /** When this repo was last inspected (epoch ms). */
   scannedAt: number
 }
+
+/** A repo as the scanner reads it from disk, before the DB adds `scanFolderIds`. */
+export type ScannedRepository = Omit<LocalRepository, 'scanFolderIds'>
 
 /** Live progress of the scan that is currently running. */
 export type ScanProgress = {

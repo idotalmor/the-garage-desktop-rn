@@ -4,7 +4,7 @@ The machine-local SQLite database behind the GitHub section's "local repositorie
 
 - File: `~/.devflow/local-repos.db`
 - Table files (this folder): [scan-folders.ts](scan-folders.ts), [local-repos.ts](local-repos.ts),
-  [local-worktrees.ts](local-worktrees.ts), [local-repo-scan-folders.ts](local-repo-scan-folders.ts)
+  [local-worktrees.ts](local-worktrees.ts)
 - Multi-table operations: [../index.ts](../index.ts) · connection and table creation:
   [../connection.ts](../connection.ts)
 - App-facing types: [src/shared/local-repos/types.ts](../../../../shared/local-repos/types.ts)
@@ -13,17 +13,23 @@ None of this is synced to Firestore. Paths, branches and dirty state only make s
 
 ## Tables at a glance
 
-| Table                     | One row is…                                               | Created/updated by                                |
-| ------------------------- | --------------------------------------------------------- | ------------------------------------------------- |
-| `scan_folders`            | a folder the user picked in **Scan folders**              | Add folders (`addScanFolders`); end of every scan |
-| `local_repos`             | one git repository on disk (one shared `.git` dir)        | each scan (`saveScanFolderResult`)                |
-| `local_worktrees`         | one checkout of a repo (main checkout or linked worktree) | each scan; replaced per repo                      |
-| `local_repo_scan_folders` | "scan folder X found repo Y" (many-to-many link)          | each scan; used to delete repos no folder covers  |
+| Table             | One row is…                                               | Created/updated by                                |
+| ----------------- | --------------------------------------------------------- | ------------------------------------------------- |
+| `scan_folders`    | a folder the user picked in **Scan folders**              | Add folders (`addScanFolders`); end of every scan |
+| `local_repos`     | one git repository on disk (one shared `.git` dir)        | each scan (`saveScanFolderResult`)                |
+| `local_worktrees` | one checkout of a repo (main checkout or linked worktree) | each scan; replaced per repo                      |
+
+`scan_folders` is only the list of folders to scan and watch. `local_repos` and `local_worktrees`
+are what scanning and watching find. They are keyed by path (`common_dir`, `path`), so a repo or a
+checkout is stored once, however many scan folders lead to it.
+
+**Which scan folders cover a repo is not stored.** It is worked out from paths when reading
+(`coveringScanFolderIds` in [../../utils/paths.ts](../../utils/paths.ts)): a scan folder covers a
+repo when the repo's `common_dir` or one of its existing (non-prunable) checkouts is inside it. A
+repo that no scan folder covers is deleted.
 
 ```mermaid
 erDiagram
-  scan_folders ||--o{ local_repo_scan_folders : "found"
-  local_repos ||--o{ local_repo_scan_folders : "found by"
   local_repos ||--|{ local_worktrees : "has checkouts"
 
   scan_folders {
@@ -48,10 +54,6 @@ erDiagram
     TEXT default_branch_commit "JSON CommitSummary: latest commit on default_branch"
     INTEGER scanned_at "when this repo was last inspected (epoch ms)"
   }
-  local_repo_scan_folders {
-    TEXT repo_id PK, FK "the repo that was found (local_repos.id)"
-    TEXT scan_folder_id PK, FK "the scan folder that found it (scan_folders.id)"
-  }
   local_worktrees {
     TEXT path PK "absolute path of the checkout"
     TEXT repo_id FK "repo this checkout belongs to (local_repos.id)"
@@ -74,8 +76,8 @@ erDiagram
 Each column's comment says what it stores. Booleans are `0`/`1`, times are epoch ms, and `JSON …`
 columns hold JSON text of the named type from `src/shared/local-repos/types.ts`.
 
-Deleting a scan folder cascades to its link rows. Deleting a repo cascades to its link rows and
-worktrees.
+`scan_folders` has no foreign keys: it is linked to repos only through paths. Deleting a repo
+cascades to its worktrees.
 
 ## How rows get created: the scan flow
 
@@ -90,13 +92,12 @@ flowchart TD
   F --> G["group candidates by<br/>git rev-parse --git-common-dir"]
   G --> H["inspect each repo:<br/>git worktree list, remotes,<br/>default branch, status per checkout"]
   H --> I[["saveScanFolderResult (one transaction)"]]
-  I --> I1[(local_repo_scan_folders<br/>drop this folder's links)]
-  I1 --> I2[(local_repos<br/>upsert each repo)]
-  I2 --> I3[(local_repo_scan_folders<br/>link repo ↔ folder)]
-  I3 --> I4[(local_worktrees<br/>replace repo's checkouts)]
+  I --> I2[(local_repos<br/>upsert each repo by common_dir)]
+  I2 --> I4[(local_worktrees<br/>replace repo's checkouts by path)]
   I4 --> I5[(scan_folders<br/>set last_scanned_at, clear last_error)]
-  I5 --> I6[(local_repos<br/>delete repos with no links)]
-  I6 --> J[snapshot pushed to UI]
+  I5 --> I6[(local_repos<br/>delete repos this folder covers but didn't find,<br/>unless another folder covers them)]
+  I6 --> I7[(local_repos<br/>after all folders: delete repos whose common_dir is gone)]
+  I7 --> J[snapshot pushed to UI]
 ```
 
 A full scan runs on app start, after folders are added, on **Rescan**, and on window focus (at most
@@ -113,25 +114,27 @@ flowchart TD
   N -- yes --> X[ignored]
   N -- no --> K{"inside a known checkout<br/>or a repo's .git?"}
   K -- yes --> R["re-check that repo only<br/>(git worktree list + status)"]
-  R --> R1[(local_repos upsert<br/>local_worktrees replaced<br/>links untouched)]
-  R -- repo is gone --> S
+  R --> R1[(local_repos upsert<br/>local_worktrees replaced<br/>deleted if no scan folder covers it now)]
+  R -- common_dir is gone --> D[(local_repos<br/>delete the repo)]
+  D --> U
   K -- no, but inside a scan folder --> S["quiet rescan of that scan folder<br/>(new or deleted clone)"]
   S --> I[["saveScanFolderResult (same as above)"]]
   R1 --> U[watchers re-synced, snapshot pushed to UI]
   I --> U
 ```
 
-**Removing a scan folder** deletes its `scan_folders` row (which cascades to its links), then deletes
-any `local_repos` row that no longer has a link. A repo also found by another folder stays.
+**Removing a scan folder** deletes its `scan_folders` row, then deletes every `local_repos` row that
+no remaining scan folder covers. A repo another folder also covers stays.
 
 ## Scenarios: what each situation stores
 
 Each row is a real situation and the rows a scan leaves in each table. Rows 17–24 are live
-changes picked up by the file watchers while the app runs. These were checked by running
+changes picked up by the file watchers while the app runs; rows 25–28 check that nothing is stored
+twice when scan folders overlap. These were checked by running
 the scanner and DB code against real repos. `~` is the home folder, the remote is GitHub unless
 noted, and "main" means `is_main = 1`.
 
-| #   | Situation                                                                                                   | `scan_folders`                                                     | `local_repos`                                                                                                                                   | `local_repo_scan_folders`                          | `local_worktrees`                                                                                                                       |
+| #   | Situation                                                                                                   | `scan_folders`                                                     | `local_repos`                                                                                                                                   | covered by (computed)                              | `local_worktrees`                                                                                                                       |
 | --- | ----------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
 | 1   | Plain clone, no worktrees; pick the clone folder `~/code/app`                                               | `~/code/app`                                                       | `app`                                                                                                                                           | app ← `~/code/app`                                 | 1: `~/code/app` (main)                                                                                                                  |
 | 2   | Pick a parent `~/code` with clones `app`, `api` and a non-repo folder                                       | `~/code`                                                           | `app`, `api`                                                                                                                                    | app ← `~/code`, api ← `~/code`                     | 1 each (main). The non-repo folder stores nothing                                                                                       |
@@ -140,25 +143,31 @@ noted, and "main" means `is_main = 1`.
 | 5   | Pick only a linked worktree `~/wt/feat-x`; the clone is `~/code/app` and another worktree is `~/wt2/feat-y` | `~/wt/feat-x`                                                      | `app`, `common_dir = ~/code/app/.git` (found by following the worktree's `.git` file)                                                           | app ← `~/wt/feat-x`                                | 3: `~/code/app` (main), `~/wt/feat-x`, `~/wt2/feat-y`                                                                                   |
 | 6   | Bare repo `~/code/app.git` with worktrees `app-main` and `app-feat`                                         | `~/code`                                                           | `app`, `is_bare = 1`                                                                                                                            | app ← `~/code`                                     | 2, both `is_main = 0`. The bare repo has no files, so it has no worktree row                                                            |
 | 7   | Two overlapping folders: `~/code` (has `app`, `api`) and `~/code/app`                                       | `~/code`, `~/code/app`                                             | `app`, `api` (app stored once)                                                                                                                  | app ← `~/code`, api ← `~/code`, app ← `~/code/app` | 1 each                                                                                                                                  |
-| 7b  | …then remove `~/code`                                                                                       | `~/code/app`                                                       | `app` (still linked); `api` deleted                                                                                                             | app ← `~/code/app`                                 | `api`'s row deleted                                                                                                                     |
-| 7c  | …then remove `~/code/app`                                                                                   | empty                                                              | empty                                                                                                                                           | empty                                              | empty                                                                                                                                   |
-| 8   | Repo with no remote, and a repo with a GitLab remote                                                        | `~/code`                                                           | `local-only`: `provider = none`, `slug = null`; `gl`: `provider = other`, `slug = gitlab.com/me/gl`                                             | one link each                                      | 1 each (main)                                                                                                                           |
-| 9   | Same GitHub repo cloned twice: `~/a/app` and `~/b/app`                                                      | `~/a`, `~/b`                                                       | **2 rows**, different `common_dir`, same `slug = github.com/me/app`                                                                             | one link each                                      | 1 each (main). Matching to GitHub later must group by `slug`                                                                            |
-| 10  | Clone `api` deleted from disk, then a rescan                                                                | `~/code`                                                           | `api` deleted (no folder links it anymore)                                                                                                      | api's link removed                                 | api's rows deleted                                                                                                                      |
+| 7b  | …then remove `~/code`                                                                                       | `~/code/app`                                                       | `app` (still covered by `~/code/app`); `api` deleted                                                                                            | app ← `~/code/app`                                 | `api`'s row deleted                                                                                                                     |
+| 7c  | …then remove `~/code/app`                                                                                   | empty                                                              | empty                                                                                                                                           | —                                                  | empty                                                                                                                                   |
+| 8   | Repo with no remote, and a repo with a GitLab remote                                                        | `~/code`                                                           | `local-only`: `provider = none`, `slug = null`; `gl`: `provider = other`, `slug = gitlab.com/me/gl`                                             | each repo ← `~/code`                               | 1 each (main)                                                                                                                           |
+| 9   | Same GitHub repo cloned twice: `~/a/app` and `~/b/app`                                                      | `~/a`, `~/b`                                                       | **2 rows**, different `common_dir`, same `slug = github.com/me/app`                                                                             | each clone ← its own folder                        | 1 each (main). Matching to GitHub later must group by `slug`                                                                            |
+| 10  | Clone `api` deleted from disk, then a rescan                                                                | `~/code`                                                           | `api` deleted (`~/code` covers it but no longer finds it)                                                                                       | app ← `~/code` (api gone)                          | api's rows deleted                                                                                                                      |
 | 11  | Worktree folder deleted without `git worktree remove`                                                       | `~/code`                                                           | `app`                                                                                                                                           | app ← `~/code`                                     | 2: main, plus the missing one with `is_prunable = 1` (status fields empty)                                                              |
-| 12  | The scan folder itself is deleted, then a rescan                                                            | `~/code` kept, `last_error = "ENOENT: no such file or directory…"` | its repos deleted                                                                                                                               | empty                                              | empty                                                                                                                                   |
-| 13  | Folder with no repos                                                                                        | `~/empty`, `last_error = null`                                     | none                                                                                                                                            | none                                               | none                                                                                                                                    |
+| 12  | The scan folder itself is deleted, then a rescan                                                            | `~/code` kept, `last_error = "ENOENT: no such file or directory…"` | its repos deleted                                                                                                                               | —                                                  | empty                                                                                                                                   |
+| 13  | Folder with no repos                                                                                        | `~/empty`, `last_error = null`                                     | none                                                                                                                                            | —                                                  | none                                                                                                                                    |
 | 14  | Inside `~/code/app`: a submodule, a repo in `node_modules`, and an independent repo in `packages/inner`     | `~/code`                                                           | only `app`. Submodules and `node_modules` are skipped on purpose. **`packages/inner` is missed too**: the walk stops at the first repo it finds | app ← `~/code`                                     | 1: `~/code/app` (main)                                                                                                                  |
-| 15  | Repo 5 levels below the scan folder (`max_depth` is 4)                                                      | `~/code`                                                           | not found; a repo 4 levels down is found                                                                                                        | only for the repo found                            | only for the repo found                                                                                                                 |
+| 15  | Repo 5 levels below the scan folder (`max_depth` is 4)                                                      | `~/code`                                                           | not found; a repo 4 levels down is found                                                                                                        | ok ← `~/code`                                      | only for the repo found                                                                                                                 |
 | 16  | Worktree checked out at a commit (`--detach`), plus an uncommitted file in main                             | `~/code`                                                           | `app`                                                                                                                                           | app ← `~/code`                                     | main with `changed_files = 1`; detached one with `branch = null`, `is_detached = 1`                                                     |
 | 17  | Live: `git worktree add ../app-feat` (inside the scan folder)                                               | unchanged                                                          | `app` re-checked                                                                                                                                | unchanged                                          | new row for `app-feat` within ~1 s                                                                                                      |
 | 18  | Live: `git worktree add ~/elsewhere/far` (outside every scan folder)                                        | unchanged                                                          | `app` re-checked                                                                                                                                | unchanged                                          | new row for `~/elsewhere/far`; it then gets its own watcher                                                                             |
 | 19  | Live: edit a file in any checkout (inside or outside the scan folders)                                      | unchanged                                                          | that repo re-checked                                                                                                                            | unchanged                                          | that checkout's `changed_files` updates                                                                                                 |
 | 20  | Live: commit or switch branch                                                                               | unchanged                                                          | that repo re-checked                                                                                                                            | unchanged                                          | `last_commit` / `branch` update                                                                                                         |
-| 21  | Live: new clone appears in a scan folder                                                                    | unchanged                                                          | new row                                                                                                                                         | new link                                           | new main row                                                                                                                            |
-| 22  | Live: a clone is deleted                                                                                    | unchanged                                                          | row deleted (re-check fails → quiet folder rescan)                                                                                              | link deleted                                       | rows deleted                                                                                                                            |
+| 21  | Live: new clone appears in a scan folder                                                                    | unchanged                                                          | new row                                                                                                                                         | api ← `~/code`                                     | new main row                                                                                                                            |
+| 22  | Live: a clone is deleted                                                                                    | unchanged                                                          | row deleted (re-check fails → quiet folder rescan)                                                                                              | —                                                  | rows deleted                                                                                                                            |
 | 23  | Live: `git worktree remove`                                                                                 | unchanged                                                          | `app` re-checked                                                                                                                                | unchanged                                          | that row deleted                                                                                                                        |
 | 24  | Live: writes in `node_modules` / build folders                                                              | ignored, nothing re-checked                                        | —                                                                                                                                               | —                                                  | — (picked up on the repo's next real change)                                                                                            |
+| 25  | `~/wt/feat-x` (only a linked worktree) and `~/code` (its main clone) both picked                            | 2 rows                                                             | 1 row (stored once)                                                                                                                             | app ← `~/wt/feat-x`, `~/code`                      | main + `~/wt/feat-x`                                                                                                                    |
+| 25b | ...remove `~/code`                                                                                          | `~/wt/feat-x`                                                      | app kept (still covered through `~/wt/feat-x`)                                                                                                  | app ← `~/wt/feat-x`                                | unchanged                                                                                                                               |
+| 25c | ...remove `~/wt/feat-x`                                                                                     | empty                                                              | empty                                                                                                                                           | —                                                  | empty                                                                                                                                   |
+| 26  | `~/code/app` and `~/code` both picked, then app deleted from disk                                           | `~/code/app` keeps `last_error`                                    | 1 row, then deleted (its `common_dir` is gone)                                                                                                  | app ← both, then —                                 | deleted                                                                                                                                 |
+| 27  | Worktree folder `~/code/x` deleted by hand, then a different repo cloned at `~/code/x`                      | `~/code`                                                           | app + other                                                                                                                                     | each ← `~/code`                                    | `~/code/x` stored once, now under other                                                                                                 |
+| 28  | Only `~/wt/feat-x` picked, then `git worktree remove` it                                                    | `~/wt/feat-x` with `last_error`                                    | deleted (no scan folder covers it)                                                                                                              | —                                                  | deleted                                                                                                                                 |
 
 ## Tables in detail
 
@@ -256,19 +265,9 @@ One checkout of a repo: the main checkout (`is_main: 1`) or a linked worktree cr
 `is_prunable: 1` means the worktree's folder is gone (git can remove it with
 `git worktree prune`). Its status fields stay empty.
 
-### `local_repo_scan_folders`
-
-The link between scan folders and repos (many-to-many). One repo can be found by several scan
-folders (e.g. both `~/code` and `~/code/the-garage-desktop-rn`). It's stored once in `local_repos`,
-and this table remembers who found it. A repo is deleted only when its last link is gone.
-
-```json
-{ "repo_id": "3fa1c09b2e7d4a10", "scan_folder_id": "7c1e0f3a-5d1b-4e8e-9a51-0b6f3c2d9e11" }
-```
-
 ## What the UI receives
 
 `listRepositories()` joins the tables into `LocalRepository` objects
-(`src/shared/local-repos/types.ts`): one `local_repos` row + its `scanFolderIds` (from
-`local_repo_scan_folders`) + its `worktrees` (from `local_worktrees`), camelCased and with JSON
+(`src/shared/local-repos/types.ts`): one `local_repos` row + its `scanFolderIds` (worked out
+from paths, see above) + its `worktrees` (from `local_worktrees`), camelCased and with JSON
 parsed. The UI gets them inside `LocalReposSnapshot { scanFolders, repositories, scanning, progress }`.

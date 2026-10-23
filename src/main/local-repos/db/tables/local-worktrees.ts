@@ -99,7 +99,10 @@ export function listLocalWorktreeRows(db: Database.Database): LocalWorktreeRow[]
     .all() as LocalWorktreeRow[]
 }
 
-/** Replaces all worktrees of a repo with `worktrees`, keeping their order. */
+/**
+ * Replaces all worktrees of a repo with `worktrees`, keeping their order. A path is stored once:
+ * if another repo still had a row for it (e.g. a folder reused for a new clone), it moves here.
+ */
 export function replaceRepoWorktrees(
   db: Database.Database,
   repoId: string,

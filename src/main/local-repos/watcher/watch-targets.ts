@@ -11,6 +11,7 @@
 import { basename, sep } from 'path'
 import type { LocalRepository, ScanFolder } from '../../../shared/local-repos/types'
 import { ALLOWED_HIDDEN_DIRS, SKIP_DIRS } from '../scanner/discover'
+import { isInside } from '../utils/paths'
 
 /** What a changed path requires. */
 export type Change =
@@ -66,10 +67,6 @@ export function classifyChange(
     )
     .map((folder) => folder.id)
   return scanFolderIds.length > 0 ? { kind: 'scan-folder', scanFolderIds } : null
-}
-
-function isInside(path: string, dir: string): boolean {
-  return path === dir || path.startsWith(dir.endsWith(sep) ? dir : dir + sep)
 }
 
 function relativeParts(path: string, base: string): string[] {

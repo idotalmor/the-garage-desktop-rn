@@ -7,7 +7,7 @@
 import { createHash } from 'crypto'
 import { promises as fs } from 'fs'
 import { basename, dirname } from 'path'
-import type { LocalRepository, LocalWorktree } from '../../../shared/local-repos/types'
+import type { LocalWorktree, ScannedRepository } from '../../../shared/local-repos/types'
 import type { PorcelainWorktree } from '../git/parsers'
 import {
   isBareRepository,
@@ -23,9 +23,8 @@ import type { Candidate } from './discover'
 
 export async function inspectRepository(
   commonDir: string,
-  candidate: Candidate,
-  scanFolderIds: string[]
-): Promise<LocalRepository> {
+  candidate: Candidate
+): Promise<ScannedRepository> {
   const [listed, remotes, isBare] = await Promise.all([
     listWorktrees(candidate.dir),
     readRemotes(candidate.dir),
@@ -55,22 +54,26 @@ export async function inspectRepository(
     remotes,
     defaultBranch,
     defaultBranchCommit,
-    scanFolderIds,
     worktrees,
     scannedAt: Date.now()
   }
 }
 
-/** Re-reads a repo that is already stored (after a file change). Throws if the repo is gone. */
-export async function reinspectRepository(repo: LocalRepository): Promise<LocalRepository> {
-  await fs.access(repo.commonDir)
+/** Re-reads a repo that is already stored (after a file change). Returns null if it is gone. */
+export async function reinspectRepository(
+  repo: ScannedRepository
+): Promise<ScannedRepository | null> {
+  const exists = await fs.access(repo.commonDir).then(
+    () => true,
+    () => false
+  )
+  if (!exists) return null
   const main = repo.worktrees.find((tree) => tree.isMain && !tree.isPrunable)
   const dir = main && (await fs.stat(main.path).catch(() => null))?.isDirectory()
-  return inspectRepository(
-    repo.commonDir,
-    { dir: dir && main ? main.path : repo.commonDir, kind: repo.isBare ? 'bare' : 'worktree' },
-    repo.scanFolderIds
-  )
+  return inspectRepository(repo.commonDir, {
+    dir: dir && main ? main.path : repo.commonDir,
+    kind: repo.isBare ? 'bare' : 'worktree'
+  })
 }
 
 async function inspectWorktree(entry: PorcelainWorktree, isMain: boolean): Promise<LocalWorktree> {

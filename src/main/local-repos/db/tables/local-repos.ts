@@ -5,10 +5,10 @@ import type {
   GitProvider,
   GitRemote,
   LocalRepository,
-  LocalWorktree
+  LocalWorktree,
+  ScannedRepository
 } from '../../../../shared/local-repos/types'
 import { parseJson, toJson } from '../utils/json'
-import { LOCAL_REPO_SCAN_FOLDERS_TABLE } from './local-repo-scan-folders'
 
 export const LOCAL_REPOS_TABLE = 'local_repos'
 
@@ -48,7 +48,7 @@ export const CREATE_LOCAL_REPOS_TABLE = `
   CREATE INDEX IF NOT EXISTS idx_${LOCAL_REPOS_TABLE}_slug ON ${LOCAL_REPOS_TABLE}(slug);
 `
 
-export function toLocalRepoRow(repo: LocalRepository): LocalRepoRow {
+export function toLocalRepoRow(repo: ScannedRepository): LocalRepoRow {
   return {
     id: repo.id,
     name: repo.name,
@@ -92,7 +92,7 @@ export function listLocalRepoRows(db: Database.Database): LocalRepoRow[] {
   return db.prepare(`SELECT * FROM ${LOCAL_REPOS_TABLE} ORDER BY name`).all() as LocalRepoRow[]
 }
 
-export function upsertLocalRepo(db: Database.Database, repo: LocalRepository): void {
+export function upsertLocalRepo(db: Database.Database, repo: ScannedRepository): void {
   db.prepare(
     `
     INSERT INTO ${LOCAL_REPOS_TABLE} (
@@ -115,10 +115,8 @@ export function hasLocalRepo(db: Database.Database, id: string): boolean {
   return !!db.prepare(`SELECT 1 FROM ${LOCAL_REPOS_TABLE} WHERE id = ?`).get(id)
 }
 
-/** Deletes repos that no scan folder covers anymore. Their worktrees cascade. */
-export function deleteOrphanLocalRepos(db: Database.Database): void {
-  db.exec(
-    `DELETE FROM ${LOCAL_REPOS_TABLE}
-     WHERE id NOT IN (SELECT DISTINCT repo_id FROM ${LOCAL_REPO_SCAN_FOLDERS_TABLE})`
-  )
+/** Deletes repos by id. Their worktrees cascade. */
+export function deleteLocalRepos(db: Database.Database, ids: string[]): void {
+  const remove = db.prepare(`DELETE FROM ${LOCAL_REPOS_TABLE} WHERE id = ?`)
+  for (const id of ids) remove.run(id)
 }
