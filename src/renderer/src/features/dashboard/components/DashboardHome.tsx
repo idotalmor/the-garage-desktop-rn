@@ -33,35 +33,7 @@ export function DashboardHome(): React.JSX.Element {
     <main className="mx-auto w-full max-w-[1600px] px-3 pb-8 pt-14 sm:px-5 lg:px-6 lg:pt-16">
       <h1 className="mb-6 text-3xl font-semibold tracking-tight sm:text-4xl">The Garage</h1>
 
-      <section aria-labelledby="jira-heading" className="space-y-2">
-        <h2 id="jira-heading" className="text-sm font-semibold">
-          <button
-            type="button"
-            onClick={() => toggleCollapsed('jira')}
-            aria-expanded={!collapsed['jira']}
-            aria-controls="jira-section"
-            className="flex items-center gap-1.5"
-          >
-            <ChevronDown
-              size={14}
-              className={`text-muted transition-transform ${collapsed['jira'] ? '-rotate-90' : ''}`}
-              aria-hidden="true"
-            />
-            Jira
-          </button>
-        </h2>
-        {!collapsed['jira'] && (
-          <div id="jira-section" className="flex flex-wrap gap-2">
-            {buildJiraCards({
-              onHistory: (title) => setSelectedHistory({ title })
-            }).map(({ key, ...card }) => (
-              <GitHubCard key={key} {...card} />
-            ))}
-          </div>
-        )}
-      </section>
-
-      <section aria-labelledby="github-heading" className="mt-8 space-y-4">
+      <section aria-labelledby="github-heading" className="space-y-4">
         <h2 id="github-heading" className="text-sm font-semibold">
           <button
             type="button"
@@ -121,6 +93,34 @@ export function DashboardHome(): React.JSX.Element {
                   </div>
                 )}
               </div>
+            ))}
+          </div>
+        )}
+      </section>
+
+      <section aria-labelledby="jira-heading" className="mt-8 space-y-2">
+        <h2 id="jira-heading" className="text-sm font-semibold">
+          <button
+            type="button"
+            onClick={() => toggleCollapsed('jira')}
+            aria-expanded={!collapsed['jira']}
+            aria-controls="jira-section"
+            className="flex items-center gap-1.5"
+          >
+            <ChevronDown
+              size={14}
+              className={`text-muted transition-transform ${collapsed['jira'] ? '-rotate-90' : ''}`}
+              aria-hidden="true"
+            />
+            Jira
+          </button>
+        </h2>
+        {!collapsed['jira'] && (
+          <div id="jira-section" className="flex flex-wrap gap-2">
+            {buildJiraCards({
+              onHistory: (title) => setSelectedHistory({ title })
+            }).map(({ key, ...card }) => (
+              <GitHubCard key={key} {...card} />
             ))}
           </div>
         )}
