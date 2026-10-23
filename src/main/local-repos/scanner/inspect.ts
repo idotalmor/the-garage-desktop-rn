@@ -2,9 +2,10 @@
  * Step 2 of a scan: turn one discovered repo into a `LocalRepository` with all its checkouts.
  *
  * Asks git for the repo's checkouts, remotes and default branch, then reads branch/status/last
- * commit of each checkout.
+ * commit of each checkout. `reinspectRepository` re-runs this for one stored repo after a change.
  */
 import { createHash } from 'crypto'
+import { promises as fs } from 'fs'
 import { basename, dirname } from 'path'
 import type { LocalRepository, LocalWorktree } from '../../../shared/local-repos/types'
 import type { PorcelainWorktree } from '../git/parsers'
@@ -23,7 +24,7 @@ import type { Candidate } from './discover'
 export async function inspectRepository(
   commonDir: string,
   candidate: Candidate,
-  scanFolderId: string
+  scanFolderIds: string[]
 ): Promise<LocalRepository> {
   const [listed, remotes, isBare] = await Promise.all([
     listWorktrees(candidate.dir),
@@ -54,10 +55,22 @@ export async function inspectRepository(
     remotes,
     defaultBranch,
     defaultBranchCommit,
-    scanFolderIds: [scanFolderId],
+    scanFolderIds,
     worktrees,
     scannedAt: Date.now()
   }
+}
+
+/** Re-reads a repo that is already stored (after a file change). Throws if the repo is gone. */
+export async function reinspectRepository(repo: LocalRepository): Promise<LocalRepository> {
+  await fs.access(repo.commonDir)
+  const main = repo.worktrees.find((tree) => tree.isMain && !tree.isPrunable)
+  const dir = main && (await fs.stat(main.path).catch(() => null))?.isDirectory()
+  return inspectRepository(
+    repo.commonDir,
+    { dir: dir && main ? main.path : repo.commonDir, kind: repo.isBare ? 'bare' : 'worktree' },
+    repo.scanFolderIds
+  )
 }
 
 async function inspectWorktree(entry: PorcelainWorktree, isMain: boolean): Promise<LocalWorktree> {

@@ -27,7 +27,7 @@ export async function scanFolder(
 
   const repositories = (
     await mapLimit([...byCommonDir.entries()], GIT_CONCURRENCY, ([commonDir, candidate]) =>
-      inspectRepository(commonDir, candidate, scanFolderId).catch(() => null)
+      inspectRepository(commonDir, candidate, [scanFolderId]).catch(() => null)
     )
   ).filter((repo): repo is LocalRepository => repo !== null)
 

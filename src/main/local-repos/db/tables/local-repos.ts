@@ -111,6 +111,10 @@ export function upsertLocalRepo(db: Database.Database, repo: LocalRepository): v
   ).run(toLocalRepoRow(repo))
 }
 
+export function hasLocalRepo(db: Database.Database, id: string): boolean {
+  return !!db.prepare(`SELECT 1 FROM ${LOCAL_REPOS_TABLE} WHERE id = ?`).get(id)
+}
+
 /** Deletes repos that no scan folder covers anymore. Their worktrees cascade. */
 export function deleteOrphanLocalRepos(db: Database.Database): void {
   db.exec(

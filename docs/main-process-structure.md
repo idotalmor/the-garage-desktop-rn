@@ -16,7 +16,7 @@ src/shared/<feature>/
 src/main/<feature>/
   ipc.ts              communication only
   <name>-service.ts   state + orchestration (queues, progress, timers, subscriptions)
-  <domain>/           the actual work, split by concern (e.g. scanner/, git/, http/)
+  <domain>/           the actual work, split by concern (e.g. scanner/, git/, watcher/, http/)
   db/                 SQLite persistence (only if the feature stores data)
     connection.ts
     index.ts
@@ -56,7 +56,8 @@ subscribe((snapshot) => {
 
 ### Domain folders: the work
 
-- Split by "what it talks to": e.g. `git/` (process), `scanner/` (filesystem walk), `http/` or
+- Split by "what it talks to": e.g. `git/` (process), `scanner/` (filesystem walk), `watcher/`
+  (`fs.watch` handles + pure rules for what a change means), `http/` or
   `api/` (network).
 - Separate **I/O** from **parsing**: `run.ts` executes the command/request, `parsers.ts` holds pure
   functions that turn raw output into typed data, `queries.ts` combines them into typed

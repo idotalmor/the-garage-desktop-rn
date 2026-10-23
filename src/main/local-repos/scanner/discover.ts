@@ -12,7 +12,7 @@ import { isBareRepository } from '../git/queries'
 import { mapLimit } from '../utils/concurrency'
 
 /** Folders that never contain repos worth showing, or are too large to walk. */
-const SKIP_DIRS = new Set([
+export const SKIP_DIRS = new Set([
   'node_modules',
   'dist',
   'out',
@@ -27,7 +27,7 @@ const SKIP_DIRS = new Set([
   'venv'
 ])
 /** Hidden folders are skipped, except these common worktree locations. */
-const ALLOWED_HIDDEN_DIRS = new Set(['.worktrees', '.claude', '.devin', '.cursor'])
+export const ALLOWED_HIDDEN_DIRS = new Set(['.worktrees', '.claude', '.devin', '.cursor'])
 
 const FS_CONCURRENCY = 16
 

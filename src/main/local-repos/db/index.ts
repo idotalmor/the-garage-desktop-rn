@@ -11,6 +11,7 @@ import {
 } from './tables/local-repo-scan-folders'
 import {
   deleteOrphanLocalRepos,
+  hasLocalRepo,
   listLocalRepoRows,
   toLocalRepository,
   upsertLocalRepo
@@ -63,6 +64,19 @@ export function saveScanFolderResult(scanFolderId: string, repositories: LocalRe
     }
     markScanFolderScanned(db, scanFolderId, null)
     deleteOrphanLocalRepos(db)
+  })()
+}
+
+/**
+ * Updates one repo and its worktrees after a live change. Scan folder links stay as they are.
+ * Skipped if the repo was deleted meanwhile (e.g. its scan folder was removed).
+ */
+export function saveRepository(repo: LocalRepository): void {
+  const db = getDb()
+  db.transaction(() => {
+    if (!hasLocalRepo(db, repo.id)) return
+    upsertLocalRepo(db, repo)
+    replaceRepoWorktrees(db, repo.id, repo.worktrees)
   })()
 }
 

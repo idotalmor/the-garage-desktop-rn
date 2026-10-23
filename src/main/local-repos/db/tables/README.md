@@ -99,16 +99,35 @@ flowchart TD
   I6 --> J[snapshot pushed to UI]
 ```
 
-A scan runs on app start, after folders are added, on **Rescan**, and on window focus (at most every
-5 minutes). If a folder can't be scanned (e.g. deleted), its result is saved as empty and
+A full scan runs on app start, after folders are added, on **Rescan**, and on window focus (at most
+every 5 minutes). If a folder can't be scanned (e.g. deleted), its result is saved as empty and
 `scan_folders.last_error` is set.
+
+**Live updates (file watching).** `scan-service` watches every scan folder recursively (FSEvents on
+macOS), plus repo `.git` folders and checkouts that live outside all scan folders. Changes are
+batched until the folder has been quiet for 1 s (at most 5 s):
+
+```mermaid
+flowchart TD
+  W[file changed under a watched folder] --> N{"noise?<br/>node_modules, build dirs,<br/>.git/objects, .git/logs, *.lock"}
+  N -- yes --> X[ignored]
+  N -- no --> K{"inside a known checkout<br/>or a repo's .git?"}
+  K -- yes --> R["re-check that repo only<br/>(git worktree list + status)"]
+  R --> R1[(local_repos upsert<br/>local_worktrees replaced<br/>links untouched)]
+  R -- repo is gone --> S
+  K -- no, but inside a scan folder --> S["quiet rescan of that scan folder<br/>(new or deleted clone)"]
+  S --> I[["saveScanFolderResult (same as above)"]]
+  R1 --> U[watchers re-synced, snapshot pushed to UI]
+  I --> U
+```
 
 **Removing a scan folder** deletes its `scan_folders` row (which cascades to its links), then deletes
 any `local_repos` row that no longer has a link. A repo also found by another folder stays.
 
 ## Scenarios: what each situation stores
 
-Each row is a real situation and the rows a scan leaves in each table. These were checked by running
+Each row is a real situation and the rows a scan leaves in each table. Rows 17–24 are live
+changes picked up by the file watchers while the app runs. These were checked by running
 the scanner and DB code against real repos. `~` is the home folder, the remote is GitHub unless
 noted, and "main" means `is_main = 1`.
 
@@ -132,6 +151,14 @@ noted, and "main" means `is_main = 1`.
 | 14  | Inside `~/code/app`: a submodule, a repo in `node_modules`, and an independent repo in `packages/inner`     | `~/code`                                                           | only `app`. Submodules and `node_modules` are skipped on purpose. **`packages/inner` is missed too**: the walk stops at the first repo it finds | app ← `~/code`                                     | 1: `~/code/app` (main)                                                                                                                  |
 | 15  | Repo 5 levels below the scan folder (`max_depth` is 4)                                                      | `~/code`                                                           | not found; a repo 4 levels down is found                                                                                                        | only for the repo found                            | only for the repo found                                                                                                                 |
 | 16  | Worktree checked out at a commit (`--detach`), plus an uncommitted file in main                             | `~/code`                                                           | `app`                                                                                                                                           | app ← `~/code`                                     | main with `changed_files = 1`; detached one with `branch = null`, `is_detached = 1`                                                     |
+| 17  | Live: `git worktree add ../app-feat` (inside the scan folder)                                               | unchanged                                                          | `app` re-checked                                                                                                                                | unchanged                                          | new row for `app-feat` within ~1 s                                                                                                      |
+| 18  | Live: `git worktree add ~/elsewhere/far` (outside every scan folder)                                        | unchanged                                                          | `app` re-checked                                                                                                                                | unchanged                                          | new row for `~/elsewhere/far`; it then gets its own watcher                                                                             |
+| 19  | Live: edit a file in any checkout (inside or outside the scan folders)                                      | unchanged                                                          | that repo re-checked                                                                                                                            | unchanged                                          | that checkout's `changed_files` updates                                                                                                 |
+| 20  | Live: commit or switch branch                                                                               | unchanged                                                          | that repo re-checked                                                                                                                            | unchanged                                          | `last_commit` / `branch` update                                                                                                         |
+| 21  | Live: new clone appears in a scan folder                                                                    | unchanged                                                          | new row                                                                                                                                         | new link                                           | new main row                                                                                                                            |
+| 22  | Live: a clone is deleted                                                                                    | unchanged                                                          | row deleted (re-check fails → quiet folder rescan)                                                                                              | link deleted                                       | rows deleted                                                                                                                            |
+| 23  | Live: `git worktree remove`                                                                                 | unchanged                                                          | `app` re-checked                                                                                                                                | unchanged                                          | that row deleted                                                                                                                        |
+| 24  | Live: writes in `node_modules` / build folders                                                              | ignored, nothing re-checked                                        | —                                                                                                                                               | —                                                  | — (picked up on the repo's next real change)                                                                                            |
 
 ## Tables in detail
 
