@@ -5,14 +5,14 @@ import { CommitHistoryModal } from '../../github/components/CommitHistoryModal'
 import { CreatePrModal } from '../../github/components/CreatePrModal'
 import { GitHubCard } from '../../github/components/GitHubCard'
 import { buildRepositoryCards } from '../../github/components/repository-cards'
-import { ScanFoldersModal } from '../../github/components/ScanFoldersModal'
+import { SourcesModal } from '../../github/components/SourcesModal'
 import type { Repository, Worktree } from '../../github/components/types'
 import { useLocalRepositories } from '../../github/hooks/useLocalRepositories'
 import { buildJiraCards } from './jira-cards'
 
 export function DashboardHome(): React.JSX.Element {
   const { snapshot, repositories, addFolders, removeFolder, rescan } = useLocalRepositories()
-  const [isScanFoldersOpen, setIsScanFoldersOpen] = useState(false)
+  const [isSourcesOpen, setIsSourcesOpen] = useState(false)
   const [selectedRecipient, setSelectedRecipient] = useState('Default · #eng-review')
   const [linkedTasks, setLinkedTasks] = useState<Record<string, string>>({})
   const [babysitter, setBabysitter] = useState<Record<number, boolean>>({})
@@ -67,9 +67,9 @@ export function DashboardHome(): React.JSX.Element {
             size="sm"
             variant="ghost"
             className="ml-auto h-7 rounded-lg text-xs text-muted hover:text-foreground"
-            onPress={() => setIsScanFoldersOpen(true)}
+            onPress={() => setIsSourcesOpen(true)}
           >
-            <FolderSearch size={13} /> Scan folders
+            <FolderSearch size={13} /> Sources
             {snapshot && snapshot.scanFolders.length > 0 ? ` (${snapshot.scanFolders.length})` : ''}
           </Button>
         </div>
@@ -98,14 +98,14 @@ export function DashboardHome(): React.JSX.Element {
                   </p>
                 ) : (
                   <>
-                    <p>No git repositories found in your scan folders.</p>
+                    <p>No git repositories found in your folders.</p>
                     <Button
                       size="sm"
                       variant="outline"
                       className="h-7 rounded-lg text-xs"
-                      onPress={() => setIsScanFoldersOpen(true)}
+                      onPress={() => setIsSourcesOpen(true)}
                     >
-                      <FolderSearch size={13} /> Manage folders
+                      <FolderSearch size={13} /> Manage sources
                     </Button>
                   </>
                 )}
@@ -198,13 +198,13 @@ export function DashboardHome(): React.JSX.Element {
           onClose={() => setSelectedHistory(null)}
         />
       )}
-      {isScanFoldersOpen && (
-        <ScanFoldersModal
+      {isSourcesOpen && (
+        <SourcesModal
           snapshot={snapshot}
           onAdd={() => void addFolders()}
           onRemove={(id) => void removeFolder(id)}
           onRescan={(scanFolderId) => void rescan(scanFolderId)}
-          onClose={() => setIsScanFoldersOpen(false)}
+          onClose={() => setIsSourcesOpen(false)}
         />
       )}
       {selectedWorktree && (

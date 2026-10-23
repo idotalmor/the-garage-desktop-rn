@@ -11,7 +11,7 @@ export const DEFAULT_MAX_DEPTH = 4
 export type ScanFolderDbEntity = {
   /** Random UUID made when the folder is added. */
   id: string
-  /** Absolute path of the folder the user picked in "Scan folders" (unique). */
+  /** Absolute path of the folder the user added under "Sources → Folders on this machine" (unique). */
   path: string
   /** How many folder levels below `path` the scanner searches for repos (default 4). */
   max_depth: number

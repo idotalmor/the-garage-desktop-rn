@@ -12,7 +12,11 @@ function relativeTime(timestamp: number): string {
   return new Date(timestamp).toLocaleDateString()
 }
 
-export function ScanFoldersModal({
+/**
+ * Where repositories come from. Today only folders on this machine (`scan_folders`); a GitHub
+ * section will join it once GitHub is connected.
+ */
+export function SourcesModal({
   snapshot,
   onAdd,
   onRemove,
@@ -30,8 +34,11 @@ export function ScanFoldersModal({
   const scanning = Boolean(snapshot?.scanning)
 
   return (
-    <Modal title="Scan folders" onClose={onClose}>
-      <div className="space-y-3">
+    <Modal title="Sources" onClose={onClose}>
+      <section className="space-y-3" aria-labelledby="sources-folders-heading">
+        <h3 id="sources-folders-heading" className="text-xs font-semibold">
+          Folders on this machine
+        </h3>
         <p className="text-xs text-muted">
           Pick a repository, a worktree, or a parent folder like <code>~/code</code>. Folders are
           scanned up to 4 levels deep for git repositories and their worktrees. Results stay on this
@@ -121,7 +128,7 @@ export function ScanFoldersModal({
             <FolderPlus size={13} /> Add folders
           </Button>
         </div>
-      </div>
+      </section>
     </Modal>
   )
 }

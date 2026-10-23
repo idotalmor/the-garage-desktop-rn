@@ -15,7 +15,7 @@ None of this is synced to Firestore. Paths, branches and dirty state only make s
 
 | Table             | One row is…                                               | Created/updated by                                |
 | ----------------- | --------------------------------------------------------- | ------------------------------------------------- |
-| `scan_folders`    | a folder the user picked in **Scan folders**              | Add folders (`addScanFolders`); end of every scan |
+| `scan_folders`    | a folder the user added in **Sources**                    | Add folders (`addScanFolders`); end of every scan |
 | `local_repos`     | one git repository on disk (one shared `.git` dir)        | each scan (`saveScanFolderResult`)                |
 | `local_worktrees` | one checkout of a repo (main checkout or linked worktree) | each scan; replaced per repo                      |
 
@@ -84,7 +84,7 @@ cascades to its worktrees.
 
 ```mermaid
 flowchart TD
-  A[User clicks Scan folders → picks folders] --> B[(scan_folders<br/>insert one row per new path)]
+  A[User opens Sources → Add folders → picks folders] --> B[(scan_folders<br/>insert one row per new path)]
   B --> C[scan-service queues a scan per folder]
   C --> D["discover: walk folder (depth ≤ max_depth)<br/>skip node_modules, hidden, symlinks"]
   D --> E{"dir has .git dir / .git file<br/>or is a bare repo?"}
