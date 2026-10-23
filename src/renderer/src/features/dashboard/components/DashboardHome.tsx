@@ -11,7 +11,7 @@ import {
   sortableKeyboardCoordinates,
   verticalListSortingStrategy
 } from '@dnd-kit/sortable'
-import { ArrowDownUp, ChevronDown, FolderPlus, FolderSearch, Loader2 } from 'lucide-react'
+import { ArrowDownUp, ChevronDown, FolderPlus, Loader2 } from 'lucide-react'
 import { useState } from 'react'
 import { Button, Dropdown } from '@heroui/react'
 import { CommitHistoryModal } from '../../github/components/CommitHistoryModal'
@@ -19,7 +19,7 @@ import { CreatePrModal } from '../../github/components/CreatePrModal'
 import { GitHubCard } from '../../github/components/GitHubCard'
 import { buildRepositoryCards } from '../../github/components/repository-cards'
 import { SortableRepository } from '../../github/components/SortableRepository'
-import { SourcesModal } from '../../github/components/SourcesModal'
+import { SourceChips } from '../../github/components/SourceChips'
 import type { Repository, Worktree } from '../../github/components/types'
 import { useLocalRepositories } from '../../github/hooks/useLocalRepositories'
 import {
@@ -31,14 +31,13 @@ import {
 import { buildJiraCards } from './jira-cards'
 
 export function DashboardHome(): React.JSX.Element {
-  const { snapshot, repositories, addFolders, removeFolder, rescan, reset, setOrder } =
+  const { snapshot, repositories, addFolders, removeFolder, reset, setOrder } =
     useLocalRepositories()
   const { mode, sortBy, move } = useRepositoryOrder(repositories, setOrder)
   const dragSensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   )
-  const [isSourcesOpen, setIsSourcesOpen] = useState(false)
   const [selectedRecipient, setSelectedRecipient] = useState('Default · #eng-review')
   const [linkedTasks, setLinkedTasks] = useState<Record<string, string>>({})
   const [babysitter, setBabysitter] = useState<Record<number, boolean>>({})
@@ -115,15 +114,12 @@ export function DashboardHome(): React.JSX.Element {
                 </Dropdown.Popover>
               </Dropdown>
             )}
-            <Button
-              size="sm"
-              variant="ghost"
-              className="h-7 rounded-lg text-xs text-muted hover:text-foreground"
-              onPress={() => setIsSourcesOpen(true)}
-            >
-              <FolderSearch size={13} /> Sources
-              {snapshot && snapshot.sources.length > 0 ? ` (${snapshot.sources.length})` : ''}
-            </Button>
+            <SourceChips
+              sources={snapshot?.sources ?? []}
+              onAdd={() => void addFolders()}
+              onRemove={(id) => void removeFolder(id)}
+              onReset={() => void reset()}
+            />
           </div>
         </div>
         {!collapsed['github'] && (
@@ -150,17 +146,7 @@ export function DashboardHome(): React.JSX.Element {
                       : '…'}
                   </p>
                 ) : (
-                  <>
-                    <p>No git repositories found in your folders.</p>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="h-7 rounded-lg text-xs"
-                      onPress={() => setIsSourcesOpen(true)}
-                    >
-                      <FolderSearch size={13} /> Manage sources
-                    </Button>
-                  </>
+                  <p>No git repositories found in your folders.</p>
                 )}
               </div>
             )}
@@ -270,16 +256,6 @@ export function DashboardHome(): React.JSX.Element {
           title={selectedHistory.title}
           hasUncommitted={selectedHistory.hasUncommitted}
           onClose={() => setSelectedHistory(null)}
-        />
-      )}
-      {isSourcesOpen && (
-        <SourcesModal
-          snapshot={snapshot}
-          onAdd={() => void addFolders()}
-          onRemove={(id) => void removeFolder(id)}
-          onRescan={(sourceId) => void rescan(sourceId)}
-          onReset={() => void reset()}
-          onClose={() => setIsSourcesOpen(false)}
         />
       )}
       {selectedWorktree && (

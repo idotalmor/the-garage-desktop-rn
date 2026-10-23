@@ -12,8 +12,8 @@ The machine-local SQLite database behind the GitHub section's "local repositorie
 None of this is synced to Firestore. Paths, branches and dirty state only make sense on this machine.
 
 No migrations and no backwards compatibility: the app has no users yet. Tables are created if
-they're missing and never altered. After a schema change, press **Reset local data** in the Sources
-dialog: it drops every table in the file and creates the current ones again empty.
+they're missing and never altered. After a schema change, press the trash icon next to the source
+chips (**Reset local data**): it drops every table in the file and creates the current ones again empty.
 
 ## Tables at a glance
 
