@@ -1,3 +1,16 @@
+import {
+  closestCenter,
+  DndContext,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors
+} from '@dnd-kit/core'
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy
+} from '@dnd-kit/sortable'
 import { ArrowDownUp, ChevronDown, FolderPlus, FolderSearch, Loader2 } from 'lucide-react'
 import { useState } from 'react'
 import { Button, Dropdown } from '@heroui/react'
@@ -5,19 +18,26 @@ import { CommitHistoryModal } from '../../github/components/CommitHistoryModal'
 import { CreatePrModal } from '../../github/components/CreatePrModal'
 import { GitHubCard } from '../../github/components/GitHubCard'
 import { buildRepositoryCards } from '../../github/components/repository-cards'
+import { SortableRepository } from '../../github/components/SortableRepository'
 import { SourcesModal } from '../../github/components/SourcesModal'
 import type { Repository, Worktree } from '../../github/components/types'
 import { useLocalRepositories } from '../../github/hooks/useLocalRepositories'
 import {
   REPO_SORTS,
+  repoKey,
   useRepositoryOrder,
   type RepoSort
 } from '../../github/hooks/useRepositoryOrder'
 import { buildJiraCards } from './jira-cards'
 
 export function DashboardHome(): React.JSX.Element {
-  const { snapshot, repositories, addFolders, removeFolder, rescan, reset } = useLocalRepositories()
-  const { sort, sorted: sortedRepositories, sortBy } = useRepositoryOrder(repositories)
+  const { snapshot, repositories, addFolders, removeFolder, rescan, reset, setOrder } =
+    useLocalRepositories()
+  const { mode, sortBy, move } = useRepositoryOrder(repositories, setOrder)
+  const dragSensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  )
   const [isSourcesOpen, setIsSourcesOpen] = useState(false)
   const [selectedRecipient, setSelectedRecipient] = useState('Default · #eng-review')
   const [linkedTasks, setLinkedTasks] = useState<Record<string, string>>({})
@@ -77,7 +97,9 @@ export function DashboardHome(): React.JSX.Element {
                   aria-label="Sort repositories"
                 >
                   <ArrowDownUp size={13} aria-hidden="true" />
-                  {REPO_SORTS.find((option) => option.id === sort)?.label}
+                  {mode === 'custom'
+                    ? 'Custom'
+                    : REPO_SORTS.find((option) => option.id === mode)?.label}
                 </Dropdown.Trigger>
                 <Dropdown.Popover placement="bottom end">
                   <Dropdown.Menu
@@ -142,54 +164,75 @@ export function DashboardHome(): React.JSX.Element {
                 )}
               </div>
             )}
-            {sortedRepositories.map((repo) => (
-              <div key={repo.id ?? repo.name} className="space-y-2">
-                <h3 className="flex items-center gap-2 text-sm font-semibold">
-                  <button
-                    type="button"
-                    onClick={() => toggleCollapsed(repo.id ?? repo.name)}
-                    aria-expanded={!collapsed[repo.id ?? repo.name]}
-                    className="flex items-center gap-1.5"
-                  >
-                    <ChevronDown
-                      size={13}
-                      className={`text-muted transition-transform ${collapsed[repo.id ?? repo.name] ? '-rotate-90' : ''}`}
-                      aria-hidden="true"
-                    />
-                    <span className={`size-3 rounded-full ${repo.color}`} />
-                    {repo.name}
-                  </button>
-                  <span className="truncate text-xs font-normal text-muted" title={repo.detail}>
-                    {[
-                      repo.detail,
-                      repo.isLocal ? null : `${repo.prs.length} PRs`,
-                      `${repo.worktrees.length} worktrees`
-                    ]
-                      .filter(Boolean)
-                      .join(' · ')}
-                  </span>
-                </h3>
-                {!collapsed[repo.id ?? repo.name] && (
-                  <div className="flex flex-wrap gap-2">
-                    {buildRepositoryCards({
-                      repository: repo,
-                      selectedRecipient,
-                      linkedTasks,
-                      babysitter,
-                      onRecipientChange: setSelectedRecipient,
-                      onHistory: (title, hasUncommitted) =>
-                        setSelectedHistory({ title, hasUncommitted }),
-                      onLinkTask: linkTask,
-                      onOpenWorktree: (worktree) => setSelectedWorktree({ repo, worktree }),
-                      onBabysitter: (number) =>
-                        setBabysitter({ ...babysitter, [number]: !babysitter[number] })
-                    }).map(({ key, ...card }) => (
-                      <GitHubCard key={key} {...card} />
-                    ))}
-                  </div>
-                )}
-              </div>
-            ))}
+            <DndContext
+              sensors={dragSensors}
+              collisionDetection={closestCenter}
+              onDragEnd={({ active, over }) => {
+                if (over) move(String(active.id), String(over.id))
+              }}
+            >
+              <SortableContext
+                items={repositories.map(repoKey)}
+                strategy={verticalListSortingStrategy}
+              >
+                {repositories.map((repo) => (
+                  <SortableRepository key={repoKey(repo)} id={repoKey(repo)} label={repo.name}>
+                    {(handle) => (
+                      <>
+                        <h3 className="group/title flex items-center gap-2 text-sm font-semibold">
+                          {handle}
+                          <button
+                            type="button"
+                            onClick={() => toggleCollapsed(repo.id ?? repo.name)}
+                            aria-expanded={!collapsed[repo.id ?? repo.name]}
+                            className="flex items-center gap-1.5"
+                          >
+                            <ChevronDown
+                              size={13}
+                              className={`text-muted transition-transform ${collapsed[repo.id ?? repo.name] ? '-rotate-90' : ''}`}
+                              aria-hidden="true"
+                            />
+                            <span className={`size-3 rounded-full ${repo.color}`} />
+                            {repo.name}
+                          </button>
+                          <span
+                            className="truncate text-xs font-normal text-muted"
+                            title={repo.detail}
+                          >
+                            {[
+                              repo.detail,
+                              repo.isLocal ? null : `${repo.prs.length} PRs`,
+                              `${repo.worktrees.length} worktrees`
+                            ]
+                              .filter(Boolean)
+                              .join(' · ')}
+                          </span>
+                        </h3>
+                        {!collapsed[repo.id ?? repo.name] && (
+                          <div className="flex flex-wrap gap-2">
+                            {buildRepositoryCards({
+                              repository: repo,
+                              selectedRecipient,
+                              linkedTasks,
+                              babysitter,
+                              onRecipientChange: setSelectedRecipient,
+                              onHistory: (title, hasUncommitted) =>
+                                setSelectedHistory({ title, hasUncommitted }),
+                              onLinkTask: linkTask,
+                              onOpenWorktree: (worktree) => setSelectedWorktree({ repo, worktree }),
+                              onBabysitter: (number) =>
+                                setBabysitter({ ...babysitter, [number]: !babysitter[number] })
+                            }).map(({ key, ...card }) => (
+                              <GitHubCard key={key} {...card} />
+                            ))}
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </SortableRepository>
+                ))}
+              </SortableContext>
+            </DndContext>
           </div>
         )}
       </section>

@@ -83,6 +83,13 @@ export function removeSource(id: string): LocalReposSnapshot {
   return getSnapshot()
 }
 
+/** Saves the user's repo order (from a sort or a drag). */
+export function setOrder(ids: string[]): LocalReposSnapshot {
+  db.setRepositoryOrder(ids)
+  notify()
+  return getSnapshot()
+}
+
 /** Rescans one source, or all of them when no id is given. */
 export function rescan(sourceId?: string): LocalReposSnapshot {
   enqueueScan(sourceId ? [sourceId] : undefined)

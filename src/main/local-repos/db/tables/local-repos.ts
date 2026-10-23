@@ -59,6 +59,11 @@ export type LocalRepoDbEntity = {
    * worktree added or removed) sets it to that moment. Never moves backwards.
    */
   updated_at: number
+  /**
+   * Place in the user's repo order in the UI (0 = first). Written only by `setLocalRepoPositions` when
+   * the user picks a sort or drags a repo; scans never change it. Null until placed (shown last).
+   */
+  position: number | null
 }
 
 export const CREATE_LOCAL_REPOS_TABLE = `
@@ -75,12 +80,14 @@ export const CREATE_LOCAL_REPOS_TABLE = `
     default_branch TEXT,
     default_branch_commit TEXT,
     scanned_at INTEGER NOT NULL,
-    updated_at INTEGER NOT NULL DEFAULT 0
+    updated_at INTEGER NOT NULL DEFAULT 0,
+    position INTEGER
   );
   CREATE INDEX IF NOT EXISTS idx_${LOCAL_REPOS_TABLE}_slug ON ${LOCAL_REPOS_TABLE}(slug);
 `
 
-export function toLocalRepoDbEntity(repo: ScannedRepository): LocalRepoDbEntity {
+/** Everything a scan writes; `position` is left out so scans never change the user's order. */
+export function toLocalRepoDbEntity(repo: ScannedRepository): Omit<LocalRepoDbEntity, 'position'> {
   return {
     id: repo.id,
     name: repo.name,
@@ -118,12 +125,15 @@ export function toLocalRepository(
     sourceIds,
     worktrees,
     scannedAt: row.scanned_at,
-    updatedAt: row.updated_at
+    updatedAt: row.updated_at,
+    position: row.position
   }
 }
 
 export function listLocalRepoDbEntities(db: Database.Database): LocalRepoDbEntity[] {
-  return db.prepare(`SELECT * FROM ${LOCAL_REPOS_TABLE} ORDER BY name`).all() as LocalRepoDbEntity[]
+  return db
+    .prepare(`SELECT * FROM ${LOCAL_REPOS_TABLE} ORDER BY position IS NULL, position, name`)
+    .all() as LocalRepoDbEntity[]
 }
 
 export function upsertLocalRepo(db: Database.Database, repo: ScannedRepository): void {
@@ -144,6 +154,13 @@ export function upsertLocalRepo(db: Database.Database, repo: ScannedRepository):
       updated_at = MAX(excluded.updated_at, ${LOCAL_REPOS_TABLE}.updated_at)
   `
   ).run(toLocalRepoDbEntity(repo))
+}
+
+/** Saves the user's order: `ids[0]` gets position 0. Repos not listed go back to unplaced (null). */
+export function setLocalRepoPositions(db: Database.Database, ids: string[]): void {
+  db.prepare(`UPDATE ${LOCAL_REPOS_TABLE} SET position = NULL`).run()
+  const place = db.prepare(`UPDATE ${LOCAL_REPOS_TABLE} SET position = ? WHERE id = ?`)
+  ids.forEach((id, index) => place.run(index, id))
 }
 
 export function hasLocalRepo(db: Database.Database, id: string): boolean {

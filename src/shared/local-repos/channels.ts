@@ -10,6 +10,8 @@ export const LocalReposChannel = {
   Rescan: 'local-repos:rescan',
   /** Deletes every source, repo and worktree from the local DB. */
   Reset: 'local-repos:reset',
+  /** Saves the repo order shown in the UI: an array of repo ids, first = top. */
+  SetOrder: 'local-repos:set-order',
   /** Main → renderer push with a fresh `LocalReposSnapshot` whenever anything changes. */
   Changed: 'local-repos:changed'
 } as const

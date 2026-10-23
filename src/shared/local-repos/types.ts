@@ -110,10 +110,12 @@ export type LocalRepository = {
    * checkout, or a live change that altered a checkout. Used for "Recently updated" sorting.
    */
   updatedAt: number
+  /** Place in the user's repo order (0 = first), set by a sort or a drag. Null until placed; those go last. */
+  position: number | null
 }
 
 /** A repo as the scanner reads it from disk, before the DB adds `sourceIds`. */
-export type ScannedRepository = Omit<LocalRepository, 'sourceIds'>
+export type ScannedRepository = Omit<LocalRepository, 'sourceIds' | 'position'>
 
 /** Live progress of the scan that is currently running. */
 export type ScanProgress = {

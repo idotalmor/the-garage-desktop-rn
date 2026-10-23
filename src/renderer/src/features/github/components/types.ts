@@ -47,4 +47,6 @@ export type Repository = {
   isLocal?: boolean
   /** Last activity in any checkout (epoch ms); local repos only. */
   updatedAt?: number
+  /** Saved place in the user's order (0 = first); null until placed. Local repos only. */
+  position?: number | null
 }

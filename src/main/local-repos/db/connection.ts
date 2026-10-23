@@ -8,7 +8,7 @@ import { CREATE_LOCAL_WORKTREES_TABLE } from './tables/local-worktrees'
 import { CREATE_SOURCES_TABLE } from './tables/sources'
 
 /** Bump when any table changes. A DB with another version is dropped and recreated empty (no migrations yet). */
-const SCHEMA_VERSION = 2
+const SCHEMA_VERSION = 3
 
 let db: Database.Database | null = null
 

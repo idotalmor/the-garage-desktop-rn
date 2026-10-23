@@ -10,6 +10,7 @@ import {
   removeSource,
   rescan,
   reset,
+  setOrder,
   startScanService,
   subscribe
 } from './scan-service'
@@ -25,6 +26,9 @@ export function initLocalReposIpc(): void {
   )
 
   ipcMain.handle(LocalReposChannel.Reset, () => reset())
+  ipcMain.handle(LocalReposChannel.SetOrder, (_, ids: unknown) =>
+    setOrder(Array.isArray(ids) ? ids.map(String) : [])
+  )
 
   subscribe((snapshot) => {
     for (const window of BrowserWindow.getAllWindows()) {

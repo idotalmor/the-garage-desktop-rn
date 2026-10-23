@@ -60,6 +60,7 @@ erDiagram
     TEXT default_branch_commit "JSON CommitSummary: latest commit on default_branch"
     INTEGER scanned_at "when this repo was last inspected (epoch ms)"
     INTEGER updated_at "newest commit in any checkout, or the last live change to a checkout (epoch ms)"
+    INTEGER position "place in the user's repo order (0 = first), set by a sort or a drag; null = not placed yet"
   }
   local_worktrees {
     TEXT path PK "absolute path of the checkout"
@@ -239,7 +240,8 @@ null `slug`.
     "committedAt": 1792700000000
   },
   "scanned_at": 1792761190000,
-  "updated_at": 1792761100000
+  "updated_at": 1792761100000,
+  "position": 0
 }
 ```
 

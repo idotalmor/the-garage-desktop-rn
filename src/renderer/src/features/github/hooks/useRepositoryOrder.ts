@@ -1,4 +1,5 @@
-import { useCallback, useMemo, useState } from 'react'
+import { arrayMove } from '@dnd-kit/sortable'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type { Repository } from '../components/types'
 
 export const REPO_SORTS = [
@@ -8,6 +9,8 @@ export const REPO_SORTS = [
 ] as const
 
 export type RepoSort = (typeof REPO_SORTS)[number]['id']
+/** What the sort menu shows: a sort, or `custom` after the user dragged a repo. */
+export type RepoOrderMode = RepoSort | 'custom'
 
 const STORAGE_KEY = 'the-garage.local-repos.sort'
 
@@ -19,51 +22,64 @@ const compare: Record<RepoSort, (a: Repository, b: Repository) => number> = {
   name: byName
 }
 
-const keyOf = (repo: Repository): string => repo.id ?? repo.name
+export const repoKey = (repo: Repository): string => repo.id ?? repo.name
 
-function sortedKeys(repositories: Repository[], sort: RepoSort): string[] {
-  return [...repositories].sort(compare[sort]).map(keyOf)
-}
-
-function readSavedSort(): RepoSort {
+function readSavedMode(): RepoOrderMode {
   const saved = localStorage.getItem(STORAGE_KEY)
+  if (saved === 'custom') return saved
   return REPO_SORTS.find((option) => option.id === saved)?.id ?? 'updated'
 }
 
 /**
- * Keeps repos in a fixed order so live updates don't move cards while the user works. The order is
- * set once when repos first appear and again only when `sortBy` is called; new repos go at the end.
+ * The user's repo order. `repositories` already arrive in the saved order (`local_repos.position`),
+ * so live updates never move them. Picking a sort or dragging a repo saves a new order; repos that
+ * were never placed (e.g. just found) go last. The first time repos appear unplaced, they are sorted once.
  */
-export function useRepositoryOrder(repositories: Repository[]): {
-  sort: RepoSort
-  sorted: Repository[]
+export function useRepositoryOrder(
+  repositories: Repository[],
+  saveOrder: (ids: string[]) => Promise<void>
+): {
+  mode: RepoOrderMode
   sortBy: (sort: RepoSort) => void
+  move: (activeKey: string, overKey: string) => void
 } {
-  const [sort, setSort] = useState<RepoSort>(readSavedSort)
-  const [order, setOrder] = useState<string[] | null>(null)
+  const [mode, setMode] = useState<RepoOrderMode>(readSavedMode)
+  const sortedOnce = useRef(false)
 
-  // Adjusting state during render (not in an effect) so the first paint is already sorted.
-  if (order === null && repositories.length > 0) setOrder(sortedKeys(repositories, sort))
-  if (order !== null && repositories.length === 0) setOrder(null)
+  const changeMode = useCallback((next: RepoOrderMode) => {
+    localStorage.setItem(STORAGE_KEY, next)
+    setMode(next)
+  }, [])
 
   const sortBy = useCallback(
-    (next: RepoSort) => {
-      localStorage.setItem(STORAGE_KEY, next)
-      setSort(next)
-      setOrder(sortedKeys(repositories, next))
+    (sort: RepoSort) => {
+      changeMode(sort)
+      void saveOrder([...repositories].sort(compare[sort]).map(repoKey))
     },
-    [repositories]
+    [changeMode, repositories, saveOrder]
   )
 
-  const sorted = useMemo(() => {
-    if (!order) return repositories
-    const byKey = new Map(repositories.map((repo) => [keyOf(repo), repo]))
-    const placed = new Set(order)
-    return [
-      ...order.flatMap((key) => byKey.get(key) ?? []),
-      ...repositories.filter((repo) => !placed.has(keyOf(repo)))
-    ]
-  }, [order, repositories])
+  const move = useCallback(
+    (activeKey: string, overKey: string) => {
+      const keys = repositories.map(repoKey)
+      const from = keys.indexOf(activeKey)
+      const to = keys.indexOf(overKey)
+      if (from < 0 || to < 0 || from === to) return
+      changeMode('custom')
+      void saveOrder(arrayMove(keys, from, to))
+    },
+    [changeMode, repositories, saveOrder]
+  )
 
-  return { sort, sorted, sortBy }
+  useEffect(() => {
+    if (sortedOnce.current || repositories.length === 0) return
+    sortedOnce.current = true
+    if (repositories.every((repo) => repo.position == null)) {
+      void saveOrder(
+        [...repositories].sort(compare[mode === 'custom' ? 'updated' : mode]).map(repoKey)
+      )
+    }
+  }, [mode, repositories, saveOrder])
+
+  return { mode, sortBy, move }
 }

@@ -14,6 +14,7 @@ import {
   deleteLocalRepos,
   hasLocalRepo,
   listLocalRepoDbEntities,
+  setLocalRepoPositions,
   toLocalRepository,
   upsertLocalRepo
 } from './tables/local-repos'
@@ -102,7 +103,13 @@ export function deleteRepositories(ids: string[]): void {
   db.transaction(() => deleteLocalRepos(db, ids))()
 }
 
-/** All repos with their covering source ids and worktrees, sorted by name. */
+/** Saves the user's repo order (first id = top). */
+export function setRepositoryOrder(ids: string[]): void {
+  const db = getDb()
+  db.transaction(() => setLocalRepoPositions(db, ids))()
+}
+
+/** All repos with their covering source ids and worktrees, in the user's order (unplaced ones last, by name). */
 export function listRepositories(): LocalRepository[] {
   return readRepositories(getDb())
 }
