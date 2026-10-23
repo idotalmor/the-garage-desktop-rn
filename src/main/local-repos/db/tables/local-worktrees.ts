@@ -1,7 +1,7 @@
 /** `local_worktrees` table: the checkouts of each repo (main checkout + linked worktrees). */
 import type Database from 'better-sqlite3'
 import type { CommitSummary, LocalWorktree } from '../../../../shared/local-repos/types'
-import { parseJson, toJson } from './json'
+import { parseJson, toJson } from '../utils/json'
 
 export const LOCAL_WORKTREES_TABLE = 'local_worktrees'
 

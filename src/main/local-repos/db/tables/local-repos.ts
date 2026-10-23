@@ -7,7 +7,7 @@ import type {
   LocalRepository,
   LocalWorktree
 } from '../../../../shared/local-repos/types'
-import { parseJson, toJson } from './json'
+import { parseJson, toJson } from '../utils/json'
 import { LOCAL_REPO_SCAN_FOLDERS_TABLE } from './local-repo-scan-folders'
 
 export const LOCAL_REPOS_TABLE = 'local_repos'

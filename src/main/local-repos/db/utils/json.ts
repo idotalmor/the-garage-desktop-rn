@@ -1,4 +1,4 @@
-/** JSON helpers for columns that store nested objects as text. */
+/** JSON helpers for SQLite columns that store nested objects as text. */
 export function parseJson<T>(value: string | null, fallback: T): T {
   if (!value) return fallback
   try {

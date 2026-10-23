@@ -21,6 +21,7 @@ src/main/<feature>/
     connection.ts
     index.ts
     tables/<table>.ts
+    utils/            DB-only helpers (e.g. json.ts)
   utils/              small pure helpers with no feature state (parsing, concurrency, formatting)
 ```
 
@@ -79,7 +80,13 @@ subscribe((snapshot) => {
      Table files don't import `connection.ts`, so there are no import cycles.
 - `index.ts`: the feature's public DB API. It calls `getDb()`, composes table functions, and wraps
   multi-table writes in `db.transaction(...)`. Services import `./db`, never `./db/tables/*`.
-- Nested objects are JSON columns parsed with a safe `parseJson(value, fallback)`.
+- Nested objects are JSON columns parsed with a safe `parseJson(value, fallback)` from
+  `db/utils/json.ts`. Helpers that aren't a table go in `db/utils/`, not `db/tables/`.
+- **Document the database** in `docs/<feature>-db.md` (example: `docs/local-repos-db.md`):
+  - what one row of each table represents and which flow creates/updates/deletes it
+  - a JSON example row per table
+  - a mermaid `erDiagram` of the tables and a mermaid `flowchart` of the flow that writes them
+    Update it in the same change whenever a table, column or write flow changes.
 
 ## File conventions
 
