@@ -1,6 +1,6 @@
 import { AlertTriangle, FolderPlus, Loader2, RefreshCw, Trash2 } from 'lucide-react'
 import { Button } from '@heroui/react'
-import type { WorktreesSnapshot } from '../../../../../shared/worktrees/types'
+import type { LocalReposSnapshot } from '../../../../../shared/local-repos/types'
 import { Modal } from './Modal'
 
 function relativeTime(timestamp: number): string {
@@ -19,13 +19,13 @@ export function ScanFoldersModal({
   onRescan,
   onClose
 }: {
-  snapshot: WorktreesSnapshot | null
+  snapshot: LocalReposSnapshot | null
   onAdd: () => void
   onRemove: (id: string) => void
-  onRescan: (rootId?: string) => void
+  onRescan: (scanFolderId?: string) => void
   onClose: () => void
 }): React.JSX.Element {
-  const roots = snapshot?.roots ?? []
+  const scanFolders = snapshot?.scanFolders ?? []
   const repositories = snapshot?.repositories ?? []
   const scanning = Boolean(snapshot?.scanning)
 
@@ -38,29 +38,31 @@ export function ScanFoldersModal({
           machine.
         </p>
 
-        {roots.length === 0 ? (
+        {scanFolders.length === 0 ? (
           <p className="rounded-lg border border-dashed border-border p-4 text-center text-xs text-muted">
             No folders yet.
           </p>
         ) : (
           <ul className="divide-y divide-separator rounded-lg border border-border">
-            {roots.map((root) => {
-              const repoCount = repositories.filter((repo) => repo.rootIds.includes(root.id)).length
+            {scanFolders.map((folder) => {
+              const repoCount = repositories.filter((repo) =>
+                repo.scanFolderIds.includes(folder.id)
+              ).length
               return (
-                <li key={root.id} className="flex items-center gap-2 px-3 py-2">
+                <li key={folder.id} className="flex items-center gap-2 px-3 py-2">
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-xs font-medium" title={root.path}>
-                      {root.path}
+                    <p className="truncate text-xs font-medium" title={folder.path}>
+                      {folder.path}
                     </p>
                     <p className="flex items-center gap-1 text-[11px] text-muted">
-                      {root.lastError ? (
+                      {folder.lastError ? (
                         <span className="flex items-center gap-1 text-danger">
-                          <AlertTriangle size={11} aria-hidden="true" /> {root.lastError}
+                          <AlertTriangle size={11} aria-hidden="true" /> {folder.lastError}
                         </span>
-                      ) : root.lastScannedAt ? (
+                      ) : folder.lastScannedAt ? (
                         <>
                           {repoCount} {repoCount === 1 ? 'repository' : 'repositories'} · scanned{' '}
-                          {relativeTime(root.lastScannedAt)}
+                          {relativeTime(folder.lastScannedAt)}
                         </>
                       ) : (
                         'Waiting to scan…'
@@ -73,8 +75,8 @@ export function ScanFoldersModal({
                     variant="ghost"
                     className="size-7 min-h-7 text-muted hover:text-foreground"
                     isDisabled={scanning}
-                    onPress={() => onRescan(root.id)}
-                    aria-label={`Rescan ${root.path}`}
+                    onPress={() => onRescan(folder.id)}
+                    aria-label={`Rescan ${folder.path}`}
                   >
                     <RefreshCw size={13} />
                   </Button>
@@ -83,8 +85,8 @@ export function ScanFoldersModal({
                     size="sm"
                     variant="ghost"
                     className="size-7 min-h-7 text-muted hover:text-danger"
-                    onPress={() => onRemove(root.id)}
-                    aria-label={`Remove ${root.path}`}
+                    onPress={() => onRemove(folder.id)}
+                    aria-label={`Remove ${folder.path}`}
                   >
                     <Trash2 size={13} />
                   </Button>
@@ -110,7 +112,7 @@ export function ScanFoldersModal({
             size="sm"
             variant="outline"
             className="ml-auto rounded-lg text-xs"
-            isDisabled={scanning || roots.length === 0}
+            isDisabled={scanning || scanFolders.length === 0}
             onPress={() => onRescan()}
           >
             <RefreshCw size={13} /> Rescan all

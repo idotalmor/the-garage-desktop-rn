@@ -1,0 +1,130 @@
+/** A folder the user picked to scan. Can be a single repo, a worktree, or a parent of many repos. */
+export type ScanFolder = {
+  /** Random id assigned when the folder is added. */
+  id: string
+  /** Absolute path on disk. */
+  path: string
+  /** How many directory levels below `path` the scanner descends looking for repos. */
+  maxDepth: number
+  /** When the user added this folder (epoch ms). */
+  addedAt: number
+  /** When the last scan of this folder finished (epoch ms), or null if never scanned. */
+  lastScannedAt: number | null
+  /** Error message from the last scan (e.g. folder no longer exists), or null if it succeeded. */
+  lastError: string | null
+}
+
+/** Where a repo's remote is hosted: GitHub, another host (GitLab, Bitbucket…), or no remote at all. */
+export type GitProvider = 'github' | 'other' | 'none'
+
+/** One entry from `git remote -v`. */
+export type GitRemote = {
+  /** Remote name, e.g. `origin` or `upstream`. */
+  name: string
+  /** Raw URL as configured, e.g. `git@github.com:owner/repo.git`. */
+  url: string
+  /** Normalized host, e.g. `github.com` (SSH aliases like `github.com-work` become `github.com`). */
+  host: string | null
+  /** Account or organization that owns the repo. */
+  owner: string | null
+  /** Repo name without `.git`. */
+  repo: string | null
+  /** Canonical, lower-cased `host/owner/repo`. The key used to match the GitHub repo later. */
+  slug: string | null
+}
+
+/** The few commit fields the UI shows. */
+export type CommitSummary = {
+  /** Full commit SHA. */
+  hash: string
+  /** First line of the commit message. */
+  message: string
+  /** Author name. */
+  author: string
+  /** Commit time (epoch ms). */
+  committedAt: number
+}
+
+/** One checkout of a repo: the main checkout or a linked `git worktree`. */
+export type LocalWorktree = {
+  /** Absolute path of the checkout. */
+  path: string
+  /** Folder name of the checkout, used as a display label. */
+  name: string
+  /** True for the repo's original checkout, false for checkouts added with `git worktree add`. */
+  isMain: boolean
+  /** Checked-out branch name, or null when detached. */
+  branch: string | null
+  /** True when HEAD points at a commit instead of a branch. */
+  isDetached: boolean
+  /** SHA that HEAD points to, or null in a repo with no commits yet. */
+  head: string | null
+  /** Locked with `git worktree lock`: git won't prune or move it. */
+  isLocked: boolean
+  /** Git reports the checkout folder is gone; `git worktree prune` would remove it. */
+  isPrunable: boolean
+  /** Remote branch this branch tracks, e.g. `origin/main`, or null if none. */
+  upstream: string | null
+  /** Local commits not pushed to `upstream`. Null when there is no upstream. */
+  ahead: number | null
+  /** Upstream commits not pulled locally (as of the last fetch). Null when there is no upstream. */
+  behind: number | null
+  /** Number of modified, staged, renamed, conflicted or untracked files. */
+  changedFiles: number
+  /** Last commit on HEAD. */
+  lastCommit: CommitSummary | null
+}
+
+/** One repo on disk with all of its checkouts. Checkouts are grouped by their shared git directory. */
+export type LocalRepository = {
+  /** Stable id (hash of `commonDir`). */
+  id: string
+  /** Display name: the remote repo name, or the folder name when there is no remote. */
+  name: string
+  /** The shared `.git` directory every checkout of this repo uses (`git rev-parse --git-common-dir`). */
+  commonDir: string
+  /** A bare repo has no checked-out files, only the git database (e.g. `git clone --bare`). Its checkouts are all linked worktrees. */
+  isBare: boolean
+  /** Host of the primary remote. */
+  provider: GitProvider
+  /** `owner/repo` of the primary remote (origin, else the first remote). */
+  fullName: string | null
+  /** Canonical `host/owner/repo` of the primary remote; see `GitRemote.slug`. */
+  slug: string | null
+  /** Raw URL of the primary remote. */
+  remoteUrl: string | null
+  /** All configured remotes. */
+  remotes: GitRemote[]
+  /** Default branch of the remote (e.g. `main`), or a local guess when the remote doesn't say. */
+  defaultBranch: string | null
+  /** Latest commit on the default branch. */
+  defaultBranchCommit: CommitSummary | null
+  /** Ids of the scan folders that found this repo (a repo can be inside several). */
+  scanFolderIds: string[]
+  /** Every checkout of this repo, main checkout first. */
+  worktrees: LocalWorktree[]
+  /** When this repo was last inspected (epoch ms). */
+  scannedAt: number
+}
+
+/** Live progress of the scan that is currently running. */
+export type ScanProgress = {
+  /** Scan folder currently being walked. */
+  scanFolderPath: string
+  /** Directories visited so far. */
+  dirsVisited: number
+  /** Repos found so far. */
+  reposFound: number
+}
+
+/** Everything the UI needs to render local repos, sent in one object. */
+export type LocalReposSnapshot = {
+  /** Folders the user chose to scan. */
+  scanFolders: ScanFolder[]
+  /** Repos found across all scan folders. */
+  repositories: LocalRepository[]
+  /** True while a scan is queued or running. */
+  scanning: boolean
+  /** Progress of the running scan, or null when idle. */
+  progress: ScanProgress | null
+}

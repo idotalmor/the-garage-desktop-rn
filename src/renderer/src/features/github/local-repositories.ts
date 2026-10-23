@@ -1,4 +1,4 @@
-import type { LocalRepository, LocalWorktree } from '../../../../shared/worktrees/types'
+import type { LocalRepository, LocalWorktree } from '../../../../shared/local-repos/types'
 import type { Repository, Worktree } from './components/types'
 
 const REPO_COLORS = [

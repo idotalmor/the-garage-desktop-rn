@@ -1,6 +1,6 @@
 import { execFile } from 'child_process'
 import { existsSync } from 'fs'
-import type { CommitSummary } from '../../shared/worktrees/types'
+import type { CommitSummary } from '../../shared/local-repos/types'
 
 const GIT_CANDIDATES = ['/opt/homebrew/bin/git', '/usr/local/bin/git', '/usr/bin/git']
 

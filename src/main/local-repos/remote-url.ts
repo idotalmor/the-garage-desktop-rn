@@ -1,4 +1,4 @@
-import type { GitProvider, GitRemote } from '../../shared/worktrees/types'
+import type { GitProvider, GitRemote } from '../../shared/local-repos/types'
 
 type ParsedRemote = Pick<GitRemote, 'host' | 'owner' | 'repo' | 'slug'>
 

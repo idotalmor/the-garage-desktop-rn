@@ -6,7 +6,7 @@ import type {
   LocalRepository,
   LocalWorktree,
   ScanProgress
-} from '../../shared/worktrees/types'
+} from '../../shared/local-repos/types'
 import { git, gitOrNull, lastCommit, parseStatusV2, parseWorktreeList } from './git'
 import { parseRemoteUrl, providerForHost } from './remote-url'
 
@@ -35,14 +35,14 @@ export type ScanResult = {
   dirsVisited: number
 }
 
-export async function scanRoot(
-  rootPath: string,
-  rootId: string,
+export async function scanFolder(
+  scanFolderPath: string,
+  scanFolderId: string,
   maxDepth: number,
   onProgress?: (progress: ScanProgress) => void
 ): Promise<ScanResult> {
-  const progress: ScanProgress = { rootPath, dirsVisited: 0, reposFound: 0 }
-  const candidates = await discover(rootPath, maxDepth, progress, onProgress)
+  const progress: ScanProgress = { scanFolderPath, dirsVisited: 0, reposFound: 0 }
+  const candidates = await discover(scanFolderPath, maxDepth, progress, onProgress)
 
   const byCommonDir = new Map<string, Candidate>()
   await mapLimit(candidates, GIT_CONCURRENCY, async (candidate) => {
@@ -52,7 +52,7 @@ export async function scanRoot(
 
   const repositories = (
     await mapLimit([...byCommonDir.entries()], GIT_CONCURRENCY, ([commonDir, candidate]) =>
-      inspectRepository(commonDir, candidate, rootId).catch(() => null)
+      inspectRepository(commonDir, candidate, scanFolderId).catch(() => null)
     )
   ).filter((repo): repo is LocalRepository => repo !== null)
 
@@ -62,14 +62,14 @@ export async function scanRoot(
 }
 
 async function discover(
-  rootPath: string,
+  scanFolderPath: string,
   maxDepth: number,
   progress: ScanProgress,
   onProgress?: (progress: ScanProgress) => void
 ): Promise<Candidate[]> {
   const candidates: Candidate[] = []
   const seen = new Set<string>()
-  let queue: { dir: string; depth: number }[] = [{ dir: rootPath, depth: 0 }]
+  let queue: { dir: string; depth: number }[] = [{ dir: scanFolderPath, depth: 0 }]
 
   while (queue.length > 0) {
     const next: { dir: string; depth: number }[] = []
@@ -143,7 +143,7 @@ async function resolveCommonDir(dir: string): Promise<string | null> {
 async function inspectRepository(
   commonDir: string,
   candidate: Candidate,
-  rootId: string
+  scanFolderId: string
 ): Promise<LocalRepository> {
   const [worktreeOutput, remotes, isBareOutput] = await Promise.all([
     git(candidate.dir, ['worktree', 'list', '--porcelain']),
@@ -176,7 +176,7 @@ async function inspectRepository(
     remotes,
     defaultBranch,
     defaultBranchCommit,
-    rootIds: [rootId],
+    scanFolderIds: [scanFolderId],
     worktrees,
     scannedAt: Date.now()
   }

@@ -65,7 +65,7 @@ before GitHub is connected.
   - a single repo,
   - a single worktree,
   - a parent folder containing many repos/worktrees (e.g. `~/code`).
-- [ ] Persist roots in sqlite `~/.devflow/worktrees.db`, table `scan_roots`
+- [ ] Persist scan folders in sqlite `~/.devflow/local-repos.db`, table `scan_folders`
       (`id, path, added_at, last_scanned_at, max_depth`). Same pattern as
       `main/notes/repository.ts`.
 - [ ] Add / remove / rescan roots from a small settings UI (see Phase 4).

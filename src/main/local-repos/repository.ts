@@ -9,8 +9,8 @@ import type {
   GitRemote,
   LocalRepository,
   LocalWorktree,
-  ScanRoot
-} from '../../shared/worktrees/types'
+  ScanFolder
+} from '../../shared/local-repos/types'
 
 export const DEFAULT_MAX_DEPTH = 4
 
@@ -22,11 +22,11 @@ function getDb(): Database.Database {
   const dbDir = join(app.getPath('home'), '.devflow')
   if (!existsSync(dbDir)) mkdirSync(dbDir, { recursive: true })
 
-  db = new Database(join(dbDir, 'worktrees.db'))
+  db = new Database(join(dbDir, 'local-repos.db'))
   db.pragma('journal_mode = DELETE')
   db.pragma('foreign_keys = ON')
   db.exec(`
-    CREATE TABLE IF NOT EXISTS scan_roots (
+    CREATE TABLE IF NOT EXISTS scan_folders (
       id TEXT PRIMARY KEY,
       path TEXT NOT NULL UNIQUE,
       max_depth INTEGER NOT NULL,
@@ -49,10 +49,10 @@ function getDb(): Database.Database {
       scanned_at INTEGER NOT NULL
     );
     CREATE INDEX IF NOT EXISTS idx_local_repos_slug ON local_repos(slug);
-    CREATE TABLE IF NOT EXISTS local_repo_roots (
+    CREATE TABLE IF NOT EXISTS local_repo_scan_folders (
       repo_id TEXT NOT NULL REFERENCES local_repos(id) ON DELETE CASCADE,
-      root_id TEXT NOT NULL REFERENCES scan_roots(id) ON DELETE CASCADE,
-      PRIMARY KEY (repo_id, root_id)
+      scan_folder_id TEXT NOT NULL REFERENCES scan_folders(id) ON DELETE CASCADE,
+      PRIMARY KEY (repo_id, scan_folder_id)
     );
     CREATE TABLE IF NOT EXISTS local_worktrees (
       path TEXT PRIMARY KEY,
@@ -79,7 +79,7 @@ function getDb(): Database.Database {
   return db
 }
 
-type RootRow = {
+type ScanFolderRow = {
   id: string
   path: string
   max_depth: number
@@ -130,7 +130,7 @@ function parseJson<T>(value: string | null, fallback: T): T {
   }
 }
 
-function toRoot(row: RootRow): ScanRoot {
+function toScanFolder(row: ScanFolderRow): ScanFolder {
   return {
     id: row.id,
     path: row.path,
@@ -159,15 +159,17 @@ function toWorktree(row: WorktreeRow): LocalWorktree {
   }
 }
 
-export function listRoots(): ScanRoot[] {
-  const rows = getDb().prepare('SELECT * FROM scan_roots ORDER BY added_at').all() as RootRow[]
-  return rows.map(toRoot)
+export function listScanFolders(): ScanFolder[] {
+  const rows = getDb()
+    .prepare('SELECT * FROM scan_folders ORDER BY added_at')
+    .all() as ScanFolderRow[]
+  return rows.map(toScanFolder)
 }
 
-export function addRoots(paths: string[], maxDepth = DEFAULT_MAX_DEPTH): ScanRoot[] {
+export function addScanFolders(paths: string[], maxDepth = DEFAULT_MAX_DEPTH): ScanFolder[] {
   const database = getDb()
   const insert = database.prepare(
-    'INSERT OR IGNORE INTO scan_roots (id, path, max_depth, added_at) VALUES (?, ?, ?, ?)'
+    'INSERT OR IGNORE INTO scan_folders (id, path, max_depth, added_at) VALUES (?, ?, ?, ?)'
   )
   const added: string[] = []
   database.transaction(() => {
@@ -176,25 +178,25 @@ export function addRoots(paths: string[], maxDepth = DEFAULT_MAX_DEPTH): ScanRoo
       if (insert.run(id, path, maxDepth, Date.now()).changes > 0) added.push(id)
     }
   })()
-  return listRoots().filter((root) => added.includes(root.id))
+  return listScanFolders().filter((folder) => added.includes(folder.id))
 }
 
-export function removeRoot(id: string): void {
+export function removeScanFolder(id: string): void {
   const database = getDb()
   database.transaction(() => {
-    database.prepare('DELETE FROM scan_roots WHERE id = ?').run(id)
+    database.prepare('DELETE FROM scan_folders WHERE id = ?').run(id)
     deleteOrphanRepos(database)
   })()
 }
 
-export function markRootError(id: string, error: string): void {
+export function markScanFolderError(id: string, error: string): void {
   getDb()
-    .prepare('UPDATE scan_roots SET last_scanned_at = ?, last_error = ? WHERE id = ?')
+    .prepare('UPDATE scan_folders SET last_scanned_at = ?, last_error = ? WHERE id = ?')
     .run(Date.now(), error, id)
 }
 
-/** Replaces everything known about one root with the latest scan result. */
-export function saveRootScan(rootId: string, repositories: LocalRepository[]): void {
+/** Replaces everything known about one folder with the latest scan result. */
+export function saveScanFolderResult(scanFolderId: string, repositories: LocalRepository[]): void {
   const database = getDb()
   const upsertRepo = database.prepare(`
     INSERT INTO local_repos (
@@ -221,7 +223,9 @@ export function saveRootScan(rootId: string, repositories: LocalRepository[]): v
   `)
 
   database.transaction(() => {
-    database.prepare('DELETE FROM local_repo_roots WHERE root_id = ?').run(rootId)
+    database
+      .prepare('DELETE FROM local_repo_scan_folders WHERE scan_folder_id = ?')
+      .run(scanFolderId)
     for (const repo of repositories) {
       upsertRepo.run({
         id: repo.id,
@@ -240,8 +244,10 @@ export function saveRootScan(rootId: string, repositories: LocalRepository[]): v
         scannedAt: repo.scannedAt
       })
       database
-        .prepare('INSERT OR IGNORE INTO local_repo_roots (repo_id, root_id) VALUES (?, ?)')
-        .run(repo.id, rootId)
+        .prepare(
+          'INSERT OR IGNORE INTO local_repo_scan_folders (repo_id, scan_folder_id) VALUES (?, ?)'
+        )
+        .run(repo.id, scanFolderId)
       database.prepare('DELETE FROM local_worktrees WHERE repo_id = ?').run(repo.id)
       repo.worktrees.forEach((tree, position) =>
         insertWorktree.run({
@@ -264,24 +270,26 @@ export function saveRootScan(rootId: string, repositories: LocalRepository[]): v
       )
     }
     database
-      .prepare('UPDATE scan_roots SET last_scanned_at = ?, last_error = NULL WHERE id = ?')
-      .run(Date.now(), rootId)
+      .prepare('UPDATE scan_folders SET last_scanned_at = ?, last_error = NULL WHERE id = ?')
+      .run(Date.now(), scanFolderId)
     deleteOrphanRepos(database)
   })()
 }
 
 function deleteOrphanRepos(database: Database.Database): void {
   database.exec(
-    'DELETE FROM local_repos WHERE id NOT IN (SELECT DISTINCT repo_id FROM local_repo_roots)'
+    'DELETE FROM local_repos WHERE id NOT IN (SELECT DISTINCT repo_id FROM local_repo_scan_folders)'
   )
 }
 
 export function listRepositories(): LocalRepository[] {
   const database = getDb()
   const repos = database.prepare('SELECT * FROM local_repos ORDER BY name').all() as RepoRow[]
-  const links = database.prepare('SELECT repo_id, root_id FROM local_repo_roots').all() as {
+  const links = database
+    .prepare('SELECT repo_id, scan_folder_id FROM local_repo_scan_folders')
+    .all() as {
     repo_id: string
-    root_id: string
+    scan_folder_id: string
   }[]
   const trees = database
     .prepare('SELECT * FROM local_worktrees ORDER BY repo_id, position')
@@ -299,7 +307,9 @@ export function listRepositories(): LocalRepository[] {
     remotes: parseJson<GitRemote[]>(row.remotes, []),
     defaultBranch: row.default_branch,
     defaultBranchCommit: parseJson<CommitSummary | null>(row.default_branch_commit, null),
-    rootIds: links.filter((link) => link.repo_id === row.id).map((link) => link.root_id),
+    scanFolderIds: links
+      .filter((link) => link.repo_id === row.id)
+      .map((link) => link.scan_folder_id),
     worktrees: trees.filter((tree) => tree.repo_id === row.id).map(toWorktree),
     scannedAt: row.scanned_at
   }))

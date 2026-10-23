@@ -1,25 +1,25 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { WorktreesChannel } from '../../../../../shared/worktrees/channels'
-import type { WorktreesSnapshot } from '../../../../../shared/worktrees/types'
+import { LocalReposChannel } from '../../../../../shared/local-repos/channels'
+import type { LocalReposSnapshot } from '../../../../../shared/local-repos/types'
 import type { Repository } from '../components/types'
 import { toUiRepository } from '../local-repositories'
 
 export function useLocalRepositories(): {
-  snapshot: WorktreesSnapshot | null
+  snapshot: LocalReposSnapshot | null
   repositories: Repository[]
   addFolders: () => Promise<void>
   removeFolder: (id: string) => Promise<void>
-  rescan: (rootId?: string) => Promise<void>
+  rescan: (scanFolderId?: string) => Promise<void>
 } {
-  const [snapshot, setSnapshot] = useState<WorktreesSnapshot | null>(null)
+  const [snapshot, setSnapshot] = useState<LocalReposSnapshot | null>(null)
 
   useEffect(() => {
     let cancelled = false
-    void window.electron.ipcRenderer.invoke(WorktreesChannel.GetSnapshot).then((next) => {
-      if (!cancelled) setSnapshot(next as WorktreesSnapshot)
+    void window.electron.ipcRenderer.invoke(LocalReposChannel.GetSnapshot).then((next) => {
+      if (!cancelled) setSnapshot(next as LocalReposSnapshot)
     })
-    const unsubscribe = window.electron.ipcRenderer.on(WorktreesChannel.Changed, (_, next) => {
-      setSnapshot(next as WorktreesSnapshot)
+    const unsubscribe = window.electron.ipcRenderer.on(LocalReposChannel.Changed, (_, next) => {
+      setSnapshot(next as LocalReposSnapshot)
     })
     return () => {
       cancelled = true
@@ -28,7 +28,7 @@ export function useLocalRepositories(): {
   }, [])
 
   const invoke = useCallback(async (channel: string, ...args: unknown[]) => {
-    setSnapshot((await window.electron.ipcRenderer.invoke(channel, ...args)) as WorktreesSnapshot)
+    setSnapshot((await window.electron.ipcRenderer.invoke(channel, ...args)) as LocalReposSnapshot)
   }, [])
 
   const repositories = useMemo(
@@ -39,8 +39,8 @@ export function useLocalRepositories(): {
   return {
     snapshot,
     repositories,
-    addFolders: () => invoke(WorktreesChannel.AddRoots),
-    removeFolder: (id) => invoke(WorktreesChannel.RemoveRoot, id),
-    rescan: (rootId) => invoke(WorktreesChannel.Rescan, rootId)
+    addFolders: () => invoke(LocalReposChannel.AddScanFolders),
+    removeFolder: (id) => invoke(LocalReposChannel.RemoveScanFolder, id),
+    rescan: (scanFolderId) => invoke(LocalReposChannel.Rescan, scanFolderId)
   }
 }
