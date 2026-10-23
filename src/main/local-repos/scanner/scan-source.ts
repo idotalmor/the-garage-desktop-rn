@@ -1,5 +1,5 @@
 /**
- * Scans one scan folder: discover candidates → group them by repo → inspect each repo.
+ * Scans one source: discover candidates → group them by repo → inspect each repo.
  *
  * Several candidates can belong to one repo (a clone and its linked worktrees), so they are
  * grouped by their shared git directory before inspecting.
@@ -10,13 +10,13 @@ import { GIT_CONCURRENCY, mapLimit } from '../utils/concurrency'
 import { discover, type Candidate } from './discover'
 import { inspectRepository } from './inspect'
 
-export async function scanFolder(
-  scanFolderPath: string,
+export async function scanSource(
+  sourcePath: string,
   maxDepth: number,
   onProgress?: (progress: ScanProgress) => void
 ): Promise<ScannedRepository[]> {
-  const progress: ScanProgress = { scanFolderPath, dirsVisited: 0, reposFound: 0 }
-  const candidates = await discover(scanFolderPath, maxDepth, progress, onProgress)
+  const progress: ScanProgress = { sourcePath, dirsVisited: 0, reposFound: 0 }
+  const candidates = await discover(sourcePath, maxDepth, progress, onProgress)
 
   const byCommonDir = new Map<string, Candidate>()
   await mapLimit(candidates, GIT_CONCURRENCY, async (candidate) => {

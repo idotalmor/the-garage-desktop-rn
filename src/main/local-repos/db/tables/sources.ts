@@ -1,14 +1,14 @@
-/** `scan_folders` table: the folders the user chose to scan. */
+/** `sources` table: the folders the user chose to scan. */
 import { randomUUID } from 'crypto'
 import type Database from 'better-sqlite3'
-import type { ScanFolder } from '../../../../shared/local-repos/types'
+import type { Source } from '../../../../shared/local-repos/types'
 
-export const SCAN_FOLDERS_TABLE = 'scan_folders'
+export const SOURCES_TABLE = 'sources'
 
-/** How many folder levels a new scan folder is searched by default. */
+/** How many folder levels a new source is searched by default. */
 export const DEFAULT_MAX_DEPTH = 4
 
-export type ScanFolderDbEntity = {
+export type SourceDbEntity = {
   /** Random UUID made when the folder is added. */
   id: string
   /** Absolute path of the folder the user added under "Sources → Folders on this machine" (unique). */
@@ -23,8 +23,8 @@ export type ScanFolderDbEntity = {
   last_error: string | null
 }
 
-export const CREATE_SCAN_FOLDERS_TABLE = `
-  CREATE TABLE IF NOT EXISTS ${SCAN_FOLDERS_TABLE} (
+export const CREATE_SOURCES_TABLE = `
+  CREATE TABLE IF NOT EXISTS ${SOURCES_TABLE} (
     id TEXT PRIMARY KEY,
     path TEXT NOT NULL UNIQUE,
     max_depth INTEGER NOT NULL,
@@ -34,7 +34,7 @@ export const CREATE_SCAN_FOLDERS_TABLE = `
   );
 `
 
-export function toScanFolder(row: ScanFolderDbEntity): ScanFolder {
+export function toSource(row: SourceDbEntity): Source {
   return {
     id: row.id,
     path: row.path,
@@ -45,21 +45,21 @@ export function toScanFolder(row: ScanFolderDbEntity): ScanFolder {
   }
 }
 
-export function listScanFolders(db: Database.Database): ScanFolder[] {
+export function listSources(db: Database.Database): Source[] {
   const rows = db
-    .prepare(`SELECT * FROM ${SCAN_FOLDERS_TABLE} ORDER BY added_at`)
-    .all() as ScanFolderDbEntity[]
-  return rows.map(toScanFolder)
+    .prepare(`SELECT * FROM ${SOURCES_TABLE} ORDER BY added_at`)
+    .all() as SourceDbEntity[]
+  return rows.map(toSource)
 }
 
 /** Inserts the paths that aren't saved yet. Returns the ids of the newly inserted rows. */
-export function insertScanFolders(
+export function insertSources(
   db: Database.Database,
   paths: string[],
   maxDepth = DEFAULT_MAX_DEPTH
 ): string[] {
   const insert = db.prepare(
-    `INSERT OR IGNORE INTO ${SCAN_FOLDERS_TABLE} (id, path, max_depth, added_at) VALUES (?, ?, ?, ?)`
+    `INSERT OR IGNORE INTO ${SOURCES_TABLE} (id, path, max_depth, added_at) VALUES (?, ?, ?, ?)`
   )
   const added: string[] = []
   for (const path of paths) {
@@ -69,17 +69,15 @@ export function insertScanFolders(
   return added
 }
 
-export function deleteScanFolder(db: Database.Database, id: string): void {
-  db.prepare(`DELETE FROM ${SCAN_FOLDERS_TABLE} WHERE id = ?`).run(id)
+export function deleteSource(db: Database.Database, id: string): void {
+  db.prepare(`DELETE FROM ${SOURCES_TABLE} WHERE id = ?`).run(id)
 }
 
 /** Records the end of a scan: `error` is null when it succeeded. */
-export function markScanFolderScanned(
-  db: Database.Database,
-  id: string,
-  error: string | null
-): void {
-  db.prepare(
-    `UPDATE ${SCAN_FOLDERS_TABLE} SET last_scanned_at = ?, last_error = ? WHERE id = ?`
-  ).run(Date.now(), error, id)
+export function markSourceScanned(db: Database.Database, id: string, error: string | null): void {
+  db.prepare(`UPDATE ${SOURCES_TABLE} SET last_scanned_at = ?, last_error = ? WHERE id = ?`).run(
+    Date.now(),
+    error,
+    id
+  )
 }

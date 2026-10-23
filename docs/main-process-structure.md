@@ -64,7 +64,7 @@ subscribe((snapshot) => {
   questions (`readStatus(dir)`, `listWorktrees(dir)`).
 - Exactly one place spawns a given process or calls a given API.
 - Multi-step pipelines get one file per step plus an entry file
-  (`discover.ts → scan-folder.ts → inspect.ts`).
+  (`discover.ts → scan-source.ts → inspect.ts`).
 
 ### `db/`: SQLite persistence
 
@@ -103,7 +103,7 @@ subscribe((snapshot) => {
 
 - Every file starts with a short `/** … */` summary: what it does and, if it isn't obvious, why it
   exists. Keep it to 1–5 lines.
-- Name things after the domain, not the mechanism or an old concept (`local-repos`, `scanFolder`,
+- Name things after the domain, not the mechanism or an old concept (`local-repos`, `source`,
   not `worktrees`, `root`). Use one term per concept across main, shared, renderer, SQL and
   channel names.
 - Prefer several small focused files over one large file. Split a file when it holds more than

@@ -5,7 +5,7 @@ import { join } from 'path'
 import Database from 'better-sqlite3'
 import { CREATE_LOCAL_REPOS_TABLE } from './tables/local-repos'
 import { CREATE_LOCAL_WORKTREES_TABLE } from './tables/local-worktrees'
-import { CREATE_SCAN_FOLDERS_TABLE } from './tables/scan-folders'
+import { CREATE_SOURCES_TABLE } from './tables/sources'
 
 let db: Database.Database | null = null
 
@@ -18,7 +18,12 @@ export function getDb(): Database.Database {
   db = new Database(join(dbDir, 'local-repos.db'))
   db.pragma('journal_mode = DELETE')
   db.pragma('foreign_keys = ON')
-  db.exec(CREATE_SCAN_FOLDERS_TABLE)
+  // Older builds called the sources table `scan_folders`; rename it so saved folders are kept.
+  const hasLegacySources = db
+    .prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'scan_folders'")
+    .get()
+  if (hasLegacySources) db.exec('ALTER TABLE scan_folders RENAME TO sources')
+  db.exec(CREATE_SOURCES_TABLE)
   db.exec(CREATE_LOCAL_REPOS_TABLE)
   db.exec(CREATE_LOCAL_WORKTREES_TABLE)
   // Older builds stored scan folder ↔ repo links; that is now worked out from paths.

@@ -1,25 +1,24 @@
 /**
  * Pure rules for live updates: which folders to watch, and what a changed path means.
  *
- * - `watchTargets`: every scan folder, plus repo `.git` dirs and checkouts that live outside all
- *   scan folders (e.g. a worktree in `~/elsewhere`). Nested paths are dropped because a recursive
+ * - `watchTargets`: every source, plus repo `.git` dirs and checkouts that live outside all
+ *   sources (e.g. a worktree in `~/elsewhere`). Nested paths are dropped because a recursive
  *   watcher on the parent already covers them.
  * - `classifyChange`: a path inside a known checkout or `.git` dir means "re-check that repo"; any
- *   other path inside a scan folder means "rescan that folder" (a clone may have appeared or gone).
+ *   other path inside a source means "rescan that folder" (a clone may have appeared or gone).
  *   Noise (`node_modules`, build output, `.git/objects`, lock files…) is ignored.
  */
 import { basename, sep } from 'path'
-import type { LocalRepository, ScanFolder } from '../../../shared/local-repos/types'
+import type { LocalRepository, Source } from '../../../shared/local-repos/types'
 import { ALLOWED_HIDDEN_DIRS, SKIP_DIRS } from '../scanner/discover'
 import { isInside } from '../utils/paths'
 
 /** What a changed path requires. */
-export type Change =
-  { kind: 'repo'; repoId: string } | { kind: 'scan-folder'; scanFolderIds: string[] }
+export type Change = { kind: 'repo'; repoId: string } | { kind: 'source'; sourceIds: string[] }
 
-export function watchTargets(scanFolders: ScanFolder[], repositories: LocalRepository[]): string[] {
+export function watchTargets(sources: Source[], repositories: LocalRepository[]): string[] {
   const paths = [
-    ...scanFolders.map((folder) => folder.path),
+    ...sources.map((folder) => folder.path),
     ...repositories.flatMap((repo) => [
       repo.commonDir,
       ...repo.worktrees.filter((tree) => !tree.isPrunable).map((tree) => tree.path)
@@ -34,7 +33,7 @@ export function watchTargets(scanFolders: ScanFolder[], repositories: LocalRepos
 
 export function classifyChange(
   path: string,
-  scanFolders: ScanFolder[],
+  sources: Source[],
   repositories: LocalRepository[]
 ): Change | null {
   if (basename(path) === '.DS_Store') return null
@@ -59,14 +58,14 @@ export function classifyChange(
     return ignored ? null : { kind: 'repo', repoId: match.repoId }
   }
 
-  const scanFolderIds = scanFolders
+  const sourceIds = sources
     .filter(
       (folder) =>
         isInside(path, folder.path) &&
         couldContainNewRepo(relativeParts(path, folder.path), folder.maxDepth)
     )
     .map((folder) => folder.id)
-  return scanFolderIds.length > 0 ? { kind: 'scan-folder', scanFolderIds } : null
+  return sourceIds.length > 0 ? { kind: 'source', sourceIds } : null
 }
 
 function relativeParts(path: string, base: string): string[] {

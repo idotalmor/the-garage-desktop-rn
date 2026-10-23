@@ -3,8 +3,8 @@
  *
  * - Full scans run on startup, after folders are added, on manual rescan, and when a window gets
  *   focus (at most every 5 minutes). These show progress in the UI.
- * - Live updates: every scan folder (plus checkouts outside them) is watched recursively. A change
- *   inside a known repo re-checks only that repo; any other change in a scan folder rescans that
+ * - Live updates: every source (plus checkouts outside them) is watched recursively. A change
+ *   inside a known repo re-checks only that repo; any other change in a source rescans that
  *   folder quietly (new or deleted clones). Changes are batched until things are quiet for 1s.
  * - All work runs one job at a time on one queue, saves through `db/` and notifies subscribers.
  *
@@ -15,12 +15,12 @@ import { promises as fs } from 'fs'
 import type {
   LocalReposSnapshot,
   LocalRepository,
-  ScanFolder,
+  Source,
   ScanProgress
 } from '../../shared/local-repos/types'
 import * as db from './db'
 import { reinspectRepository } from './scanner/inspect'
-import { scanFolder } from './scanner/scan-folder'
+import { scanSource } from './scanner/scan-source'
 import { closeAllWatchers, syncWatchers } from './watcher/fs-watchers'
 import { classifyChange, watchTargets } from './watcher/watch-targets'
 
@@ -41,19 +41,19 @@ let lastFullScanAt = 0
 let lastProgressNotifyAt = 0
 
 /** What the watchers currently cover, cached so file events don't hit the DB. */
-let watched: { scanFolders: ScanFolder[]; repositories: LocalRepository[] } = {
-  scanFolders: [],
+let watched: { sources: Source[]; repositories: LocalRepository[] } = {
+  sources: [],
   repositories: []
 }
 const changedRepoIds = new Set<string>()
-const changedScanFolderIds = new Set<string>()
+const changedSourceIds = new Set<string>()
 let changeTimer: NodeJS.Timeout | null = null
 let firstChangeAt = 0
 
-/** Current scan folders, repos and scan state. */
+/** Current sources, repos and scan state. */
 export function getSnapshot(): LocalReposSnapshot {
   return {
-    scanFolders: db.listScanFolders(),
+    sources: db.listSources(),
     repositories: db.listRepositories(),
     scanning: pendingScans > 0,
     progress
@@ -67,24 +67,24 @@ export function subscribe(listener: Listener): () => void {
 }
 
 /** Saves the folders (resolving symlinks) and scans the ones that are new. */
-export async function addScanFolders(paths: string[]): Promise<LocalReposSnapshot> {
+export async function addSources(paths: string[]): Promise<LocalReposSnapshot> {
   if (paths.length === 0) return getSnapshot()
   const realPaths = await Promise.all(paths.map((path) => fs.realpath(path).catch(() => path)))
-  const added = db.addScanFolders(realPaths)
+  const added = db.addSources(realPaths)
   if (added.length > 0) enqueueScan(added.map((folder) => folder.id))
   return getSnapshot()
 }
 
-export function removeScanFolder(id: string): LocalReposSnapshot {
-  db.removeScanFolder(id)
+export function removeSource(id: string): LocalReposSnapshot {
+  db.removeSource(id)
   syncWatching()
   notify()
   return getSnapshot()
 }
 
-/** Rescans one scan folder, or all of them when no id is given. */
-export function rescan(scanFolderId?: string): LocalReposSnapshot {
-  enqueueScan(scanFolderId ? [scanFolderId] : undefined)
+/** Rescans one source, or all of them when no id is given. */
+export function rescan(sourceId?: string): LocalReposSnapshot {
+  enqueueScan(sourceId ? [sourceId] : undefined)
   return getSnapshot()
 }
 
@@ -93,12 +93,12 @@ export function startScanService(): void {
   app.on('browser-window-focus', rescanIfStale)
   app.on('before-quit', closeAllWatchers)
   syncWatching()
-  if (db.listScanFolders().length > 0) enqueueScan()
+  if (db.listSources().length > 0) enqueueScan()
 }
 
 function rescanIfStale(): void {
   if (pendingScans > 0 || Date.now() - lastFullScanAt < FOCUS_RESCAN_INTERVAL_MS) return
-  if (db.listScanFolders().length > 0) enqueueScan()
+  if (db.listSources().length > 0) enqueueScan()
 }
 
 function notify(): void {
@@ -114,17 +114,17 @@ function onProgress(next: ScanProgress): void {
   notify()
 }
 
-/** Points the watchers at the current scan folders and repos. Run after every DB change. */
+/** Points the watchers at the current sources and repos. Run after every DB change. */
 function syncWatching(): void {
-  watched = { scanFolders: db.listScanFolders(), repositories: db.listRepositories() }
-  syncWatchers(watchTargets(watched.scanFolders, watched.repositories), onPathChanged)
+  watched = { sources: db.listSources(), repositories: db.listRepositories() }
+  syncWatchers(watchTargets(watched.sources, watched.repositories), onPathChanged)
 }
 
 function onPathChanged(path: string): void {
-  const change = classifyChange(path, watched.scanFolders, watched.repositories)
+  const change = classifyChange(path, watched.sources, watched.repositories)
   if (!change) return
   if (change.kind === 'repo') changedRepoIds.add(change.repoId)
-  else change.scanFolderIds.forEach((id) => changedScanFolderIds.add(id))
+  else change.sourceIds.forEach((id) => changedSourceIds.add(id))
 
   const now = Date.now()
   if (changeTimer) clearTimeout(changeTimer)
@@ -135,17 +135,17 @@ function onPathChanged(path: string): void {
 
 function flushChanges(): void {
   changeTimer = null
-  const scanFolderIds = [...changedScanFolderIds]
+  const sourceIds = [...changedSourceIds]
   const repoIds = [...changedRepoIds]
-  changedScanFolderIds.clear()
+  changedSourceIds.clear()
   changedRepoIds.clear()
-  if (scanFolderIds.length > 0) enqueue(() => runScan(scanFolderIds, false), false)
+  if (sourceIds.length > 0) enqueue(() => runScan(sourceIds, false), false)
   if (repoIds.length > 0) enqueue(() => refreshRepositories(repoIds), false)
 }
 
 /** Full scans are `visible` (spinner + progress in the UI); live refreshes run quietly. */
-function enqueueScan(scanFolderIds?: string[]): void {
-  enqueue(() => runScan(scanFolderIds, true), true)
+function enqueueScan(sourceIds?: string[]): void {
+  enqueue(() => runScan(sourceIds, true), true)
 }
 
 function enqueue(job: () => Promise<void>, visible: boolean): void {
@@ -164,33 +164,31 @@ function enqueue(job: () => Promise<void>, visible: boolean): void {
     })
 }
 
-async function runScan(scanFolderIds: string[] | undefined, visible: boolean): Promise<void> {
-  const folders = db
-    .listScanFolders()
-    .filter((folder) => !scanFolderIds || scanFolderIds.includes(folder.id))
-  if (!scanFolderIds) lastFullScanAt = Date.now()
+async function runScan(sourceIds: string[] | undefined, visible: boolean): Promise<void> {
+  const folders = db.listSources().filter((folder) => !sourceIds || sourceIds.includes(folder.id))
+  if (!sourceIds) lastFullScanAt = Date.now()
   for (const folder of folders) {
     try {
       const stats = await fs.stat(folder.path)
       if (!stats.isDirectory()) throw new Error('Not a folder')
-      const repositories = await scanFolder(
+      const repositories = await scanSource(
         folder.path,
         folder.maxDepth,
         visible ? onProgress : undefined
       )
-      db.saveScanFolderResult(folder.id, repositories)
+      db.saveSourceResult(folder.id, repositories)
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
       console.error('[local-repos] scan failed for', folder.path, message)
-      db.saveScanFolderResult(folder.id, [])
-      db.markScanFolderError(folder.id, message)
+      db.saveSourceResult(folder.id, [])
+      db.markSourceError(folder.id, message)
     }
     if (visible) notify()
   }
   await deleteMissingRepositories()
 }
 
-/** Deletes repos whose git dir is gone, including ones another scan folder still covers. */
+/** Deletes repos whose git dir is gone, including ones another source still covers. */
 async function deleteMissingRepositories(): Promise<void> {
   const missing: string[] = []
   for (const repo of db.listRepositories()) {

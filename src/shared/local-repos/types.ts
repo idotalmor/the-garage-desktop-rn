@@ -1,5 +1,5 @@
 /** A folder the user picked to scan. Can be a single repo, a worktree, or a parent of many repos. */
-export type ScanFolder = {
+export type Source = {
   /** Random id assigned when the folder is added. */
   id: string
   /** Absolute path on disk. */
@@ -99,21 +99,21 @@ export type LocalRepository = {
   defaultBranch: string | null
   /** Latest commit on the default branch. */
   defaultBranchCommit: CommitSummary | null
-  /** Ids of the scan folders that contain this repo's git dir or one of its checkouts. Worked out from paths, not stored. */
-  scanFolderIds: string[]
+  /** Ids of the sources that contain this repo's git dir or one of its checkouts. Worked out from paths, not stored. */
+  sourceIds: string[]
   /** Every checkout of this repo, main checkout first. */
   worktrees: LocalWorktree[]
   /** When this repo was last inspected (epoch ms). */
   scannedAt: number
 }
 
-/** A repo as the scanner reads it from disk, before the DB adds `scanFolderIds`. */
-export type ScannedRepository = Omit<LocalRepository, 'scanFolderIds'>
+/** A repo as the scanner reads it from disk, before the DB adds `sourceIds`. */
+export type ScannedRepository = Omit<LocalRepository, 'sourceIds'>
 
 /** Live progress of the scan that is currently running. */
 export type ScanProgress = {
-  /** Scan folder currently being walked. */
-  scanFolderPath: string
+  /** Source currently being walked. */
+  sourcePath: string
   /** Directories visited so far. */
   dirsVisited: number
   /** Repos found so far. */
@@ -123,8 +123,8 @@ export type ScanProgress = {
 /** Everything the UI needs to render local repos, sent in one object. */
 export type LocalReposSnapshot = {
   /** Folders the user chose to scan. */
-  scanFolders: ScanFolder[]
-  /** Repos found across all scan folders. */
+  sources: Source[]
+  /** Repos found across all sources. */
   repositories: LocalRepository[]
   /** True while a scan is queued or running. */
   scanning: boolean

@@ -13,7 +13,7 @@ function relativeTime(timestamp: number): string {
 }
 
 /**
- * Where repositories come from. Today only folders on this machine (`scan_folders`); a GitHub
+ * Where repositories come from. Today only folders on this machine (`sources`); a GitHub
  * section will join it once GitHub is connected.
  */
 export function SourcesModal({
@@ -26,10 +26,10 @@ export function SourcesModal({
   snapshot: LocalReposSnapshot | null
   onAdd: () => void
   onRemove: (id: string) => void
-  onRescan: (scanFolderId?: string) => void
+  onRescan: (sourceId?: string) => void
   onClose: () => void
 }): React.JSX.Element {
-  const scanFolders = snapshot?.scanFolders ?? []
+  const sources = snapshot?.sources ?? []
   const repositories = snapshot?.repositories ?? []
   const scanning = Boolean(snapshot?.scanning)
 
@@ -45,15 +45,15 @@ export function SourcesModal({
           machine.
         </p>
 
-        {scanFolders.length === 0 ? (
+        {sources.length === 0 ? (
           <p className="rounded-lg border border-dashed border-border p-4 text-center text-xs text-muted">
             No folders yet.
           </p>
         ) : (
           <ul className="divide-y divide-separator rounded-lg border border-border">
-            {scanFolders.map((folder) => {
+            {sources.map((folder) => {
               const repoCount = repositories.filter((repo) =>
-                repo.scanFolderIds.includes(folder.id)
+                repo.sourceIds.includes(folder.id)
               ).length
               return (
                 <li key={folder.id} className="flex items-center gap-2 px-3 py-2">
@@ -119,7 +119,7 @@ export function SourcesModal({
             size="sm"
             variant="outline"
             className="ml-auto rounded-lg text-xs"
-            isDisabled={scanning || scanFolders.length === 0}
+            isDisabled={scanning || sources.length === 0}
             onPress={() => onRescan()}
           >
             <RefreshCw size={13} /> Rescan all

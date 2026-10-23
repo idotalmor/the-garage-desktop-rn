@@ -70,14 +70,14 @@ export function DashboardHome(): React.JSX.Element {
             onPress={() => setIsSourcesOpen(true)}
           >
             <FolderSearch size={13} /> Sources
-            {snapshot && snapshot.scanFolders.length > 0 ? ` (${snapshot.scanFolders.length})` : ''}
+            {snapshot && snapshot.sources.length > 0 ? ` (${snapshot.sources.length})` : ''}
           </Button>
         </div>
         {!collapsed['github'] && (
           <div id="github-section" className="space-y-4">
             {snapshot && repositories.length === 0 && (
               <div className="flex flex-col items-start gap-2 rounded-xl border border-dashed border-border p-4 text-xs text-muted">
-                {snapshot.scanFolders.length === 0 ? (
+                {snapshot.sources.length === 0 ? (
                   <>
                     <p>Add the folders where you keep your repositories and worktrees.</p>
                     <Button
@@ -203,7 +203,7 @@ export function DashboardHome(): React.JSX.Element {
           snapshot={snapshot}
           onAdd={() => void addFolders()}
           onRemove={(id) => void removeFolder(id)}
-          onRescan={(scanFolderId) => void rescan(scanFolderId)}
+          onRescan={(sourceId) => void rescan(sourceId)}
           onClose={() => setIsSourcesOpen(false)}
         />
       )}

@@ -92,7 +92,7 @@ export function toLocalRepoDbEntity(repo: ScannedRepository): LocalRepoDbEntity 
 
 export function toLocalRepository(
   row: LocalRepoDbEntity,
-  scanFolderIds: string[],
+  sourceIds: string[],
   worktrees: LocalWorktree[]
 ): LocalRepository {
   return {
@@ -107,7 +107,7 @@ export function toLocalRepository(
     remotes: parseJson(row.remotes, []),
     defaultBranch: row.default_branch,
     defaultBranchCommit: parseJson(row.default_branch_commit, null),
-    scanFolderIds,
+    sourceIds,
     worktrees,
     scannedAt: row.scanned_at
   }

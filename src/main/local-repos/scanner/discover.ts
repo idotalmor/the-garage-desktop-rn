@@ -1,5 +1,5 @@
 /**
- * Step 1 of a scan: walk a scan folder and find every place that looks like a git repo.
+ * Step 1 of a scan: walk a source and find every place that looks like a git repo.
  *
  * A directory is a candidate when it has a `.git` folder (normal repo), a `.git` file (linked
  * worktree), or is itself a bare repo. The walk stops descending at a candidate; other checkouts
@@ -34,16 +34,16 @@ const FS_CONCURRENCY = 16
 /** A directory that looks like a checkout (`worktree`) or a bare repo. */
 export type Candidate = { dir: string; kind: 'worktree' | 'bare' }
 
-/** Breadth-first walk of `scanFolderPath` up to `maxDepth` levels, reporting progress per level. */
+/** Breadth-first walk of `sourcePath` up to `maxDepth` levels, reporting progress per level. */
 export async function discover(
-  scanFolderPath: string,
+  sourcePath: string,
   maxDepth: number,
   progress: ScanProgress,
   onProgress?: (progress: ScanProgress) => void
 ): Promise<Candidate[]> {
   const candidates: Candidate[] = []
   const seen = new Set<string>()
-  let queue: { dir: string; depth: number }[] = [{ dir: scanFolderPath, depth: 0 }]
+  let queue: { dir: string; depth: number }[] = [{ dir: sourcePath, depth: 0 }]
 
   while (queue.length > 0) {
     const next: { dir: string; depth: number }[] = []

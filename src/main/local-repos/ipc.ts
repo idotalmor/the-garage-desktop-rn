@@ -5,9 +5,9 @@
 import { BrowserWindow, dialog, ipcMain, type IpcMainInvokeEvent } from 'electron'
 import { LocalReposChannel } from '../../shared/local-repos/channels'
 import {
-  addScanFolders,
+  addSources,
   getSnapshot,
-  removeScanFolder,
+  removeSource,
   rescan,
   startScanService,
   subscribe
@@ -15,14 +15,12 @@ import {
 
 export function initLocalReposIpc(): void {
   ipcMain.handle(LocalReposChannel.GetSnapshot, () => getSnapshot())
-  ipcMain.handle(LocalReposChannel.AddScanFolders, async (event) =>
-    addScanFolders(await pickFolders(event))
+  ipcMain.handle(LocalReposChannel.AddSources, async (event) =>
+    addSources(await pickFolders(event))
   )
-  ipcMain.handle(LocalReposChannel.RemoveScanFolder, (_, id: string) =>
-    removeScanFolder(String(id))
-  )
-  ipcMain.handle(LocalReposChannel.Rescan, (_, scanFolderId?: string) =>
-    rescan(scanFolderId ? String(scanFolderId) : undefined)
+  ipcMain.handle(LocalReposChannel.RemoveSource, (_, id: string) => removeSource(String(id)))
+  ipcMain.handle(LocalReposChannel.Rescan, (_, sourceId?: string) =>
+    rescan(sourceId ? String(sourceId) : undefined)
   )
 
   subscribe((snapshot) => {

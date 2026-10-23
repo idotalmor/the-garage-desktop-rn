@@ -2,17 +2,13 @@
  * Public API of the local repos database. These are the operations the scan service needs; each
  * one may touch several tables (see `tables/`) inside a single transaction.
  *
- * `scan_folders` is the list of folders to scan and watch. `local_repos` and `local_worktrees` are
+ * `sources` is the list of folders to scan and watch. `local_repos` and `local_worktrees` are
  * the result, keyed by path so a repo or checkout is stored once however many folders find it.
- * Which folders cover a repo is worked out from paths (`coveringScanFolderIds`), not stored.
+ * Which folders cover a repo is worked out from paths (`coveringSourceIds`), not stored.
  */
 import type Database from 'better-sqlite3'
-import type {
-  LocalRepository,
-  ScanFolder,
-  ScannedRepository
-} from '../../../shared/local-repos/types'
-import { coveringScanFolderIds } from '../utils/paths'
+import type { LocalRepository, Source, ScannedRepository } from '../../../shared/local-repos/types'
+import { coveringSourceIds } from '../utils/paths'
 import { getDb } from './connection'
 import {
   deleteLocalRepos,
@@ -27,54 +23,51 @@ import {
   toLocalWorktree
 } from './tables/local-worktrees'
 import {
-  deleteScanFolder,
-  insertScanFolders,
-  listScanFolders as listScanFolderDbEntities,
-  markScanFolderScanned
-} from './tables/scan-folders'
+  deleteSource,
+  insertSources,
+  listSources as listSourceDbEntities,
+  markSourceScanned
+} from './tables/sources'
 
-export function listScanFolders(): ScanFolder[] {
-  return listScanFolderDbEntities(getDb())
+export function listSources(): Source[] {
+  return listSourceDbEntities(getDb())
 }
 
-/** Saves new scan folders. Paths that are already saved are ignored. Returns only the new ones. */
-export function addScanFolders(paths: string[]): ScanFolder[] {
+/** Saves new sources. Paths that are already saved are ignored. Returns only the new ones. */
+export function addSources(paths: string[]): Source[] {
   const db = getDb()
-  const addedIds = db.transaction(() => insertScanFolders(db, paths))()
-  return listScanFolderDbEntities(db).filter((folder) => addedIds.includes(folder.id))
+  const addedIds = db.transaction(() => insertSources(db, paths))()
+  return listSourceDbEntities(db).filter((folder) => addedIds.includes(folder.id))
 }
 
-/** Deletes a scan folder and every repo that no remaining scan folder covers. */
-export function removeScanFolder(id: string): void {
+/** Deletes a source and every repo that no remaining source covers. */
+export function removeSource(id: string): void {
   const db = getDb()
   db.transaction(() => {
-    deleteScanFolder(db, id)
+    deleteSource(db, id)
     deleteLocalRepos(db, uncoveredRepoIds(db))
   })()
 }
 
-export function markScanFolderError(id: string, error: string): void {
-  markScanFolderScanned(getDb(), id, error)
+export function markSourceError(id: string, error: string): void {
+  markSourceScanned(getDb(), id, error)
 }
 
 /**
- * Saves what one scan folder found. Found repos are upserted (by their git dir, so never twice).
+ * Saves what one source found. Found repos are upserted (by their git dir, so never twice).
  * Repos this folder covers but no longer finds are deleted, unless another folder also covers them.
  */
-export function saveScanFolderResult(
-  scanFolderId: string,
-  repositories: ScannedRepository[]
-): void {
+export function saveSourceResult(sourceId: string, repositories: ScannedRepository[]): void {
   const db = getDb()
   db.transaction(() => {
     for (const repo of repositories) {
       upsertLocalRepo(db, repo)
       replaceRepoWorktrees(db, repo.id, repo.worktrees)
     }
-    markScanFolderScanned(db, scanFolderId, null)
+    markSourceScanned(db, sourceId, null)
     const found = new Set(repositories.map((repo) => repo.id))
     const stale = readRepositories(db).filter(
-      (repo) => !found.has(repo.id) && repo.scanFolderIds.every((id) => id === scanFolderId)
+      (repo) => !found.has(repo.id) && repo.sourceIds.every((id) => id === sourceId)
     )
     deleteLocalRepos(
       db,
@@ -85,7 +78,7 @@ export function saveScanFolderResult(
 
 /**
  * Updates one repo and its worktrees after a live change. Skipped if the repo was deleted
- * meanwhile; deleted if no scan folder covers it anymore (e.g. its only checkout in one was removed).
+ * meanwhile; deleted if no source covers it anymore (e.g. its only checkout in one was removed).
  */
 export function saveRepository(repo: ScannedRepository): void {
   const db = getDb()
@@ -104,26 +97,23 @@ export function deleteRepositories(ids: string[]): void {
   db.transaction(() => deleteLocalRepos(db, ids))()
 }
 
-/** All repos with their covering scan folder ids and worktrees, sorted by name. */
+/** All repos with their covering source ids and worktrees, sorted by name. */
 export function listRepositories(): LocalRepository[] {
   return readRepositories(getDb())
 }
 
 function readRepositories(db: Database.Database): LocalRepository[] {
-  const scanFolders = listScanFolderDbEntities(db)
+  const sources = listSourceDbEntities(db)
   const worktrees = listLocalWorktreeDbEntities(db)
   return listLocalRepoDbEntities(db).map((row) => {
     const trees = worktrees.filter((tree) => tree.repo_id === row.id).map(toLocalWorktree)
-    const scanFolderIds = coveringScanFolderIds(
-      { commonDir: row.common_dir, worktrees: trees },
-      scanFolders
-    )
-    return toLocalRepository(row, scanFolderIds, trees)
+    const sourceIds = coveringSourceIds({ commonDir: row.common_dir, worktrees: trees }, sources)
+    return toLocalRepository(row, sourceIds, trees)
   })
 }
 
 function uncoveredRepoIds(db: Database.Database): string[] {
   return readRepositories(db)
-    .filter((repo) => repo.scanFolderIds.length === 0)
+    .filter((repo) => repo.sourceIds.length === 0)
     .map((repo) => repo.id)
 }

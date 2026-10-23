@@ -9,7 +9,7 @@ export function useLocalRepositories(): {
   repositories: Repository[]
   addFolders: () => Promise<void>
   removeFolder: (id: string) => Promise<void>
-  rescan: (scanFolderId?: string) => Promise<void>
+  rescan: (sourceId?: string) => Promise<void>
 } {
   const [snapshot, setSnapshot] = useState<LocalReposSnapshot | null>(null)
 
@@ -39,8 +39,8 @@ export function useLocalRepositories(): {
   return {
     snapshot,
     repositories,
-    addFolders: () => invoke(LocalReposChannel.AddScanFolders),
-    removeFolder: (id) => invoke(LocalReposChannel.RemoveScanFolder, id),
-    rescan: (scanFolderId) => invoke(LocalReposChannel.Rescan, scanFolderId)
+    addFolders: () => invoke(LocalReposChannel.AddSources),
+    removeFolder: (id) => invoke(LocalReposChannel.RemoveSource, id),
+    rescan: (sourceId) => invoke(LocalReposChannel.Rescan, sourceId)
   }
 }
