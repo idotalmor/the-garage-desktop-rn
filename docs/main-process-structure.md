@@ -90,6 +90,8 @@ subscribe((snapshot) => {
   - a mermaid `erDiagram` of the tables, with a comment on every column saying what it stores
     (e.g. `INTEGER is_bare "1 = bare repo: only the git database, no checked-out files"`)
   - a mermaid `flowchart` of the flow that writes them
+  - a scenarios table: each real situation (plain clone, worktree outside the folder, overlapping
+    folders, deleted repo…) and the rows it leaves in each table, checked by running the code
     Update it in the same change whenever a table, column or write flow changes.
 
 ## File conventions
