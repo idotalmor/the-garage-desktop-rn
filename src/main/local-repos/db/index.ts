@@ -17,31 +17,31 @@ import { getDb } from './connection'
 import {
   deleteLocalRepos,
   hasLocalRepo,
-  listLocalRepoRows,
+  listLocalRepoDbEntities,
   toLocalRepository,
   upsertLocalRepo
 } from './tables/local-repos'
 import {
-  listLocalWorktreeRows,
+  listLocalWorktreeDbEntities,
   replaceRepoWorktrees,
   toLocalWorktree
 } from './tables/local-worktrees'
 import {
   deleteScanFolder,
   insertScanFolders,
-  listScanFolders as listScanFolderRows,
+  listScanFolders as listScanFolderDbEntities,
   markScanFolderScanned
 } from './tables/scan-folders'
 
 export function listScanFolders(): ScanFolder[] {
-  return listScanFolderRows(getDb())
+  return listScanFolderDbEntities(getDb())
 }
 
 /** Saves new scan folders. Paths that are already saved are ignored. Returns only the new ones. */
 export function addScanFolders(paths: string[]): ScanFolder[] {
   const db = getDb()
   const addedIds = db.transaction(() => insertScanFolders(db, paths))()
-  return listScanFolderRows(db).filter((folder) => addedIds.includes(folder.id))
+  return listScanFolderDbEntities(db).filter((folder) => addedIds.includes(folder.id))
 }
 
 /** Deletes a scan folder and every repo that no remaining scan folder covers. */
@@ -110,9 +110,9 @@ export function listRepositories(): LocalRepository[] {
 }
 
 function readRepositories(db: Database.Database): LocalRepository[] {
-  const scanFolders = listScanFolderRows(db)
-  const worktrees = listLocalWorktreeRows(db)
-  return listLocalRepoRows(db).map((row) => {
+  const scanFolders = listScanFolderDbEntities(db)
+  const worktrees = listLocalWorktreeDbEntities(db)
+  return listLocalRepoDbEntities(db).map((row) => {
     const trees = worktrees.filter((tree) => tree.repo_id === row.id).map(toLocalWorktree)
     const scanFolderIds = coveringScanFolderIds(
       { commonDir: row.common_dir, worktrees: trees },

@@ -8,7 +8,7 @@ export const SCAN_FOLDERS_TABLE = 'scan_folders'
 /** How many folder levels a new scan folder is searched by default. */
 export const DEFAULT_MAX_DEPTH = 4
 
-export type ScanFolderRow = {
+export type ScanFolderDbEntity = {
   /** Random UUID made when the folder is added. */
   id: string
   /** Absolute path of the folder the user picked in "Scan folders" (unique). */
@@ -34,7 +34,7 @@ export const CREATE_SCAN_FOLDERS_TABLE = `
   );
 `
 
-export function toScanFolder(row: ScanFolderRow): ScanFolder {
+export function toScanFolder(row: ScanFolderDbEntity): ScanFolder {
   return {
     id: row.id,
     path: row.path,
@@ -48,7 +48,7 @@ export function toScanFolder(row: ScanFolderRow): ScanFolder {
 export function listScanFolders(db: Database.Database): ScanFolder[] {
   const rows = db
     .prepare(`SELECT * FROM ${SCAN_FOLDERS_TABLE} ORDER BY added_at`)
-    .all() as ScanFolderRow[]
+    .all() as ScanFolderDbEntity[]
   return rows.map(toScanFolder)
 }
 

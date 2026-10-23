@@ -74,11 +74,11 @@ subscribe((snapshot) => {
 - `tables/<table-name>.ts`: **one file per table**, file named after the table (kebab-case).
   Each contains, in this order:
   1. `export const <TABLE_NAME>_TABLE = '<table_name>'`
-  2. `export type <Name>Row`: the row exactly as stored (snake_case, booleans `0|1`, JSON as
-     `string`). Every property gets a `/** */` comment saying what it means and where the value comes from
+  2. `export type <Name>DbEntity`: the row exactly as stored in the DB (snake_case, booleans `0|1`,
+     JSON as `Json<T>`). The `DbEntity` suffix keeps it apart from the app type `<Name>`. Every property gets a `/** */` comment saying what it means and where the value comes from
      (e.g. `name`: "repo name from the primary remote URL, else the main checkout's folder name").
   3. `export const CREATE_<TABLE_NAME>_TABLE`: SQL using the const, plus its indexes
-  4. row ↔ domain mappers (`to<Name>Row`, `to<Name>`)
+  4. row ↔ domain mappers (`to<Name>DbEntity`, `to<Name>`)
   5. single-table queries that take `db: Database.Database` as the first argument
      Table files don't import `connection.ts`, so there are no import cycles.
 - `index.ts`: the feature's public DB API. It calls `getDb()`, composes table functions, and wraps

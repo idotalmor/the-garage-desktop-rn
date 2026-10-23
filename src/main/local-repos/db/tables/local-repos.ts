@@ -12,7 +12,7 @@ import { parseJson, toJson, type Json } from '../utils/json'
 
 export const LOCAL_REPOS_TABLE = 'local_repos'
 
-export type LocalRepoRow = {
+export type LocalRepoDbEntity = {
   /** First 16 hex chars of the SHA-1 of `common_dir`, so the same repo always gets the same id. */
   id: string
   /**
@@ -73,7 +73,7 @@ export const CREATE_LOCAL_REPOS_TABLE = `
   CREATE INDEX IF NOT EXISTS idx_${LOCAL_REPOS_TABLE}_slug ON ${LOCAL_REPOS_TABLE}(slug);
 `
 
-export function toLocalRepoRow(repo: ScannedRepository): LocalRepoRow {
+export function toLocalRepoDbEntity(repo: ScannedRepository): LocalRepoDbEntity {
   return {
     id: repo.id,
     name: repo.name,
@@ -91,7 +91,7 @@ export function toLocalRepoRow(repo: ScannedRepository): LocalRepoRow {
 }
 
 export function toLocalRepository(
-  row: LocalRepoRow,
+  row: LocalRepoDbEntity,
   scanFolderIds: string[],
   worktrees: LocalWorktree[]
 ): LocalRepository {
@@ -113,8 +113,8 @@ export function toLocalRepository(
   }
 }
 
-export function listLocalRepoRows(db: Database.Database): LocalRepoRow[] {
-  return db.prepare(`SELECT * FROM ${LOCAL_REPOS_TABLE} ORDER BY name`).all() as LocalRepoRow[]
+export function listLocalRepoDbEntities(db: Database.Database): LocalRepoDbEntity[] {
+  return db.prepare(`SELECT * FROM ${LOCAL_REPOS_TABLE} ORDER BY name`).all() as LocalRepoDbEntity[]
 }
 
 export function upsertLocalRepo(db: Database.Database, repo: ScannedRepository): void {
@@ -133,7 +133,7 @@ export function upsertLocalRepo(db: Database.Database, repo: ScannedRepository):
       remotes = excluded.remotes, default_branch = excluded.default_branch,
       default_branch_commit = excluded.default_branch_commit, scanned_at = excluded.scanned_at
   `
-  ).run(toLocalRepoRow(repo))
+  ).run(toLocalRepoDbEntity(repo))
 }
 
 export function hasLocalRepo(db: Database.Database, id: string): boolean {

@@ -5,7 +5,7 @@ import { parseJson, toJson, type Json } from '../utils/json'
 
 export const LOCAL_WORKTREES_TABLE = 'local_worktrees'
 
-export type LocalWorktreeRow = {
+export type LocalWorktreeDbEntity = {
   /** Absolute path of the checkout folder, from `git worktree list`. Primary key: one row per checkout. */
   path: string
   /** The `local_repos.id` this checkout belongs to. Deleting the repo deletes its checkouts. */
@@ -63,11 +63,11 @@ export const CREATE_LOCAL_WORKTREES_TABLE = `
   CREATE INDEX IF NOT EXISTS idx_${LOCAL_WORKTREES_TABLE}_branch ON ${LOCAL_WORKTREES_TABLE}(branch);
 `
 
-export function toLocalWorktreeRow(
+export function toLocalWorktreeDbEntity(
   tree: LocalWorktree,
   repoId: string,
   position: number
-): LocalWorktreeRow {
+): LocalWorktreeDbEntity {
   return {
     path: tree.path,
     repo_id: repoId,
@@ -87,7 +87,7 @@ export function toLocalWorktreeRow(
   }
 }
 
-export function toLocalWorktree(row: LocalWorktreeRow): LocalWorktree {
+export function toLocalWorktree(row: LocalWorktreeDbEntity): LocalWorktree {
   return {
     path: row.path,
     name: row.name,
@@ -105,10 +105,10 @@ export function toLocalWorktree(row: LocalWorktreeRow): LocalWorktree {
   }
 }
 
-export function listLocalWorktreeRows(db: Database.Database): LocalWorktreeRow[] {
+export function listLocalWorktreeDbEntities(db: Database.Database): LocalWorktreeDbEntity[] {
   return db
     .prepare(`SELECT * FROM ${LOCAL_WORKTREES_TABLE} ORDER BY repo_id, position`)
-    .all() as LocalWorktreeRow[]
+    .all() as LocalWorktreeDbEntity[]
 }
 
 /**
@@ -130,5 +130,5 @@ export function replaceRepoWorktrees(
       @is_prunable, @upstream, @ahead, @behind, @changed_files, @last_commit
     )
   `)
-  worktrees.forEach((tree, position) => insert.run(toLocalWorktreeRow(tree, repoId, position)))
+  worktrees.forEach((tree, position) => insert.run(toLocalWorktreeDbEntity(tree, repoId, position)))
 }
