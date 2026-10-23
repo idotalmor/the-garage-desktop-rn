@@ -87,7 +87,9 @@ subscribe((snapshot) => {
   `src/main/local-repos/db/tables/README.md`), and list it in `docs/README.md`:
   - what one row of each table represents and which flow creates/updates/deletes it
   - a JSON example row per table
-  - a mermaid `erDiagram` of the tables and a mermaid `flowchart` of the flow that writes them
+  - a mermaid `erDiagram` of the tables, with a comment on every column saying what it stores
+    (e.g. `INTEGER is_bare "1 = bare repo: only the git database, no checked-out files"`)
+  - a mermaid `flowchart` of the flow that writes them
     Update it in the same change whenever a table, column or write flow changes.
 
 ## File conventions

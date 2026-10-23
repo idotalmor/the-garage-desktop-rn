@@ -27,49 +27,52 @@ erDiagram
   local_repos ||--|{ local_worktrees : "has checkouts"
 
   scan_folders {
-    TEXT id PK
-    TEXT path UK
-    INTEGER max_depth
-    INTEGER added_at
-    INTEGER last_scanned_at
-    TEXT last_error
+    TEXT id PK "random id given when the folder is added"
+    TEXT path UK "absolute path of the folder on disk"
+    INTEGER max_depth "how many folder levels below path the scanner looks for repos"
+    INTEGER added_at "when the user added the folder (epoch ms)"
+    INTEGER last_scanned_at "when the last scan finished (epoch ms), null if never scanned"
+    TEXT last_error "why the last scan failed (e.g. folder deleted), null if it worked"
   }
   local_repos {
-    TEXT id PK "sha1(common_dir)"
-    TEXT name
-    TEXT common_dir UK
-    INTEGER is_bare
-    TEXT provider
-    TEXT full_name
-    TEXT slug "host/owner/repo"
-    TEXT remote_url
-    TEXT remotes "JSON GitRemote[]"
-    TEXT default_branch
-    TEXT default_branch_commit "JSON CommitSummary"
-    INTEGER scanned_at
+    TEXT id PK "sha1 of common_dir, stable across scans"
+    TEXT name "display name: remote repo name, else the folder name"
+    TEXT common_dir UK "shared .git folder all checkouts of this repo use"
+    INTEGER is_bare "1 = bare repo: only the git database, no checked-out files"
+    TEXT provider "host of the main remote: github, other or none (no remote)"
+    TEXT full_name "owner/repo of the main remote (origin, else the first remote)"
+    TEXT slug "lower-cased host/owner/repo, the key for matching the GitHub repo"
+    TEXT remote_url "raw URL of the main remote, as in git remote -v"
+    TEXT remotes "JSON GitRemote[]: every configured remote"
+    TEXT default_branch "remote default branch (e.g. main), else a local guess"
+    TEXT default_branch_commit "JSON CommitSummary: latest commit on default_branch"
+    INTEGER scanned_at "when this repo was last inspected (epoch ms)"
   }
   local_repo_scan_folders {
-    TEXT repo_id PK, FK
-    TEXT scan_folder_id PK, FK
+    TEXT repo_id PK, FK "the repo that was found (local_repos.id)"
+    TEXT scan_folder_id PK, FK "the scan folder that found it (scan_folders.id)"
   }
   local_worktrees {
-    TEXT path PK
-    TEXT repo_id FK
-    INTEGER position
-    TEXT name
-    INTEGER is_main
-    TEXT branch
-    INTEGER is_detached
-    TEXT head
-    INTEGER is_locked
-    INTEGER is_prunable
-    TEXT upstream
-    INTEGER ahead
-    INTEGER behind
-    INTEGER changed_files
-    TEXT last_commit "JSON CommitSummary"
+    TEXT path PK "absolute path of the checkout"
+    TEXT repo_id FK "repo this checkout belongs to (local_repos.id)"
+    INTEGER position "display order inside the repo, 0 = main checkout"
+    INTEGER is_main "1 = the original checkout, 0 = added with git worktree add"
+    TEXT name "folder name of the checkout, used as the label"
+    TEXT branch "checked-out branch, null when detached"
+    INTEGER is_detached "1 = HEAD points at a commit, not a branch"
+    TEXT head "commit SHA that HEAD points to, null if the repo has no commits"
+    INTEGER is_locked "1 = locked with git worktree lock (git will not prune or move it)"
+    INTEGER is_prunable "1 = the checkout folder is gone, git worktree prune would remove it"
+    TEXT upstream "remote branch this branch tracks (e.g. origin/main), null if none"
+    INTEGER ahead "local commits not pushed to upstream, null without upstream"
+    INTEGER behind "upstream commits not pulled yet (as of last fetch), null without upstream"
+    INTEGER changed_files "modified, staged, renamed, conflicted or untracked files"
+    TEXT last_commit "JSON CommitSummary: last commit on HEAD"
   }
 ```
+
+Each column's comment says what it stores. Booleans are `0`/`1`, times are epoch ms, and `JSON …`
+columns hold JSON text of the named type from `src/shared/local-repos/types.ts`.
 
 Deleting a scan folder cascades to its link rows. Deleting a repo cascades to its link rows and
 worktrees.

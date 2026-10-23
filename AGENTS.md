@@ -13,7 +13,7 @@ bridge, `src/renderer` the React UI, `src/shared` the types and IPC channel name
   [docs/README.md](docs/README.md). When you add or change code that has a README, update it in the
   same change. When you add a new doc, add it to the index.
 - **SQLite databases**: each feature DB has `src/main/<feature>/db/tables/README.md` with each
-  table's purpose, a JSON example row, a mermaid ER diagram and a mermaid flow of how rows are
+  table's purpose, a JSON example row, a mermaid ER diagram (with a comment on every column saying what it stores) and a mermaid flow of how rows are
   written (example: [src/main/local-repos/db/tables/README.md](src/main/local-repos/db/tables/README.md)).
   Create one for a new DB, and update it whenever tables, columns or write flows change.
 - Naming (brand vs code names): [NAMING.md](NAMING.md)
