@@ -16,8 +16,8 @@ bridge, `src/renderer` the React UI, `src/shared` the types and IPC channel name
   table's purpose, a JSON example row, a mermaid ER diagram (with a comment on every column saying what it stores), a mermaid flow of how rows are
   written, and a scenarios table of each situation and the rows it leaves in each table, checked by running the code (example: [src/main/local-repos/db/tables/README.md](src/main/local-repos/db/tables/README.md)).
   Create one for a new DB, and update it whenever tables, columns or write flows change.
-  There are no migrations while the app has no users: when a table changes, bump the DB's
-  `SCHEMA_VERSION` in `db/connection.ts` so old DBs are recreated empty.
+  No migrations, schema versions or backwards-compatibility code while the app has no users: change
+  the tables directly; after a schema change the user presses **Reset local data**.
   Every property of a `<Name>DbEntity` type gets a comment saying what it means and where the value comes from.
 - Naming (brand vs code names): [NAMING.md](NAMING.md)
 - UI components: `.agents/skills/gravity-ui/SKILL.md`

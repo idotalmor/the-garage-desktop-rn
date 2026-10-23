@@ -7,9 +7,6 @@ import { CREATE_LOCAL_REPOS_TABLE } from './tables/local-repos'
 import { CREATE_LOCAL_WORKTREES_TABLE } from './tables/local-worktrees'
 import { CREATE_SOURCES_TABLE } from './tables/sources'
 
-/** Bump when any table changes. A DB with another version is dropped and recreated empty (no migrations yet). */
-const SCHEMA_VERSION = 3
-
 let db: Database.Database | null = null
 
 export function getDb(): Database.Database {
@@ -21,19 +18,15 @@ export function getDb(): Database.Database {
   db = new Database(join(dbDir, 'local-repos.db'))
   db.pragma('journal_mode = DELETE')
   db.pragma('foreign_keys = ON')
-  if (db.pragma('user_version', { simple: true }) === SCHEMA_VERSION) createTables(db)
-  else recreateTables(db)
+  createTables(db)
 
   app.on('before-quit', () => db?.close())
   return db
 }
 
-/** Drops every table in the file, including ones older builds left behind, and creates them again empty. */
+/** Drops every table in the file and creates the current ones again empty. */
 export function resetDb(): void {
-  recreateTables(getDb())
-}
-
-function recreateTables(db: Database.Database): void {
+  const db = getDb()
   const tables = db
     .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'")
     .pluck()
@@ -47,7 +40,6 @@ function recreateTables(db: Database.Database): void {
   } finally {
     db.pragma('foreign_keys = ON')
   }
-  db.pragma(`user_version = ${SCHEMA_VERSION}`)
 }
 
 function createTables(db: Database.Database): void {
