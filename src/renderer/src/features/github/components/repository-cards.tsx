@@ -6,6 +6,8 @@ import type { CiStatus, PullRequest, Repository, Worktree } from './types'
 const favoritePeople = ['Maya Chen', 'Ava Patel', 'Noah Williams']
 const otherPeople = ['Priya Shah', 'Liam Jones']
 
+// Mock data for offline UI work. The dashboard now renders scanned local repositories
+// (see hooks/useLocalRepositories.ts); kept so it can be re-applied later.
 export const repositories: Repository[] = [
   {
     name: 'platform-api',
@@ -139,7 +141,8 @@ export const repositories: Repository[] = [
 const ciSurfaceClass: Record<CiStatus, string> = {
   passing: 'bg-success/50',
   'in-progress': 'bg-warning/50',
-  failing: 'bg-danger/50'
+  failing: 'bg-danger/50',
+  none: ''
 }
 
 const prStatusStyle: Record<string, string> = {
@@ -170,8 +173,12 @@ export function buildRepositoryCards({
   onOpenWorktree: (worktree: Worktree) => void
   onBabysitter: (number: number) => void
 }): GitHubCardSpec[] {
+  // The main clone usually has the default branch checked out; show that as one card, not two.
+  const mainCheckout = repository.worktrees.find(
+    (tree) => tree.isMain && tree.branch === repository.defaultBranch
+  )
   return [
-    branchCard(repository, onHistory),
+    branchCard(repository, onHistory, mainCheckout),
     ...repository.prs.map((pr) =>
       prCard(pr, repository.detail, {
         selectedRecipient,
@@ -183,42 +190,60 @@ export function buildRepositoryCards({
         onBabysitter: () => onBabysitter(pr.number)
       })
     ),
-    ...repository.worktrees.map((tree) =>
-      worktreeCard(tree, repository.detail, () => onOpenWorktree(tree), onHistory)
-    )
+    ...repository.worktrees
+      .filter((tree) => tree !== mainCheckout)
+      .map((tree) => worktreeCard(tree, repository.detail, () => onOpenWorktree(tree), onHistory))
   ]
 }
 
-function branchCard(repository: Repository, onHistory: (title: string) => void): GitHubCardSpec {
+/** The default branch. When `mainCheckout` is given, it also shows that folder's local state. */
+function branchCard(
+  repository: Repository,
+  onHistory: (title: string, hasUncommitted?: boolean) => void,
+  mainCheckout?: Worktree
+): GitHubCardSpec {
   const historyKey = `${repository.name}/${repository.defaultBranch}`
+  const hasUncommitted = mainCheckout?.hasUncommitted
   return {
-    key: `branch-${repository.name}`,
+    key: `branch-${repository.id ?? repository.name}`,
     title: repository.defaultBranch,
     surfaceClass: ciSurfaceClass[repository.masterCi],
-    history: { onOpen: () => onHistory(historyKey) },
+    overflowVisible: Boolean(mainCheckout),
+    history: { hasUncommitted, onOpen: () => onHistory(historyKey, hasUncommitted) },
     body: (
       <>
         <span className="line-clamp-2 flex items-center gap-1 text-xs text-accent">
           <GitBranch size={13} /> Default branch
+          {mainCheckout && (
+            <span className="text-muted">· Main checkout · {mainCheckout.name}</span>
+          )}
         </span>
+        {mainCheckout && (
+          <p className="line-clamp-2 text-xs text-muted" title={mainCheckout.path}>
+            {mainCheckout.changes}
+          </p>
+        )}
         <button
           type="button"
           className="line-clamp-2 w-fit cursor-pointer rounded-md border border-transparent px-1.5 py-0.5 text-left text-xs text-muted transition-colors hover:border-border hover:text-foreground"
-          onClick={() => onHistory(historyKey)}
+          onClick={() => onHistory(historyKey, hasUncommitted)}
         >
           Latest commit {repository.masterCommits[0]?.message ?? 'No recent commits'}
         </button>
       </>
     ),
     footer: (
-      <Button
-        size="sm"
-        variant="ghost"
-        className="h-7 rounded-lg text-xs"
-        onPress={() => onHistory(historyKey)}
-      >
-        <GitCommit size={13} /> History
-      </Button>
+      <>
+        <Button
+          size="sm"
+          variant="ghost"
+          className="h-7 rounded-lg text-xs"
+          onPress={() => onHistory(historyKey, hasUncommitted)}
+        >
+          <GitCommit size={13} /> History
+        </Button>
+        {mainCheckout && <IdePicker worktreeName={mainCheckout.name} />}
+      </>
     )
   }
 }
@@ -367,7 +392,7 @@ function worktreeCard(
   onHistory: (title: string, hasUncommitted?: boolean) => void
 ): GitHubCardSpec {
   return {
-    key: `worktree-${worktree.name}`,
+    key: `worktree-${worktree.path ?? worktree.name}`,
     title: worktree.branch,
     overflowVisible: true,
     aside: worktree.prNumber ? (
@@ -402,10 +427,11 @@ function worktreeCard(
     body: (
       <>
         <span className="line-clamp-2 flex items-center gap-1 text-xs text-muted">
-          <GitBranch size={13} /> Local worktree · {worktree.name}
+          <GitBranch size={13} /> {worktree.isMain ? 'Main checkout' : 'Local worktree'} ·{' '}
+          {worktree.name}
         </span>
-        <p className="line-clamp-2 text-xs text-muted">
-          {worktree.author} · {worktree.changes}
+        <p className="line-clamp-2 text-xs text-muted" title={worktree.path}>
+          {[worktree.author, worktree.changes].filter(Boolean).join(' · ')}
         </p>
       </>
     ),
