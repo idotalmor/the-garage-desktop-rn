@@ -3,8 +3,9 @@
 The machine-local SQLite database behind the GitHub section's "local repositories" view.
 
 - File: `~/.devflow/local-repos.db`
-- Table folders (this folder), each with `schema.ts` (row type + `CREATE TABLE`), `mapper.ts`
-  (row ↔ app type) and `queries.ts` (single-table SQL): [sources/](sources/),
+- Table folders (this folder), each with `schema.ts` (the Drizzle table, every column commented)
+  and `queries.ts` (Drizzle queries); links between tables in [relations.ts](relations.ts):
+  [sources/](sources/),
   [local-repos/](local-repos/), [local-worktrees/](local-worktrees/)
 - DB API used by the use cases: [../index.ts](../index.ts) · opening the file:
   [../connection.ts](../connection.ts) (via [`src/main/sqlite`](../../../sqlite/README.md))
@@ -82,8 +83,9 @@ erDiagram
 ```
 
 Each column's comment says what it stores. Booleans are `0`/`1`, times are epoch ms, and `JSON …`
-columns hold JSON text of the named type from `src/shared/git/types.ts` (typed `Json<T>` in the row types, see
-[`src/main/sqlite/json.ts`](../../../sqlite/json.ts)).
+columns hold JSON text of the named type from `src/shared/git/types.ts` (Drizzle `text(…, { mode: 'json' })` columns, so they are read back as objects).
+The `CREATE TABLE` SQL is generated from the Drizzle tables into
+[`../create-tables.generated.ts`](../create-tables.generated.ts) by `npm run db:generate`.
 
 `sources` has no foreign keys: it is linked to repos only through paths. Deleting a repo
 cascades to its worktrees.

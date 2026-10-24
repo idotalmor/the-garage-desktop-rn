@@ -7,7 +7,7 @@ bridge, `src/renderer` the React UI, `src/shared` the types and IPC channel name
 
 - **Main-process features** (`src/main/**`): follow
   [docs/main-process-structure.md](docs/main-process-structure.md). That covers the `ipc → use-cases →
-service → domain/db` layers, one folder per SQLite table (`schema`/`mapper`/`queries`), shared
+service → domain/db` layers, Drizzle tables in one folder per table (`schema`/`queries`), shared
   libraries (`src/main/git`, `src/main/sqlite`), and summary comments at the top of each file.
   Refactor code you touch to that structure without being asked.
 - **Docs live next to the code they describe**, as a `README.md` in that folder. Each one is listed in
@@ -19,7 +19,8 @@ service → domain/db` layers, one folder per SQLite table (`schema`/`mapper`/`q
   Create one for a new DB, and update it whenever tables, columns or write flows change.
   No migrations, schema versions or backwards-compatibility code while the app has no users: change
   the tables directly; after a schema change the user presses **Reset local data**.
-  Every property of a `<Name>DbEntity` type gets a comment saying what it means and where the value comes from.
+  Every column in a Drizzle table (`tables/<table>/schema.ts`) gets a comment saying what it means and where the value comes from.
+  After changing a table, run `npm run db:generate` (regenerates `create-tables.generated.ts`), then Reset local data.
 - Naming (brand vs code names): [NAMING.md](NAMING.md)
 - UI components: `.agents/skills/gravity-ui/SKILL.md`
 - Feature plans live at the repo root as `*-plan.md` (e.g. `github-integration-plan.md`).

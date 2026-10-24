@@ -3,7 +3,11 @@
  * is one no source covers anymore (e.g. its only checkout inside a source was removed). Run on
  * `scan-service`'s queue.
  */
-import type { LocalRepository, ScannedRepository } from '../../../shared/local-repos/types'
+import type {
+  LocalRepository,
+  LocalWorktree,
+  ScannedRepository
+} from '../../../shared/local-repos/types'
 import * as db from '../db'
 import { reinspectRepository } from '../scanner/inspect'
 import { uncoveredRepoIds } from '../utils/coverage'
@@ -32,6 +36,25 @@ function saveRefreshed(repo: ScannedRepository): void {
 
 /** A live change that altered a checkout (commit, branch, changed files, worktrees) marks the repo updated now. */
 function withActivity(before: LocalRepository, after: ScannedRepository): ScannedRepository {
-  const changed = JSON.stringify(before.worktrees) !== JSON.stringify(after.worktrees)
+  const changed = worktreeState(before.worktrees) !== worktreeState(after.worktrees)
   return { ...after, updatedAt: changed ? Date.now() : Math.max(before.updatedAt, after.updatedAt) }
+}
+
+/** The checkout fields a live change can alter, in a fixed order so DB and scanner objects compare equal. */
+function worktreeState(worktrees: LocalWorktree[]): string {
+  return JSON.stringify(
+    worktrees.map((tree) => [
+      tree.path,
+      tree.branch,
+      tree.head,
+      tree.isDetached,
+      tree.isLocked,
+      tree.isPrunable,
+      tree.upstream,
+      tree.ahead,
+      tree.behind,
+      tree.changedFiles,
+      tree.lastCommit?.hash ?? null
+    ])
+  )
 }

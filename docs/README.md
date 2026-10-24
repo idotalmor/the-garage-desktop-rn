@@ -14,7 +14,7 @@ one.
 | ----------- | --------------------------------------------------------------------------------------- | ------------------------------------------------------------- |
 | Local repos | [src/main/local-repos/db/tables/README.md](../src/main/local-repos/db/tables/README.md) | SQLite tables, example rows, ER diagram, scan → DB write flow |
 | Git library | [src/main/git/README.md](../src/main/git/README.md)                                     | Layout of the git CLI library and how to add a command        |
-| SQLite lib  | [src/main/sqlite/README.md](../src/main/sqlite/README.md)                               | `openDatabase`, `Json<T>` columns                             |
+| SQLite lib  | [src/main/sqlite/README.md](../src/main/sqlite/README.md)                               | `openDatabase` (better-sqlite3 + Drizzle), generated tables   |
 
 ## Plans
 

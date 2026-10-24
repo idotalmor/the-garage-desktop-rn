@@ -1,48 +1,60 @@
-/** Single-table queries on `local_repos`. Each takes the open DB as its first argument. */
-import type Database from 'better-sqlite3'
-import type { ScannedRepository } from '../../../../../shared/local-repos/types'
-import { toLocalRepoDbEntity } from './mapper'
-import { LOCAL_REPOS_TABLE, type LocalRepoDbEntity } from './schema'
+/** Queries on `local_repos` (with their worktrees). Each takes the open DB as its first argument. */
+import { asc, eq, inArray, sql } from 'drizzle-orm'
+import type { LocalRepository, ScannedRepository } from '../../../../../shared/local-repos/types'
+import type { LocalReposDb } from '../../types'
+import { localWorktrees } from '../local-worktrees/schema'
+import { localRepos } from './schema'
 
-export function listLocalRepoDbEntities(db: Database.Database): LocalRepoDbEntity[] {
-  return db
-    .prepare(`SELECT * FROM ${LOCAL_REPOS_TABLE} ORDER BY position IS NULL, position, name`)
-    .all() as LocalRepoDbEntity[]
+/** Every repo with its checkouts, in the user's order (unplaced repos last, by name). */
+export function listLocalReposWithWorktrees(
+  db: LocalReposDb
+): Omit<LocalRepository, 'sourceIds'>[] {
+  return db.query.localRepos
+    .findMany({
+      orderBy: [
+        sql`${localRepos.position} IS NULL`,
+        asc(localRepos.position),
+        asc(localRepos.name)
+      ],
+      with: {
+        worktrees: {
+          columns: { repoId: false, position: false },
+          orderBy: [asc(localWorktrees.position)]
+        }
+      }
+    })
+    .sync()
 }
 
-export function upsertLocalRepo(db: Database.Database, repo: ScannedRepository): void {
-  db.prepare(
-    `
-    INSERT INTO ${LOCAL_REPOS_TABLE} (
-      id, name, common_dir, is_bare, provider, full_name, slug, remote_url, remotes,
-      default_branch, default_branch_commit, scanned_at, updated_at
-    ) VALUES (
-      @id, @name, @common_dir, @is_bare, @provider, @full_name, @slug, @remote_url, @remotes,
-      @default_branch, @default_branch_commit, @scanned_at, @updated_at
-    )
-    ON CONFLICT(id) DO UPDATE SET
-      name = excluded.name, is_bare = excluded.is_bare, provider = excluded.provider,
-      full_name = excluded.full_name, slug = excluded.slug, remote_url = excluded.remote_url,
-      remotes = excluded.remotes, default_branch = excluded.default_branch,
-      default_branch_commit = excluded.default_branch_commit, scanned_at = excluded.scanned_at,
-      updated_at = MAX(excluded.updated_at, ${LOCAL_REPOS_TABLE}.updated_at)
-  `
-  ).run(toLocalRepoDbEntity(repo))
+/**
+ * Inserts or updates a repo by id. Only table columns are written (`worktrees` is ignored), and
+ * `position` isn't in a scan result, so scans never change the user's order. `updatedAt` never
+ * moves backwards.
+ */
+export function upsertLocalRepo(db: LocalReposDb, repo: ScannedRepository): void {
+  db.insert(localRepos)
+    .values(repo)
+    .onConflictDoUpdate({
+      target: localRepos.id,
+      set: { ...repo, updatedAt: sql`MAX(excluded.updated_at, ${localRepos.updatedAt})` }
+    })
+    .run()
 }
 
 /** Saves the user's order: `ids[0]` gets position 0. Repos not listed go back to unplaced (null). */
-export function setLocalRepoPositions(db: Database.Database, ids: string[]): void {
-  db.prepare(`UPDATE ${LOCAL_REPOS_TABLE} SET position = NULL`).run()
-  const place = db.prepare(`UPDATE ${LOCAL_REPOS_TABLE} SET position = ? WHERE id = ?`)
-  ids.forEach((id, index) => place.run(index, id))
+export function setLocalRepoPositions(db: LocalReposDb, ids: string[]): void {
+  db.update(localRepos).set({ position: null }).run()
+  ids.forEach((id, index) =>
+    db.update(localRepos).set({ position: index }).where(eq(localRepos.id, id)).run()
+  )
 }
 
-export function hasLocalRepo(db: Database.Database, id: string): boolean {
-  return !!db.prepare(`SELECT 1 FROM ${LOCAL_REPOS_TABLE} WHERE id = ?`).get(id)
+export function hasLocalRepo(db: LocalReposDb, id: string): boolean {
+  return !!db.select({ id: localRepos.id }).from(localRepos).where(eq(localRepos.id, id)).get()
 }
 
 /** Deletes repos by id. Their worktrees cascade. */
-export function deleteLocalRepos(db: Database.Database, ids: string[]): void {
-  const remove = db.prepare(`DELETE FROM ${LOCAL_REPOS_TABLE} WHERE id = ?`)
-  for (const id of ids) remove.run(id)
+export function deleteLocalRepos(db: LocalReposDb, ids: string[]): void {
+  if (ids.length === 0) return
+  db.delete(localRepos).where(inArray(localRepos.id, ids)).run()
 }
