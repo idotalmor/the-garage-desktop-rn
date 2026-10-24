@@ -1,17 +1,24 @@
-import { Check, CircleX, Clock3 } from 'lucide-react'
+import { Check, CircleDashed, CircleX, Clock3 } from 'lucide-react'
 import type { CiStatus } from './types'
 
 export function CiBadge({ status }: { status: CiStatus }): React.JSX.Element {
-  const labels = { passing: 'Passing', 'in-progress': 'In progress', failing: 'Failing' }
+  const labels = {
+    passing: 'Passing',
+    'in-progress': 'In progress',
+    failing: 'Failing',
+    none: 'No CI data'
+  }
   const icons = {
     passing: <Check size={12} />,
     'in-progress': <Clock3 size={12} />,
-    failing: <CircleX size={12} />
+    failing: <CircleX size={12} />,
+    none: <CircleDashed size={12} />
   }
   const styles = {
     passing: 'bg-success/15 text-success',
     'in-progress': 'bg-warning/15 text-warning',
-    failing: 'bg-danger/15 text-danger'
+    failing: 'bg-danger/15 text-danger',
+    none: 'bg-surface-secondary text-muted'
   }
   return (
     <span
