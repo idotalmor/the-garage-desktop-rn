@@ -8,7 +8,7 @@
 import { promises as fs, type Dirent } from 'fs'
 import { join } from 'path'
 import type { ScanProgress } from '../../../shared/local-repos/types'
-import { isBareRepository } from '../git/queries'
+import { isBareRepository } from '../../git'
 import { mapLimit } from '../utils/concurrency'
 
 /** Folders that never contain repos worth showing, or are too large to walk. */

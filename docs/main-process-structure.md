@@ -14,32 +14,44 @@ src/shared/<feature>/
   channels.ts         `<Feature>Channel` const of IPC channel names; one comment per channel
 
 src/main/<feature>/
-  ipc.ts              communication only
-  <name>-service.ts   state + orchestration (queues, progress, timers, subscriptions)
-  <domain>/           the actual work, split by concern (e.g. scanner/, git/, watcher/, http/)
+  ipc.ts              communication only: each handler calls one use case
+  use-cases/          business rules, one file per user action or background job
+    <action>.use-case.ts
+    index.ts          re-exports them
+  <name>-service.ts   runtime state only (queues, progress, timers, watchers, subscriptions)
+  <domain>/           feature-specific work, split by concern (e.g. scanner/, watcher/)
   db/                 SQLite persistence (only if the feature stores data)
-    connection.ts
-    index.ts
-    tables/<table>.ts
+    connection.ts     one `openDatabase(...)` call (src/main/sqlite)
+    index.ts          the DB API the use cases call
+    tables/<table>/schema.ts    row type + CREATE TABLE
+    tables/<table>/mapper.ts    row ↔ app type
+    tables/<table>/queries.ts   single-table SQL
     tables/README.md  what each table is + diagrams (see below)
-    utils/            DB-only helpers (e.g. json.ts)
-  utils/              small pure helpers with no feature state (parsing, concurrency, formatting)
+  utils/              small pure helpers with no feature state (path rules, concurrency)
+
+src/main/<library>/   code shared by features, with no IPC and no state: e.g.
+  git/                typed git CLI questions (run.ts, parsers/, queries/, index.ts)
+  sqlite/             openDatabase, Json<T>
+src/shared/<library>/ types from a library that the renderer also sees (e.g. shared/git/types.ts)
 ```
 
-Dependencies only point down: `ipc → service → domain/db/utils`. Lower layers never import
-`electron`'s `ipcMain`/`BrowserWindow` or a higher layer.
+Dependencies only point down: `ipc → use-cases → service (state) → domain/db/utils → libraries`.
+Background jobs the service runs on its queue (e.g. `scan-sources.use-case.ts`) are use cases too,
+but must not import the service, so there are no cycles; the service imports them directly, not
+through `use-cases/index.ts`. Lower layers never import `electron`'s `ipcMain`/`BrowserWindow` or a
+higher layer. Libraries (`src/main/git`, `src/main/sqlite`) never import a feature.
 
 ### `ipc.ts`: communication only
 
 - One `init<Feature>Ipc()` that registers handlers; `src/main/index.ts` calls it.
-- Each handler validates/coerces its arguments and calls **one** service function. No business
-  logic, no module-level `let` state, no SQL, no child processes.
+- Each handler validates/coerces its arguments and calls **one** use case (or the service's
+  `getSnapshot`). No business logic, no module-level `let` state, no SQL, no child processes.
 - Window-specific UI (e.g. `dialog.showOpenDialog`) is allowed here because it needs the
   sender's window.
 - Push events: subscribe to the service and forward to `BrowserWindow.getAllWindows()`.
 
 ```ts
-ipcMain.handle(LocalReposChannel.Rescan, (_, id?: string) => rescan(id ? String(id) : undefined))
+ipcMain.handle(LocalReposChannel.RemoveSource, (_, id: string) => removeSource(String(id)))
 subscribe((snapshot) => {
   for (const window of BrowserWindow.getAllWindows()) {
     window.webContents.send(LocalReposChannel.Changed, snapshot)
@@ -47,44 +59,65 @@ subscribe((snapshot) => {
 })
 ```
 
-### `<name>-service.ts`: state and orchestration
+### `use-cases/`: business rules
 
-- Owns mutable state (queues, in-flight counters, progress, throttling, last-run times).
-- Exposes plain functions (`getSnapshot`, `rescan`, `subscribe(listener) → unsubscribe`,
-  `start<Name>Service()`). Knows nothing about IPC or windows.
+- One file per user action or background job, named `<action>.use-case.ts` (e.g.
+  `add-sources.use-case.ts`, `remove-source.use-case.ts`, `scan-sources.use-case.ts`), exporting
+  one function. `index.ts` re-exports them all.
+- A use case decides _what_ happens (e.g. "removing a source deletes repos nothing covers") and
+  calls the DB API, domain code and the service. When several writes must happen together it wraps
+  them in `db.transaction(() => …)`.
+- User actions return the new snapshot for the UI.
+
+### `<name>-service.ts`: runtime state
+
+- Owns mutable state (job queue, in-flight counters, progress, throttling, watchers, last-run
+  times) and exposes it as plain functions (`getSnapshot`, `subscribe(listener) → unsubscribe`,
+  `notify`, `enqueue`, `start<Name>Service()`). Knows nothing about IPC or windows.
+- Holds no business rules: the jobs it runs are use cases.
 - Returns a whole snapshot that the UI can render directly, instead of many small getters.
 
 ### Domain folders: the work
 
-- Split by "what it talks to": e.g. `git/` (process), `scanner/` (filesystem walk), `watcher/`
-  (`fs.watch` handles + pure rules for what a change means), `http/` or
-  `api/` (network).
-- Separate **I/O** from **parsing**: `run.ts` executes the command/request, `parsers.ts` holds pure
-  functions that turn raw output into typed data, `queries.ts` combines them into typed
-  questions (`readStatus(dir)`, `listWorktrees(dir)`).
-- Exactly one place spawns a given process or calls a given API.
+- Feature-specific work split by concern: e.g. `scanner/` (filesystem walk), `watcher/`
+  (`fs.watch` handles + pure rules for what a change means).
 - Multi-step pipelines get one file per step plus an entry file
   (`discover.ts → scan-source.ts → inspect.ts`).
 
+### Libraries: code more than one feature can use
+
+- Live in `src/main/<library>/` with an `index.ts` public API and a `README.md`. No IPC, no
+  state, no feature types; features map results to their own types.
+- Talking to a process or API: separate **I/O** from **parsing**. `run.ts` executes the
+  command/request, `parsers/<topic>.ts` holds pure functions that turn raw output into typed data,
+  `queries/<topic>.ts` combines them into typed questions (`readStatus(dir)`, `listWorktrees(dir)`).
+  Exactly one place spawns a given process or calls a given API.
+- Types the renderer also sees go in `src/shared/<library>/types.ts`; main-only types stay in the
+  library's `types.ts`.
+- Current libraries: [`src/main/git`](../src/main/git/README.md) (git CLI) and
+  [`src/main/sqlite`](../src/main/sqlite/README.md) (opening feature DBs, JSON columns).
+
 ### `db/`: SQLite persistence
 
-- Database file: `~/.devflow/<feature>.db` (via `app.getPath('home')`), `better-sqlite3`.
-- `connection.ts`: opens the DB once (`getDb()`), sets pragmas (`foreign_keys = ON`), runs each
-  table's `CREATE TABLE`, closes on `before-quit`.
-- `tables/<table-name>.ts`: **one file per table**, file named after the table (kebab-case).
-  Each contains, in this order:
-  1. `export const <TABLE_NAME>_TABLE = '<table_name>'`
-  2. `export type <Name>DbEntity`: the row exactly as stored in the DB (snake_case, booleans `0|1`,
-     JSON as `Json<T>`). The `DbEntity` suffix keeps it apart from the app type `<Name>`. Every property gets a `/** */` comment saying what it means and where the value comes from
-     (e.g. `name`: "repo name from the primary remote URL, else the main checkout's folder name").
-  3. `export const CREATE_<TABLE_NAME>_TABLE`: SQL using the const, plus its indexes
-  4. row ↔ domain mappers (`to<Name>DbEntity`, `to<Name>`)
-  5. single-table queries that take `db: Database.Database` as the first argument
+- Database file: `~/.devflow/<feature>.db`, opened with `openDatabase(name, createTables)` from
+  `src/main/sqlite` in `db/connection.ts` (`export const { getDb, resetDb } = openDatabase(…)`). It
+  sets the pragmas (`foreign_keys = ON`), creates missing tables and closes on `before-quit`. No
+  migrations or schema versions.
+- `tables/<table-name>/`: **one folder per table**, named after the table (kebab-case), with:
+  1. `schema.ts`: `export const <TABLE_NAME>_TABLE = '<table_name>'`, `export type <Name>DbEntity`
+     (the row exactly as stored: snake_case, booleans `0|1`, JSON as `Json<T>`; the `DbEntity` suffix
+     keeps it apart from the app type `<Name>`; every property gets a `/** */` comment saying what
+     it means and where the value comes from), and `export const CREATE_<TABLE_NAME>_TABLE` plus
+     its indexes
+  2. `mapper.ts`: row ↔ app type (`to<Name>DbEntity`, `to<Name>`)
+  3. `queries.ts`: single-table SQL functions that take `db: Database.Database` as the first
+     argument and return rows
      Table files don't import `connection.ts`, so there are no import cycles.
-- `index.ts`: the feature's public DB API. It calls `getDb()`, composes table functions, and wraps
-  multi-table writes in `db.transaction(...)`. Services import `./db`, never `./db/tables/*`.
+- `index.ts`: the feature's DB API in app types. It calls `getDb()`, composes table queries and
+  mappers, and exposes `transaction(fn)` so use cases can group writes. Use cases import `./db`,
+  never `./db/tables/*`.
 - Nested objects are JSON columns typed `Json<T>` in the row type (e.g. `remotes: Json<GitRemote[]>`),
-  written with `toJson` and read with a safe `parseJson(value, fallback)` from `db/utils/json.ts`. Helpers that aren't a table go in `db/utils/`, not `db/tables/`.
+  written with `toJson` and read with a safe `parseJson(value, fallback)` from `src/main/sqlite`.
 - **Document the database** in `db/tables/README.md`, next to the table files (example:
   `src/main/local-repos/db/tables/README.md`), and list it in `docs/README.md`:
   - what one row of each table represents and which flow creates/updates/deletes it

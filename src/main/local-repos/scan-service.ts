@@ -1,27 +1,26 @@
 /**
- * Scan service: owns the scan queue, the live scan state and the file watchers for local repos.
+ * Scan service: the state of local repos at runtime. It owns the job queue, scan progress, the file
+ * watchers and the subscribers; the work itself is in `use-cases/`.
  *
- * - Full scans run on startup, after folders are added, on manual rescan, and when a window gets
- *   focus (at most every 5 minutes). These show progress in the UI.
+ * - Full scans run on startup, after folders are added, and when a window gets focus (at most every
+ *   5 minutes). These show progress in the UI.
  * - Live updates: every source (plus checkouts outside them) is watched recursively. A change
  *   inside a known repo re-checks only that repo; any other change in a source rescans that
  *   folder quietly (new or deleted clones). Changes are batched until things are quiet for 1s.
- * - All work runs one job at a time on one queue, saves through `db/` and notifies subscribers.
+ * - All jobs run one at a time on one queue, then the watchers are re-pointed and subscribers notified.
  *
  * It knows nothing about IPC or windows; `ipc.ts` subscribes and forwards snapshots to the UI.
  */
 import { app } from 'electron'
-import { promises as fs } from 'fs'
 import type {
   LocalReposSnapshot,
   LocalRepository,
-  Source,
-  ScannedRepository,
-  ScanProgress
+  ScanProgress,
+  Source
 } from '../../shared/local-repos/types'
 import * as db from './db'
-import { reinspectRepository } from './scanner/inspect'
-import { scanSource } from './scanner/scan-source'
+import { refreshRepositories } from './use-cases/refresh-repositories.use-case'
+import { scanSources } from './use-cases/scan-sources.use-case'
 import { closeAllWatchers, syncWatchers } from './watcher/fs-watchers'
 import { classifyChange, watchTargets } from './watcher/watch-targets'
 
@@ -67,43 +66,53 @@ export function subscribe(listener: Listener): () => void {
   return () => listeners.delete(listener)
 }
 
-/** Saves the folders (resolving symlinks) and scans the ones that are new. */
-export async function addSources(paths: string[]): Promise<LocalReposSnapshot> {
-  if (paths.length === 0) return getSnapshot()
-  const realPaths = await Promise.all(paths.map((path) => fs.realpath(path).catch(() => path)))
-  const added = db.addSources(realPaths)
-  if (added.length > 0) enqueueScan(added.map((folder) => folder.id))
-  return getSnapshot()
+/** Sends the current snapshot to every subscriber. */
+export function notify(): void {
+  const snapshot = getSnapshot()
+  for (const listener of listeners) listener(snapshot)
 }
 
-export function removeSource(id: string): LocalReposSnapshot {
-  db.removeSource(id)
-  syncWatching()
-  notify()
-  return getSnapshot()
+/** Queues a full scan of the given sources (all when omitted), with progress shown in the UI. */
+export function enqueueScan(sourceIds?: string[]): void {
+  enqueue(() => {
+    if (!sourceIds) lastFullScanAt = Date.now()
+    return scanSources(sourceIds, { onProgress, onSourceScanned: notify })
+  }, true)
 }
 
-/** Saves the user's repo order (from a sort or a drag). */
-export function setOrder(ids: string[]): LocalReposSnapshot {
-  db.setRepositoryOrder(ids)
-  notify()
-  return getSnapshot()
+/**
+ * Runs `job` after the jobs already queued. `visible` jobs count as scanning (spinner in the UI).
+ * Afterwards the watchers are re-pointed and subscribers notified.
+ */
+export function enqueue(job: () => Promise<void>, visible: boolean): Promise<void> {
+  if (visible) {
+    pendingScans++
+    notify()
+  }
+  queue = queue
+    .then(job)
+    .catch((error) => console.error('[local-repos] job failed', error))
+    .finally(() => {
+      if (visible) pendingScans--
+      if (pendingScans === 0) progress = null
+      syncWatching()
+      notify()
+    })
+  return queue
 }
 
-/** Rescans one source, or all of them when no id is given. */
-export function rescan(sourceId?: string): LocalReposSnapshot {
-  enqueueScan(sourceId ? [sourceId] : undefined)
-  return getSnapshot()
+/** Points the watchers at the current sources and repos. Run after every DB change. */
+export function syncWatching(): void {
+  watched = { sources: db.listSources(), repositories: db.listRepositories() }
+  syncWatchers(watchTargets(watched.sources, watched.repositories), onPathChanged)
 }
 
-/** Wipes the local repos DB (sources, repos, worktrees) after the running job finishes. */
-export async function reset(): Promise<LocalReposSnapshot> {
+/** Drops file changes that are waiting to be processed (e.g. before a reset). */
+export function cancelPendingChanges(): void {
   if (changeTimer) clearTimeout(changeTimer)
   changeTimer = null
   changedRepoIds.clear()
   changedSourceIds.clear()
-  await enqueue(async () => db.resetDatabase(), false)
-  return getSnapshot()
 }
 
 /** Starts watching, the initial scan and the rescan-on-focus behavior. Call once at app startup. */
@@ -119,23 +128,12 @@ function rescanIfStale(): void {
   if (db.listSources().length > 0) enqueueScan()
 }
 
-function notify(): void {
-  const snapshot = getSnapshot()
-  for (const listener of listeners) listener(snapshot)
-}
-
 function onProgress(next: ScanProgress): void {
   progress = next
   const now = Date.now()
   if (now - lastProgressNotifyAt < PROGRESS_NOTIFY_INTERVAL_MS) return
   lastProgressNotifyAt = now
   notify()
-}
-
-/** Points the watchers at the current sources and repos. Run after every DB change. */
-function syncWatching(): void {
-  watched = { sources: db.listSources(), repositories: db.listRepositories() }
-  syncWatchers(watchTargets(watched.sources, watched.repositories), onPathChanged)
 }
 
 function onPathChanged(path: string): void {
@@ -157,87 +155,6 @@ function flushChanges(): void {
   const repoIds = [...changedRepoIds]
   changedSourceIds.clear()
   changedRepoIds.clear()
-  if (sourceIds.length > 0) enqueue(() => runScan(sourceIds, false), false)
+  if (sourceIds.length > 0) enqueue(() => scanSources(sourceIds), false)
   if (repoIds.length > 0) enqueue(() => refreshRepositories(repoIds), false)
-}
-
-/** Full scans are `visible` (spinner + progress in the UI); live refreshes run quietly. */
-function enqueueScan(sourceIds?: string[]): void {
-  enqueue(() => runScan(sourceIds, true), true)
-}
-
-function enqueue(job: () => Promise<void>, visible: boolean): Promise<void> {
-  if (visible) {
-    pendingScans++
-    notify()
-  }
-  queue = queue
-    .then(job)
-    .catch((error) => console.error('[local-repos] job failed', error))
-    .finally(() => {
-      if (visible) pendingScans--
-      if (pendingScans === 0) progress = null
-      syncWatching()
-      notify()
-    })
-  return queue
-}
-
-async function runScan(sourceIds: string[] | undefined, visible: boolean): Promise<void> {
-  const folders = db.listSources().filter((folder) => !sourceIds || sourceIds.includes(folder.id))
-  if (!sourceIds) lastFullScanAt = Date.now()
-  for (const folder of folders) {
-    try {
-      const stats = await fs.stat(folder.path)
-      if (!stats.isDirectory()) throw new Error('Not a folder')
-      const repositories = await scanSource(
-        folder.path,
-        folder.maxDepth,
-        visible ? onProgress : undefined
-      )
-      db.saveSourceResult(folder.id, repositories)
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error)
-      console.error('[local-repos] scan failed for', folder.path, message)
-      db.saveSourceResult(folder.id, [])
-      db.markSourceError(folder.id, message)
-    }
-    if (visible) notify()
-  }
-  await deleteMissingRepositories()
-}
-
-/** Deletes repos whose git dir is gone, including ones another source still covers. */
-async function deleteMissingRepositories(): Promise<void> {
-  const missing: string[] = []
-  for (const repo of db.listRepositories()) {
-    if (
-      !(await fs.access(repo.commonDir).then(
-        () => true,
-        () => false
-      ))
-    )
-      missing.push(repo.id)
-  }
-  db.deleteRepositories(missing)
-}
-
-/** Re-checks changed repos. A repo whose git dir is gone is deleted. */
-async function refreshRepositories(repoIds: string[]): Promise<void> {
-  const gone: string[] = []
-  for (const repo of db.listRepositories().filter((repo) => repoIds.includes(repo.id))) {
-    const fresh = await reinspectRepository(repo).catch((error) => {
-      console.error('[local-repos] refresh failed for', repo.commonDir, error)
-      return undefined
-    })
-    if (fresh === null) gone.push(repo.id)
-    else if (fresh) db.saveRepository(withActivity(repo, fresh))
-  }
-  db.deleteRepositories(gone)
-}
-
-/** A live change that altered a checkout (commit, branch, changed files, worktrees) marks the repo updated now. */
-function withActivity(before: LocalRepository, after: ScannedRepository): ScannedRepository {
-  const changed = JSON.stringify(before.worktrees) !== JSON.stringify(after.worktrees)
-  return { ...after, updatedAt: changed ? Date.now() : Math.max(before.updatedAt, after.updatedAt) }
 }

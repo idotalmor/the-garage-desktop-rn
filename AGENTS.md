@@ -6,8 +6,9 @@ bridge, `src/renderer` the React UI, `src/shared` the types and IPC channel name
 ## Read before changing code
 
 - **Main-process features** (`src/main/**`): follow
-  [docs/main-process-structure.md](docs/main-process-structure.md). That covers the `ipc → service
-→ domain/db` layers, one file per SQLite table, and summary comments at the top of each file.
+  [docs/main-process-structure.md](docs/main-process-structure.md). That covers the `ipc → use-cases →
+service → domain/db` layers, one folder per SQLite table (`schema`/`mapper`/`queries`), shared
+  libraries (`src/main/git`, `src/main/sqlite`), and summary comments at the top of each file.
   Refactor code you touch to that structure without being asked.
 - **Docs live next to the code they describe**, as a `README.md` in that folder. Each one is listed in
   [docs/README.md](docs/README.md). When you add or change code that has a README, update it in the

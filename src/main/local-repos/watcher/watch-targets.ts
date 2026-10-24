@@ -11,7 +11,7 @@
 import { basename, sep } from 'path'
 import type { LocalRepository, Source } from '../../../shared/local-repos/types'
 import { ALLOWED_HIDDEN_DIRS, SKIP_DIRS } from '../scanner/discover'
-import { isInside } from '../utils/paths'
+import { isInside } from '../utils/coverage'
 
 /** What a changed path requires. */
 export type Change = { kind: 'repo'; repoId: string } | { kind: 'source'; sourceIds: string[] }

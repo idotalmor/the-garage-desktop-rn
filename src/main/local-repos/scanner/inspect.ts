@@ -8,17 +8,17 @@ import { createHash } from 'crypto'
 import { promises as fs } from 'fs'
 import { basename, dirname } from 'path'
 import type { LocalWorktree, ScannedRepository } from '../../../shared/local-repos/types'
-import type { PorcelainWorktree } from '../git/parsers'
 import {
   isBareRepository,
   lastCommit,
   listWorktrees,
+  providerForHost,
   readRemotes,
   readStatus,
-  resolveDefaultBranch
-} from '../git/queries'
+  resolveDefaultBranch,
+  type GitWorktreeEntry
+} from '../../git'
 import { GIT_CONCURRENCY, mapLimit } from '../utils/concurrency'
-import { providerForHost } from '../utils/remote-url'
 import type { Candidate } from './discover'
 
 export async function inspectRepository(
@@ -77,7 +77,7 @@ export async function reinspectRepository(
   })
 }
 
-async function inspectWorktree(entry: PorcelainWorktree, isMain: boolean): Promise<LocalWorktree> {
+async function inspectWorktree(entry: GitWorktreeEntry, isMain: boolean): Promise<LocalWorktree> {
   const base: LocalWorktree = {
     path: entry.path,
     name: basename(entry.path),

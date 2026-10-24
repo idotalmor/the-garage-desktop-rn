@@ -1,19 +1,11 @@
 /**
- * IPC layer for local repos. Each handler forwards one renderer request to `scan-service`, and
- * every snapshot change is pushed to all windows. No state lives here.
+ * IPC layer for local repos. Each handler calls one use case (or `getSnapshot`), and every
+ * snapshot change from `scan-service` is pushed to all windows. No state lives here.
  */
 import { BrowserWindow, dialog, ipcMain, type IpcMainInvokeEvent } from 'electron'
 import { LocalReposChannel } from '../../shared/local-repos/channels'
-import {
-  addSources,
-  getSnapshot,
-  removeSource,
-  rescan,
-  reset,
-  setOrder,
-  startScanService,
-  subscribe
-} from './scan-service'
+import { getSnapshot, startScanService, subscribe } from './scan-service'
+import { addSources, removeSource, rescan, resetLocalData, setRepoOrder } from './use-cases'
 
 export function initLocalReposIpc(): void {
   ipcMain.handle(LocalReposChannel.GetSnapshot, () => getSnapshot())
@@ -25,9 +17,9 @@ export function initLocalReposIpc(): void {
     rescan(sourceId ? String(sourceId) : undefined)
   )
 
-  ipcMain.handle(LocalReposChannel.Reset, () => reset())
+  ipcMain.handle(LocalReposChannel.Reset, () => resetLocalData())
   ipcMain.handle(LocalReposChannel.SetOrder, (_, ids: unknown) =>
-    setOrder(Array.isArray(ids) ? ids.map(String) : [])
+    setRepoOrder(Array.isArray(ids) ? ids.map(String) : [])
   )
 
   subscribe((snapshot) => {

@@ -3,10 +3,12 @@
 The machine-local SQLite database behind the GitHub section's "local repositories" view.
 
 - File: `~/.devflow/local-repos.db`
-- Table files (this folder): [sources.ts](sources.ts), [local-repos.ts](local-repos.ts),
-  [local-worktrees.ts](local-worktrees.ts)
-- Multi-table operations: [../index.ts](../index.ts) · connection and table creation:
-  [../connection.ts](../connection.ts)
+- Table folders (this folder), each with `schema.ts` (row type + `CREATE TABLE`), `mapper.ts`
+  (row ↔ app type) and `queries.ts` (single-table SQL): [sources/](sources/),
+  [local-repos/](local-repos/), [local-worktrees/](local-worktrees/)
+- DB API used by the use cases: [../index.ts](../index.ts) · opening the file:
+  [../connection.ts](../connection.ts) (via [`src/main/sqlite`](../../../sqlite/README.md))
+- Business rules that write these tables: [../../use-cases/](../../use-cases/)
 - App-facing types: [src/shared/local-repos/types.ts](../../../../shared/local-repos/types.ts)
 
 None of this is synced to Firestore. Paths, branches and dirty state only make sense on this machine.
@@ -17,18 +19,18 @@ chips (**Reset local data**): it drops every table in the file and creates the c
 
 ## Tables at a glance
 
-| Table             | One row is…                                               | Created/updated by                            |
-| ----------------- | --------------------------------------------------------- | --------------------------------------------- |
-| `sources`         | a folder the user added in **Sources**                    | Add folders (`addSources`); end of every scan |
-| `local_repos`     | one git repository on disk (one shared `.git` dir)        | each scan (`saveSourceResult`)                |
-| `local_worktrees` | one checkout of a repo (main checkout or linked worktree) | each scan; replaced per repo                  |
+| Table             | One row is…                                               | Created/updated by                       |
+| ----------------- | --------------------------------------------------------- | ---------------------------------------- |
+| `sources`         | a folder the user added with **+** next to the chips      | `addSources` use case; end of every scan |
+| `local_repos`     | one git repository on disk (one shared `.git` dir)        | each scan (`scanSources` use case)       |
+| `local_worktrees` | one checkout of a repo (main checkout or linked worktree) | each scan; replaced per repo             |
 
 `sources` is only the list of folders to scan and watch. `local_repos` and `local_worktrees`
 are what scanning and watching find. They are keyed by path (`common_dir`, `path`), so a repo or a
 checkout is stored once, however many sources lead to it.
 
 **Which sources cover a repo is not stored.** It is worked out from paths when reading
-(`coveringSourceIds` in [../../utils/paths.ts](../../utils/paths.ts)): a source covers a
+(`coveringSourceIds` in [../../utils/coverage.ts](../../utils/coverage.ts)): a source covers a
 repo when the repo's `common_dir` or one of its existing (non-prunable) checkouts is inside it. A
 repo that no source covers is deleted.
 
@@ -80,8 +82,8 @@ erDiagram
 ```
 
 Each column's comment says what it stores. Booleans are `0`/`1`, times are epoch ms, and `JSON …`
-columns hold JSON text of the named type from `src/shared/local-repos/types.ts` (typed `Json<T>` in the row types, see
-[`../utils/json.ts`](../utils/json.ts)).
+columns hold JSON text of the named type from `src/shared/git/types.ts` (typed `Json<T>` in the row types, see
+[`src/main/sqlite/json.ts`](../../../sqlite/json.ts)).
 
 `sources` has no foreign keys: it is linked to repos only through paths. Deleting a repo
 cascades to its worktrees.
@@ -90,15 +92,15 @@ cascades to its worktrees.
 
 ```mermaid
 flowchart TD
-  A[User opens Sources → Add folders → picks folders] --> B[(sources<br/>insert one row per new path)]
-  B --> C[scan-service queues a scan per folder]
+  A[User presses + next to the source chips → picks folders] --> B[(sources<br/>insert one row per new path)]
+  B --> C[addSources use case → scan-service queues scanSources]
   C --> D["discover: walk folder (depth ≤ max_depth)<br/>skip node_modules, hidden, symlinks"]
   D --> E{"dir has .git dir / .git file<br/>or is a bare repo?"}
   E -- no --> D
   E -- yes --> F[candidate]
   F --> G["group candidates by<br/>git rev-parse --git-common-dir"]
   G --> H["inspect each repo:<br/>git worktree list, remotes,<br/>default branch, status per checkout"]
-  H --> I[["saveSourceResult (one transaction)"]]
+  H --> I[["scanSources: save one source (one transaction)"]]
   I --> I2[(local_repos<br/>upsert each repo by common_dir)]
   I2 --> I4[(local_worktrees<br/>replace repo's checkouts by path)]
   I4 --> I5[(sources<br/>set last_scanned_at, clear last_error)]
@@ -107,7 +109,7 @@ flowchart TD
   I7 --> J[snapshot pushed to UI]
 ```
 
-A full scan runs on app start, after folders are added, on **Rescan**, and on window focus (at most
+A full scan runs on app start, after folders are added, and on window focus (at most
 every 5 minutes). If a folder can't be scanned (e.g. deleted), its result is saved as empty and
 `sources.last_error` is set.
 
@@ -120,20 +122,20 @@ flowchart TD
   W[file changed under a watched folder] --> N{"noise?<br/>node_modules, build dirs,<br/>.git/objects, .git/logs, *.lock"}
   N -- yes --> X[ignored]
   N -- no --> K{"inside a known checkout<br/>or a repo's .git?"}
-  K -- yes --> R["re-check that repo only<br/>(git worktree list + status)"]
+  K -- yes --> R["refreshRepositories: re-check that repo only<br/>(git worktree list + status)"]
   R --> R1[(local_repos upsert<br/>local_worktrees replaced<br/>deleted if no source covers it now)]
   R -- common_dir is gone --> D[(local_repos<br/>delete the repo)]
   D --> U
   K -- no, but inside a source --> S["quiet rescan of that source<br/>(new or deleted clone)"]
-  S --> I[["saveSourceResult (same as above)"]]
+  S --> I[["scanSources (same as above)"]]
   R1 --> U[watchers re-synced, snapshot pushed to UI]
   I --> U
 ```
 
-**Removing a source** deletes its `sources` row, then deletes every `local_repos` row that
+**Removing a source** (`removeSource` use case, the × on a chip) deletes its `sources` row, then deletes every `local_repos` row that
 no remaining source covers. A repo another folder also covers stays.
 
-**Reset local data** (`local-repos:reset`) waits for the running job, drops every table and creates
+**Reset local data** (`resetLocalData` use case, the trash icon) waits for the running job, drops every table and creates
 them again empty. Watchers are closed because no sources are left.
 
 ## Scenarios: what each situation stores
@@ -206,7 +208,7 @@ One git repository on disk. All checkouts of the same repo (the main clone plus 
 worktrees) share one `.git` directory (`common_dir`), so they collapse into one row. `id` is a hash
 of `common_dir`, so it stays stable across scans.
 
-`slug` is the normalized remote (`host/owner/repo`, see `utils/remote-url.ts`). It's the key for
+`slug` is the normalized remote (`host/owner/repo`, see `src/main/git/parsers/remote-url.ts`). It's the key for
 matching this repo to its GitHub repo later. Repos without a remote have `provider: "none"` and a
 null `slug`.
 

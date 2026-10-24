@@ -1,7 +1,7 @@
 /** `local_worktrees` table: the checkouts of each repo (main checkout + linked worktrees). */
-import type Database from 'better-sqlite3'
-import type { CommitSummary, LocalWorktree } from '../../../../shared/local-repos/types'
-import { parseJson, toJson, type Json } from '../utils/json'
+import type { CommitSummary } from '../../../../../shared/git/types'
+import type { Json } from '../../../../sqlite'
+import { LOCAL_REPOS_TABLE } from '../local-repos/schema'
 
 export const LOCAL_WORKTREES_TABLE = 'local_worktrees'
 
@@ -44,7 +44,7 @@ export type LocalWorktreeDbEntity = {
 export const CREATE_LOCAL_WORKTREES_TABLE = `
   CREATE TABLE IF NOT EXISTS ${LOCAL_WORKTREES_TABLE} (
     path TEXT PRIMARY KEY,
-    repo_id TEXT NOT NULL REFERENCES local_repos(id) ON DELETE CASCADE,
+    repo_id TEXT NOT NULL REFERENCES ${LOCAL_REPOS_TABLE}(id) ON DELETE CASCADE,
     position INTEGER NOT NULL,
     name TEXT NOT NULL,
     is_main INTEGER NOT NULL DEFAULT 0,
@@ -62,73 +62,3 @@ export const CREATE_LOCAL_WORKTREES_TABLE = `
   CREATE INDEX IF NOT EXISTS idx_${LOCAL_WORKTREES_TABLE}_repo ON ${LOCAL_WORKTREES_TABLE}(repo_id);
   CREATE INDEX IF NOT EXISTS idx_${LOCAL_WORKTREES_TABLE}_branch ON ${LOCAL_WORKTREES_TABLE}(branch);
 `
-
-export function toLocalWorktreeDbEntity(
-  tree: LocalWorktree,
-  repoId: string,
-  position: number
-): LocalWorktreeDbEntity {
-  return {
-    path: tree.path,
-    repo_id: repoId,
-    position,
-    name: tree.name,
-    is_main: tree.isMain ? 1 : 0,
-    branch: tree.branch,
-    is_detached: tree.isDetached ? 1 : 0,
-    head: tree.head,
-    is_locked: tree.isLocked ? 1 : 0,
-    is_prunable: tree.isPrunable ? 1 : 0,
-    upstream: tree.upstream,
-    ahead: tree.ahead,
-    behind: tree.behind,
-    changed_files: tree.changedFiles,
-    last_commit: toJson(tree.lastCommit)
-  }
-}
-
-export function toLocalWorktree(row: LocalWorktreeDbEntity): LocalWorktree {
-  return {
-    path: row.path,
-    name: row.name,
-    isMain: row.is_main === 1,
-    branch: row.branch,
-    isDetached: row.is_detached === 1,
-    head: row.head,
-    isLocked: row.is_locked === 1,
-    isPrunable: row.is_prunable === 1,
-    upstream: row.upstream,
-    ahead: row.ahead,
-    behind: row.behind,
-    changedFiles: row.changed_files,
-    lastCommit: parseJson(row.last_commit, null)
-  }
-}
-
-export function listLocalWorktreeDbEntities(db: Database.Database): LocalWorktreeDbEntity[] {
-  return db
-    .prepare(`SELECT * FROM ${LOCAL_WORKTREES_TABLE} ORDER BY repo_id, position`)
-    .all() as LocalWorktreeDbEntity[]
-}
-
-/**
- * Replaces all worktrees of a repo with `worktrees`, keeping their order. A path is stored once:
- * if another repo still had a row for it (e.g. a folder reused for a new clone), it moves here.
- */
-export function replaceRepoWorktrees(
-  db: Database.Database,
-  repoId: string,
-  worktrees: LocalWorktree[]
-): void {
-  db.prepare(`DELETE FROM ${LOCAL_WORKTREES_TABLE} WHERE repo_id = ?`).run(repoId)
-  const insert = db.prepare(`
-    INSERT OR REPLACE INTO ${LOCAL_WORKTREES_TABLE} (
-      path, repo_id, position, name, is_main, branch, is_detached, head, is_locked,
-      is_prunable, upstream, ahead, behind, changed_files, last_commit
-    ) VALUES (
-      @path, @repo_id, @position, @name, @is_main, @branch, @is_detached, @head, @is_locked,
-      @is_prunable, @upstream, @ahead, @behind, @changed_files, @last_commit
-    )
-  `)
-  worktrees.forEach((tree, position) => insert.run(toLocalWorktreeDbEntity(tree, repoId, position)))
-}

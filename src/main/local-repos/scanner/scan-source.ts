@@ -5,7 +5,7 @@
  * grouped by their shared git directory before inspecting.
  */
 import type { ScanProgress, ScannedRepository } from '../../../shared/local-repos/types'
-import { resolveCommonDir } from '../git/queries'
+import { resolveCommonDir } from '../../git'
 import { GIT_CONCURRENCY, mapLimit } from '../utils/concurrency'
 import { discover, type Candidate } from './discover'
 import { inspectRepository } from './inspect'

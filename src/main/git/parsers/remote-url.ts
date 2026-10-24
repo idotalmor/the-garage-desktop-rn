@@ -1,12 +1,12 @@
 /**
- * Remote URL normalization.
+ * Remote URL normalization. Pure: no I/O.
  *
  * A remote URL is the address in `git remote -v` (e.g. `git@github.com:owner/repo.git`). Only repos
  * linked to a remote have one. The same GitHub repo can be written many ways (SSH, HTTPS, SSH host
  * aliases), so this turns them all into one key, `github.com/owner/repo`, which is how a local repo
  * will be matched to its GitHub repo once GitHub is connected.
  */
-import type { GitProvider, GitRemote } from '../../../shared/local-repos/types'
+import type { GitProvider, GitRemote } from '../../../shared/git/types'
 
 type ParsedRemote = Pick<GitRemote, 'host' | 'owner' | 'repo' | 'slug'>
 
