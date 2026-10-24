@@ -30,3 +30,34 @@ export type CommitSummary = {
   /** Commit time (epoch ms). */
   committedAt: number
 }
+
+/**
+ * Where the next page of a commit list starts. `head` pins the list to the commit the first page
+ * started from, so commits made while the user scrolls don't shift later pages.
+ */
+export type CommitCursor = {
+  /** Full SHA the first page started from; every later page walks history from here. */
+  head: string
+  /** Commits already returned (passed to `git log --skip`). */
+  skip: number
+  /**
+   * Full SHA whose history is left out (`git log <head> ^<base>`), pinned like `head`; null = the
+   * whole history of `head`.
+   */
+  base: string | null
+}
+
+/** One page of `git log`, newest first. */
+export type CommitPage = {
+  /** Commits on this page, newest first. */
+  commits: CommitSummary[]
+  /** Cursor for the next page, or null when this page reached the last commit in range. */
+  next: CommitCursor | null
+  /**
+   * Ref whose commits were left out, as asked (e.g. `origin/main`), so the list holds only the
+   * branch's own commits. Null when the whole history is listed.
+   */
+  baseRef: string | null
+  /** How many commits the whole list holds (`git rev-list --count`); first page only, else null. */
+  total: number | null
+}

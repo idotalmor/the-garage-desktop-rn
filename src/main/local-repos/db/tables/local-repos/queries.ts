@@ -25,6 +25,23 @@ export function listRepos(): LocalRepo[] {
     .sync()
 }
 
+/** One repo with its checkouts, or null if it isn't stored. */
+export function findRepo(id: string): LocalRepo | null {
+  return (
+    getDb()
+      .query.localRepos.findFirst({
+        where: eq(localRepos.id, id),
+        with: {
+          worktrees: {
+            columns: { repoId: false, position: false },
+            orderBy: [asc(localWorktrees.position)]
+          }
+        }
+      })
+      .sync() ?? null
+  )
+}
+
 export function hasRepo(id: string): boolean {
   return !!getDb().select({ id: localRepos.id }).from(localRepos).where(eq(localRepos.id, id)).get()
 }

@@ -1,13 +1,16 @@
-import { ArrowDown, ArrowUp, Ellipsis, GitBranch, MessageCircle, Plus, Trash2 } from 'lucide-react'
+import { ArrowUp, Ellipsis, GitBranch, MessageCircle, Plus, Trash2 } from 'lucide-react'
 import { Button, Dropdown } from '@heroui/react'
 import {
+  ChangesChip,
   CheckoutActions,
   FooterAction,
   GithubIcon,
+  PullChip,
   SyncChip,
   type GitHubCardSpec
 } from './GitHubCard'
-import type { CiStatus, PullRequest, Repository, Worktree } from './types'
+import { timeAgo } from '../time-ago'
+import type { CiStatus, OnHistory, PullRequest, Repository, Worktree } from './types'
 
 const favoritePeople = ['Maya Chen', 'Ava Patel', 'Noah Williams']
 const otherPeople = ['Priya Shah', 'Liam Jones']
@@ -161,18 +164,6 @@ function remoteBranch(worktree: Worktree): string | null {
   return remote === worktree.branch ? null : remote
 }
 
-/** "3m ago", "2h ago", "5d ago" or a short date for older timestamps. */
-function timeAgo(timestamp: number): string {
-  const minutes = Math.floor((Date.now() - timestamp) / 60_000)
-  if (minutes < 1) return 'just now'
-  if (minutes < 60) return `${minutes}m ago`
-  const hours = Math.floor(minutes / 60)
-  if (hours < 24) return `${hours}h ago`
-  const days = Math.floor(hours / 24)
-  if (days < 7) return `${days}d ago`
-  return new Date(timestamp).toLocaleDateString()
-}
-
 /** Tooltip for the latest-commit button: "Latest commit · 2h ago". */
 function latestCommitHint(timestamp?: number): string {
   return `Latest commit${timestamp ? ` · ${timeAgo(timestamp)}` : ''}`
@@ -197,20 +188,25 @@ export function buildRepositoryCards({
   onBabysitter,
   onOpenIde,
   onOpenFolder,
-  onDelete
+  onDelete,
+  pulling,
+  onPull
 }: {
   repository: Repository
   selectedRecipient: string
   linkedTasks: Record<string, string>
   babysitter: Record<number, boolean>
   onRecipientChange: (value: string) => void
-  onHistory: (title: string, hasUncommitted?: boolean) => void
+  onHistory: OnHistory
   onLinkTask: (key: string) => void
   onOpenWorktree: (worktree: Worktree) => void
   onBabysitter: (number: number) => void
   onOpenIde: (ide: string, path: string) => void
   onOpenFolder: (path: string) => void
   onDelete: (worktree: Worktree) => void
+  /** Checkout paths with a pull running. */
+  pulling: Record<string, boolean>
+  onPull: (worktree: Worktree) => void
 }): GitHubCardSpec[] {
   // The main clone usually has the default branch checked out; show that as one card, not two.
   const mainCheckout = repository.worktrees.find(
@@ -235,7 +231,10 @@ export function buildRepositoryCards({
     ...repository.worktrees
       .filter((tree) => tree !== mainCheckout)
       .map((tree) =>
-        worktreeCard(tree, repository.detail, () => onOpenWorktree(tree), onHistory, actions)
+        worktreeCard(tree, repository, () => onOpenWorktree(tree), onHistory, actions, {
+          pulling: Boolean(tree.path && pulling[tree.path]),
+          onPull: () => onPull(tree)
+        })
       )
   ]
 }
@@ -246,7 +245,7 @@ export function buildRepositoryCards({
  */
 function branchCard(
   repository: Repository,
-  onHistory: (title: string, hasUncommitted?: boolean) => void,
+  onHistory: OnHistory,
   mainCheckout: Worktree | undefined,
   actions: {
     onOpenIde: (ide: string, path: string) => void
@@ -256,13 +255,20 @@ function branchCard(
 ): GitHubCardSpec {
   const historyKey = `${repository.name}/${repository.defaultBranch}`
   const hasUncommitted = mainCheckout?.hasUncommitted
+  const source = repository.id ? { repoId: repository.id, worktreePath: null } : undefined
+  const openHistory = (): void => onHistory(historyKey, hasUncommitted, source)
   return {
     key: `branch-${repository.id ?? repository.name}`,
     title: repository.defaultBranch,
     titleClass: 'text-accent',
     surfaceClass: ciSurfaceClass[repository.masterCi],
     overflowVisible: Boolean(mainCheckout),
-    history: { hasUncommitted, onOpen: () => onHistory(historyKey, hasUncommitted) },
+    history: { onOpen: openHistory },
+    aside: mainCheckout?.changedFiles ? (
+      <span className="self-center">
+        <ChangesChip count={mainCheckout.changedFiles} />
+      </span>
+    ) : undefined,
     body: (
       <>
         {mainCheckout && (
@@ -274,7 +280,7 @@ function branchCard(
           type="button"
           title={latestCommitHint(repository.masterCommits[0]?.committedAt)}
           className="line-clamp-2 w-fit cursor-pointer rounded-md border border-transparent px-1.5 py-0.5 text-left text-xs text-muted transition-colors hover:border-border hover:text-foreground"
-          onClick={() => onHistory(historyKey, hasUncommitted)}
+          onClick={openHistory}
         >
           {repository.masterCommits[0]?.message ?? 'No recent commits'}
         </button>
@@ -305,7 +311,7 @@ function prCard(
     linkedWorktree?: Worktree
     isBabysitter: boolean
     onRecipientChange: (value: string) => void
-    onHistory: (title: string, hasUncommitted?: boolean) => void
+    onHistory: OnHistory
     onLinkTask: () => void
     onBabysitter: () => void
     onDelete: (worktree: Worktree) => void
@@ -332,10 +338,7 @@ function prCard(
         </Button>
       </>
     ),
-    history: {
-      hasUncommitted: pr.hasUncommitted,
-      onOpen: () => onHistory(`#${pr.number}`, pr.hasUncommitted)
-    },
+    history: { onOpen: () => onHistory(`#${pr.number}`, pr.hasUncommitted) },
     body: (
       <>
         <p className="line-clamp-2 text-xs text-muted">Opened by {pr.author}</p>
@@ -438,15 +441,22 @@ function prCard(
 
 function worktreeCard(
   worktree: Worktree,
-  repoDetail: string,
+  repository: Repository,
   onOpen: () => void,
-  onHistory: (title: string, hasUncommitted?: boolean) => void,
+  onHistory: OnHistory,
   actions: {
     onOpenIde: (ide: string, path: string) => void
     onOpenFolder: (path: string) => void
     onDelete: (worktree: Worktree) => void
-  }
+  },
+  pull: { pulling: boolean; onPull: () => void }
 ): GitHubCardSpec {
+  const repoDetail = repository.detail
+  const source =
+    repository.id && worktree.path
+      ? { repoId: repository.id, worktreePath: worktree.path }
+      : undefined
+  const openHistory = (): void => onHistory(worktree.branch, worktree.hasUncommitted, source)
   return {
     key: `worktree-${worktree.path ?? worktree.name}`,
     title: worktree.branch,
@@ -480,18 +490,22 @@ function worktreeCard(
         )}
         {worktree.behind ? (
           <span className="self-center">
-            <SyncChip hint={`${worktree.behind} commits behind upstream — pull`}>
-              <ArrowDown size={10} aria-hidden="true" />
-              {worktree.behind}
-            </SyncChip>
+            <PullChip
+              behind={worktree.behind}
+              upstream={worktree.upstream}
+              pulling={pull.pulling}
+              onPull={pull.onPull}
+            />
+          </span>
+        ) : null}
+        {worktree.changedFiles ? (
+          <span className="self-center">
+            <ChangesChip count={worktree.changedFiles} />
           </span>
         ) : null}
       </>
     ),
-    history: {
-      hasUncommitted: worktree.hasUncommitted,
-      onOpen: () => onHistory(worktree.branch, worktree.hasUncommitted)
-    },
+    history: { onOpen: openHistory },
     body: (
       <>
         <span className="line-clamp-2 flex items-center gap-1 text-xs text-muted">
@@ -499,7 +513,7 @@ function worktreeCard(
           {worktree.name}
           {remoteBranch(worktree) && ` → ${remoteBranch(worktree)}`}
         </span>
-        {Boolean(worktree.ahead || worktree.isPrunable || worktree.changedFiles) && (
+        {Boolean(worktree.ahead || worktree.isPrunable) && (
           <span className="flex flex-wrap items-center gap-1">
             {worktree.ahead ? (
               <SyncChip hint={`${worktree.ahead} commits ahead of upstream — push`}>
@@ -512,13 +526,6 @@ function worktreeCard(
                 missing
               </SyncChip>
             )}
-            {worktree.changedFiles ? (
-              <span className="text-[10px] text-muted">
-                {worktree.changedFiles === 1
-                  ? '1 changed file'
-                  : `${worktree.changedFiles} changed files`}
-              </span>
-            ) : null}
           </span>
         )}
         {worktree.lastCommitMessage && (
@@ -526,7 +533,7 @@ function worktreeCard(
             type="button"
             title={latestCommitHint(worktree.lastCommitAt)}
             className="line-clamp-2 w-fit cursor-pointer rounded-md border border-transparent px-1.5 py-0.5 text-left text-xs text-muted transition-colors hover:border-border hover:text-foreground"
-            onClick={() => onHistory(worktree.branch, worktree.hasUncommitted)}
+            onClick={openHistory}
           >
             {worktree.lastCommitMessage}
           </button>

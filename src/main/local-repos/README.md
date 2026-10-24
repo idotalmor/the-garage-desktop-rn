@@ -31,4 +31,11 @@ Dependencies point down: `ipc → use-cases → sync → scanner / watcher / db 
 
 **User opens or deletes a checkout** (card footer): `ipc.ts` → `open-ide` (`open -a`), `open-folder` (`shell.openPath`) or `delete-worktree` (`shell.trashItem` → `worktree prune` → `enqueue(refreshRepos)`).
 
+**User opens a card's commit history** (commit button or last-commit line): `ipc.ts` →
+`use-cases/list-commits.use-case.ts listCommits` → `db/tables/local-repos/queries.ts findRepo` → `src/main/git listCommits`
+→ one `CommitPage`; the renderer asks again with `next` as the user scrolls.
+
+**User pulls a checkout** (↓N chip on a card): `ipc.ts` → `use-cases/pull-worktree.use-case.ts pullWorktree` →
+`src/main/git pull` → `utils/pull-hints.ts pullHint` on failure → `enqueue(refreshRepos)` → `notify`.
+
 **Startup**: `ipc.ts initLocalReposIpc` → `sync/index.ts startSync` (watchers, initial full scan, rescan on window focus).

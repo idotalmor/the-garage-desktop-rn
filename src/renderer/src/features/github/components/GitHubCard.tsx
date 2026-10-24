@@ -1,13 +1,16 @@
 import {
+  ArrowDown,
   ChevronDown,
   CodeXml,
   GitBranch,
   GitCommitHorizontal,
+  Loader2,
+  PencilLine,
   Terminal,
   Trash2
 } from 'lucide-react'
 import { useState } from 'react'
-import { Button } from '@heroui/react'
+import { Button, Tooltip } from '@heroui/react'
 import { Widget } from '@heroui-pro/react'
 import type { Worktree } from './types'
 
@@ -19,7 +22,6 @@ export interface GitHubCardSpec {
   overflowVisible?: boolean
   aside?: React.ReactNode
   history?: {
-    hasUncommitted?: boolean
     onOpen: () => void
   }
   body?: React.ReactNode
@@ -61,11 +63,7 @@ export function GitHubCard({
                   isIconOnly
                   size="sm"
                   variant="ghost"
-                  className={`size-6 min-h-6 ${
-                    history.hasUncommitted
-                      ? 'bg-warning/15 text-warning'
-                      : 'text-muted hover:text-foreground'
-                  }`}
+                  className="size-6 min-h-6 text-muted hover:text-foreground"
                   onPress={history.onOpen}
                   aria-label="Commit history"
                 >
@@ -223,6 +221,73 @@ export function SyncChip({
     >
       {children}
     </span>
+  )
+}
+
+/** The ↓N chip on a card, as a button: pulls the checkout's remote branch. Spins while pulling. */
+export function PullChip({
+  behind,
+  upstream,
+  pulling,
+  onPull
+}: {
+  behind: number
+  upstream?: string | null
+  pulling: boolean
+  onPull: () => void
+}): React.JSX.Element {
+  const remote = upstream ?? 'the remote'
+  const commits = `${behind} ${behind === 1 ? 'commit' : 'commits'}`
+  const hint = pulling ? `Pulling from ${remote}…` : `Pull ${commits} from ${remote}`
+  return (
+    <Tooltip delay={300} closeDelay={0}>
+      <Button
+        size="sm"
+        variant="ghost"
+        aria-label={hint}
+        aria-busy={pulling || undefined}
+        // Not isDisabled: a disabled button gets no hover, so its tooltip couldn't say "Pulling…".
+        onPress={() => !pulling && onPull()}
+        className={`h-auto min-h-0 min-w-0 gap-0.5 rounded-full bg-surface-secondary px-1.5 py-px text-[10px] font-medium text-muted hover:bg-accent/15 hover:text-accent ${
+          pulling ? 'cursor-wait opacity-70' : ''
+        }`}
+      >
+        {pulling ? (
+          <Loader2 size={10} className="animate-spin" aria-hidden="true" />
+        ) : (
+          <ArrowDown size={10} aria-hidden="true" />
+        )}
+        {behind}
+      </Button>
+      <Tooltip.Content showArrow placement="bottom">
+        <Tooltip.Arrow />
+        <span className="text-xs">{hint}</span>
+      </Tooltip.Content>
+    </Tooltip>
+  )
+}
+
+/**
+ * Uncommitted changes in a checkout, as a chip beside the pull chip. Display only: committing
+ * needs a message, so it happens in the editor, not from the card.
+ */
+export function ChangesChip({ count }: { count: number }): React.JSX.Element {
+  const hint = `${count} uncommitted ${count === 1 ? 'change' : 'changes'} in this checkout`
+  return (
+    <Tooltip delay={300} closeDelay={0}>
+      <Tooltip.Trigger
+        role="img"
+        aria-label={hint}
+        className="inline-flex items-center gap-0.5 rounded-full bg-surface-secondary px-1.5 py-px text-[10px] font-medium text-muted"
+      >
+        <PencilLine size={10} className="text-warning" aria-hidden="true" />
+        {count}
+      </Tooltip.Trigger>
+      <Tooltip.Content showArrow placement="bottom">
+        <Tooltip.Arrow />
+        <span className="text-xs">{hint}</span>
+      </Tooltip.Content>
+    </Tooltip>
   )
 }
 

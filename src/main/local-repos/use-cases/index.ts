@@ -4,8 +4,10 @@
  */
 export { addSources } from './add-sources.use-case'
 export { deleteWorktree } from './delete-worktree.use-case'
+export { listCommits } from './list-commits.use-case'
 export { openFolder } from './open-folder.use-case'
 export { openIde } from './open-ide.use-case'
+export { pullWorktree } from './pull-worktree.use-case'
 export { refreshRepos } from './refresh-repos.use-case'
 export { removeSource } from './remove-source.use-case'
 export { rescan } from './rescan.use-case'

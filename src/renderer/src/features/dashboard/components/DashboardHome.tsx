@@ -17,11 +17,12 @@ import { Button, Dropdown } from '@heroui/react'
 import { CommitHistoryModal } from '../../github/components/CommitHistoryModal'
 import { CreatePrModal } from '../../github/components/CreatePrModal'
 import { DeleteWorktreeModal } from '../../github/components/DeleteWorktreeModal'
+import { PullErrorModal } from '../../github/components/PullErrorModal'
 import { GitHubCard } from '../../github/components/GitHubCard'
 import { buildRepositoryCards } from '../../github/components/repository-cards'
 import { SortableRepository } from '../../github/components/SortableRepository'
 import { SourceChips } from '../../github/components/SourceChips'
-import type { Repository, Worktree } from '../../github/components/types'
+import type { CommitSource, Repository, Worktree } from '../../github/components/types'
 import { useLocalRepositories } from '../../github/hooks/useLocalRepositories'
 import {
   REPO_SORTS,
@@ -41,7 +42,8 @@ export function DashboardHome(): React.JSX.Element {
     setOrder,
     openIde,
     openFolder,
-    deleteWorktree
+    deleteWorktree,
+    pull
   } = useLocalRepositories()
   const { mode, manual, ordered, sortBy, move, startManual, saveManual, cancelManual } =
     useRepositoryOrder(repositories, setOrder)
@@ -55,6 +57,7 @@ export function DashboardHome(): React.JSX.Element {
   const [selectedHistory, setSelectedHistory] = useState<{
     title: string
     hasUncommitted?: boolean
+    source?: CommitSource
   } | null>(null)
   const [selectedWorktree, setSelectedWorktree] = useState<{
     repo: Repository
@@ -63,6 +66,34 @@ export function DashboardHome(): React.JSX.Element {
   const [deleteTarget, setDeleteTarget] = useState<Worktree | null>(null)
   const [deleting, setDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
+  const [pulling, setPulling] = useState<Record<string, boolean>>({})
+  const [pullError, setPullError] = useState<{
+    worktree: Worktree
+    message: string
+    hint: string | null
+  } | null>(null)
+
+  const startPull = async (worktree: Worktree): Promise<void> => {
+    const path = worktree.path
+    if (!path || pulling[path]) return
+    setPulling((current) => ({ ...current, [path]: true }))
+    try {
+      const result = await pull(path)
+      if (!result.ok) setPullError({ worktree, message: result.message, hint: result.hint })
+    } catch (error) {
+      setPullError({
+        worktree,
+        message: error instanceof Error ? error.message : String(error),
+        hint: null
+      })
+    } finally {
+      setPulling((current) => {
+        const next = { ...current }
+        delete next[path]
+        return next
+      })
+    }
+  }
 
   const openContext = (): void => {
     window.open('?view=artifactory', '_blank', 'width=900,height=600')
@@ -257,8 +288,8 @@ export function DashboardHome(): React.JSX.Element {
                               linkedTasks,
                               babysitter,
                               onRecipientChange: setSelectedRecipient,
-                              onHistory: (title, hasUncommitted) =>
-                                setSelectedHistory({ title, hasUncommitted }),
+                              onHistory: (title, hasUncommitted, source) =>
+                                setSelectedHistory({ title, hasUncommitted, source }),
                               onLinkTask: linkTask,
                               onOpenWorktree: (worktree) => setSelectedWorktree({ repo, worktree }),
                               onBabysitter: (number) =>
@@ -274,7 +305,9 @@ export function DashboardHome(): React.JSX.Element {
                               onDelete: (worktree) => {
                                 setDeleteError(null)
                                 setDeleteTarget(worktree)
-                              }
+                              },
+                              pulling,
+                              onPull: (worktree) => void startPull(worktree)
                             }).map(({ key, ...card }) => (
                               <GitHubCard key={key} {...card} />
                             ))}
@@ -309,9 +342,7 @@ export function DashboardHome(): React.JSX.Element {
         </h2>
         {!collapsed['jira'] && (
           <div id="jira-section" className="flex flex-wrap gap-2">
-            {buildJiraCards({
-              onHistory: (title) => setSelectedHistory({ title })
-            }).map(({ key, ...card }) => (
+            {buildJiraCards().map(({ key, ...card }) => (
               <GitHubCard key={key} {...card} />
             ))}
           </div>
@@ -322,6 +353,7 @@ export function DashboardHome(): React.JSX.Element {
         <CommitHistoryModal
           title={selectedHistory.title}
           hasUncommitted={selectedHistory.hasUncommitted}
+          source={selectedHistory.source}
           onClose={() => setSelectedHistory(null)}
         />
       )}
@@ -331,6 +363,17 @@ export function DashboardHome(): React.JSX.Element {
           worktree={selectedWorktree.worktree}
           onClose={() => setSelectedWorktree(null)}
           onContext={openContext}
+        />
+      )}
+      {pullError && (
+        <PullErrorModal
+          worktree={pullError.worktree}
+          message={pullError.message}
+          hint={pullError.hint}
+          onOpenTerminal={(path) =>
+            void openIde('terminal', path).catch((error) => console.warn('[open-ide]', error))
+          }
+          onClose={() => setPullError(null)}
         />
       )}
       {deleteTarget && (

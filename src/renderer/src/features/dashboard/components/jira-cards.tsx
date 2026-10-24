@@ -61,15 +61,11 @@ const priorityDot: Record<JiraTicket['priority'], string> = {
   Low: 'bg-muted'
 }
 
-export function buildJiraCards({
-  onHistory
-}: {
-  onHistory: (title: string, hasUncommitted?: boolean) => void
-}): GitHubCardSpec[] {
+/** Jira tickets have no git history, so their cards get no commit-history button. */
+export function buildJiraCards(): GitHubCardSpec[] {
   return jiraTickets.map((ticket) => ({
     key: `jira-${ticket.key}`,
     title: ticket.summary,
-    history: { onOpen: () => onHistory(ticket.key) },
     aside: (
       <span className="flex items-center gap-1.5 text-[11px] font-medium text-muted">
         <span className={`size-1.5 rounded-full ${priorityDot[ticket.priority]}`} />

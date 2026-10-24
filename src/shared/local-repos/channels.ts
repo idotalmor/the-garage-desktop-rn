@@ -18,6 +18,13 @@ export const LocalReposChannel = {
   OpenFolder: 'local-repos:open-folder',
   /** Moves a checkout folder to the Trash and refreshes its repo, args: path, alsoDeleteRemote. */
   DeleteWorktree: 'local-repos:delete-worktree',
+  /**
+   * Returns one `CommitPage` of a card's history, args: repo id, checkout path (null = the repo's
+   * default branch), cursor from the previous page (null = first page).
+   */
+  ListCommits: 'local-repos:list-commits',
+  /** Runs `git pull` in a checkout, arg: absolute path. Returns a `PullResult` (never throws). */
+  Pull: 'local-repos:pull',
   /** Main → renderer push with a fresh `LocalReposSnapshot` whenever anything changes. */
   Changed: 'local-repos:changed'
 } as const

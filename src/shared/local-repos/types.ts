@@ -1,4 +1,4 @@
-import type { CommitSummary, GitProvider, GitRemote } from '../git/types'
+import type { CommitPage, CommitSummary, GitProvider, GitRemote } from '../git/types'
 
 /** A folder the user picked to scan. Can be a single repo, a worktree, or a parent of many repos. */
 export type Source = {
@@ -107,3 +107,30 @@ export type LocalReposSnapshot = {
   /** Progress of the running scan, or null when idle. */
   progress: ScanProgress | null
 }
+
+/** Commits on a checkout's remote branch that it doesn't have yet (what a pull would bring in). */
+export type IncomingCommits = {
+  /** Remote branch they are on, e.g. `origin/feat-x` (the checkout's upstream). */
+  upstream: string
+  /** Newest first; at most the first 100. */
+  commits: CommitSummary[]
+  /** How many there are in all (can exceed `commits.length`). */
+  total: number
+}
+
+/** One page of a card's commit history, plus on the first page the commits waiting to be pulled. */
+export type CommitHistoryPage = CommitPage & {
+  /** Commits to pull; first page of a checkout with an upstream that is behind, else null. */
+  incoming: IncomingCommits | null
+}
+
+/** Outcome of pulling a checkout. */
+export type PullResult =
+  | { ok: true }
+  | {
+      ok: false
+      /** Git's own error output. */
+      message: string
+      /** A plain next step for the user (e.g. "commit or stash your changes"), when we recognise the error. */
+      hint: string | null
+    }

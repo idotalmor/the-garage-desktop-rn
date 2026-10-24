@@ -60,3 +60,14 @@ export type Repository = {
   /** Saved place in the user's order (0 = first); null until placed. Local repos only. */
   position?: number | null
 }
+
+/** Which local history a commit-history modal reads: a checkout's HEAD, or the repo's default branch. */
+export type CommitSource = {
+  /** Local repo id (`LocalRepo.id`). */
+  repoId: string
+  /** Checkout to read HEAD from; null = the repo's default branch. */
+  worktreePath: string | null
+}
+
+/** Opens the commit-history modal. `source` is absent for mock cards with no local git data. */
+export type OnHistory = (title: string, hasUncommitted?: boolean, source?: CommitSource) => void

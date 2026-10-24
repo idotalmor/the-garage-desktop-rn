@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { LocalReposChannel } from '../../../../../shared/local-repos/channels'
-import type { LocalReposSnapshot } from '../../../../../shared/local-repos/types'
+import type { LocalReposSnapshot, PullResult } from '../../../../../shared/local-repos/types'
 import type { Repository } from '../components/types'
 import { toUiRepository } from '../local-repositories'
 
@@ -15,6 +15,8 @@ export function useLocalRepositories(): {
   openIde: (ide: string, path: string) => Promise<void>
   openFolder: (path: string) => Promise<void>
   deleteWorktree: (path: string, deleteRemote: boolean) => Promise<void>
+  /** `git pull` in a checkout; resolves with git's error instead of throwing when it refuses. */
+  pull: (path: string) => Promise<PullResult>
 } {
   const [snapshot, setSnapshot] = useState<LocalReposSnapshot | null>(null)
 
@@ -51,6 +53,8 @@ export function useLocalRepositories(): {
       window.electron.ipcRenderer.invoke(LocalReposChannel.OpenFolder, path) as Promise<void>,
     deleteWorktree: (path, deleteRemote) =>
       invoke(LocalReposChannel.DeleteWorktree, path, deleteRemote),
+    pull: (path) =>
+      window.electron.ipcRenderer.invoke(LocalReposChannel.Pull, path) as Promise<PullResult>,
     setOrder: async (ids) => {
       // Reorder right away so a dropped card doesn't jump back while the DB saves.
       setSnapshot((current) => {
