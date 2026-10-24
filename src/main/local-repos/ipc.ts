@@ -1,10 +1,10 @@
 /**
  * IPC layer for local repos. Each handler calls one use case (or `getSnapshot`), and every
- * snapshot change from `scan-service` is pushed to all windows. No state lives here.
+ * snapshot change from `sync/` is pushed to all windows. No state lives here.
  */
 import { BrowserWindow, dialog, ipcMain, type IpcMainInvokeEvent } from 'electron'
 import { LocalReposChannel } from '../../shared/local-repos/channels'
-import { getSnapshot, startScanService, subscribe } from './scan-service'
+import { getSnapshot, startSync, subscribe } from './sync'
 import { addSources, removeSource, rescan, resetLocalData, setRepoOrder } from './use-cases'
 
 export function initLocalReposIpc(): void {
@@ -28,7 +28,7 @@ export function initLocalReposIpc(): void {
     }
   })
 
-  startScanService()
+  startSync()
 }
 
 /** Shows the native folder picker attached to the requesting window. Returns [] if cancelled. */

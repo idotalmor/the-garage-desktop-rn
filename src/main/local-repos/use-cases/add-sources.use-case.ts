@@ -2,7 +2,7 @@
 import { promises as fs } from 'fs'
 import type { LocalReposSnapshot } from '../../../shared/local-repos/types'
 import { insertSources } from '../db/tables/sources/queries'
-import { enqueueScan, getSnapshot } from '../scan-service'
+import { enqueueScan, getSnapshot } from '../sync'
 
 export async function addSources(paths: string[]): Promise<LocalReposSnapshot> {
   if (paths.length === 0) return getSnapshot()

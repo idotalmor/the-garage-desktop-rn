@@ -95,7 +95,7 @@ cascades to its worktrees.
 ```mermaid
 flowchart TD
   A[User presses + next to the source chips → picks folders] --> B[(sources<br/>insert one row per new path)]
-  B --> C[addSources use case → scan-service queues scanSources]
+  B --> C[addSources use case → sync/job-queue queues scanSources]
   C --> D["findRepoFolders: walk folder (depth ≤ max_depth)<br/>skip node_modules, hidden, symlinks"]
   D --> E{"dir has .git dir / .git file<br/>or is a bare repo?"}
   E -- no --> D
@@ -115,7 +115,7 @@ A full scan runs on app start, after folders are added, and on window focus (at 
 every 5 minutes). If a folder can't be scanned (e.g. deleted), its result is saved as empty and
 `sources.last_error` is set.
 
-**Live updates (file watching).** `scan-service` watches every source recursively (FSEvents on
+**Live updates (file watching).** `sync/live-sync.ts` watches every source recursively (FSEvents on
 macOS), plus repo `.git` folders and checkouts that live outside all sources. Changes are
 batched until the folder has been quiet for 1 s (at most 5 s):
 

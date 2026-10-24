@@ -1,6 +1,6 @@
 /**
  * Scans sources (all, or the given ids): finds their repos, saves them, and deletes repos that are
- * gone. Run on `scan-service`'s queue, for full scans and for quiet rescans after a file change.
+ * gone. Run on `sync/job-queue`'s queue, for full scans and for quiet rescans after a file change.
  */
 import { promises as fs } from 'fs'
 import type { ScannedRepo, ScanProgress } from '../../../shared/local-repos/types'

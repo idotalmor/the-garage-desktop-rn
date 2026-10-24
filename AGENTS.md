@@ -7,7 +7,7 @@ bridge, `src/renderer` the React UI, `src/shared` the types and IPC channel name
 
 - **Main-process features** (`src/main/**`): follow
   [docs/main-process-structure.md](docs/main-process-structure.md). That covers the `ipc → use-cases →
-service → domain/db` layers, Drizzle tables in one folder per table (`schema`/`queries`), shared
+sync → domain/db` layers, Drizzle tables in one folder per table (`schema`/`queries`), shared
   libraries (`src/main/git`, `src/main/sqlite`), and summary comments at the top of each file.
   Refactor code you touch to that structure without being asked.
 - **Docs live next to the code they describe**, as a `README.md` in that folder. Each one is listed in

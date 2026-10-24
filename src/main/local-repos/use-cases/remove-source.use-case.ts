@@ -3,7 +3,7 @@ import type { LocalReposSnapshot } from '../../../shared/local-repos/types'
 import { transaction } from '../db/connection'
 import { deleteRepos, listRepos } from '../db/tables/local-repos/queries'
 import { deleteSource, listSources } from '../db/tables/sources/queries'
-import { getSnapshot, notify, syncWatching } from '../scan-service'
+import { getSnapshot, notify, syncWatching } from '../sync'
 import { uncoveredRepoIds } from '../utils/coverage'
 
 export function removeSource(id: string): LocalReposSnapshot {

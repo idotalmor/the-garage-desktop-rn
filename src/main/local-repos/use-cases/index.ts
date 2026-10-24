@@ -1,6 +1,6 @@
 /**
  * The local repos use cases: one file per user action or background job, each holding the
- * business rules for it. `ipc.ts` calls the user actions; `scan-service` runs the jobs on its queue.
+ * business rules for it. `ipc.ts` calls the user actions; `sync/job-queue` runs the jobs on its queue.
  */
 export { addSources } from './add-sources.use-case'
 export { refreshRepos } from './refresh-repos.use-case'

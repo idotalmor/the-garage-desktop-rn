@@ -18,7 +18,7 @@ src/main/<feature>/
   use-cases/          business rules, one file per user action or background job
     <action>.use-case.ts
     index.ts          re-exports them
-  <name>-service.ts   runtime state only (queues, progress, timers, watchers, subscriptions)
+  sync/               runtime state only (job queue, progress, watchers, snapshot/subscriptions); index.ts = API
   <domain>/           feature-specific work, split by concern (e.g. scanner/, watcher/)
   db/                 SQLite persistence (only if the feature stores data)
     connection.ts     `getDb`, `resetDb`, `transaction` from one `openDatabase(...)` call, + `<Feature>Db` type
@@ -37,20 +37,20 @@ src/main/<library>/   code shared by features, with no IPC and no state: e.g.
 src/shared/<library>/ types from a library that the renderer also sees (e.g. shared/git/types.ts)
 ```
 
-Dependencies only point down: `ipc → use-cases → service (state) → domain/db/utils → libraries`.
-Background jobs the service runs on its queue (e.g. `scan-sources.use-case.ts`) are use cases too,
-but must not import the service, so there are no cycles; the service imports them directly, not
+Dependencies only point down: `ipc → use-cases → sync (state) → domain/db/utils → libraries`.
+Background jobs `sync/` runs on its queue (e.g. `scan-sources.use-case.ts`) are use cases too,
+but must not import `sync/`, so there are no cycles; `sync/` imports them directly, not
 through `use-cases/index.ts`. Lower layers never import `electron`'s `ipcMain`/`BrowserWindow` or a
 higher layer. Libraries (`src/main/git`, `src/main/sqlite`) never import a feature.
 
 ### `ipc.ts`: communication only
 
 - One `init<Feature>Ipc()` that registers handlers; `src/main/index.ts` calls it.
-- Each handler validates/coerces its arguments and calls **one** use case (or the service's
+- Each handler validates/coerces its arguments and calls **one** use case (or `sync`'s
   `getSnapshot`). No business logic, no module-level `let` state, no SQL, no child processes.
 - Window-specific UI (e.g. `dialog.showOpenDialog`) is allowed here because it needs the
   sender's window.
-- Push events: subscribe to the service and forward to `BrowserWindow.getAllWindows()`.
+- Push events: subscribe to `sync` and forward to `BrowserWindow.getAllWindows()`.
 
 ```ts
 ipcMain.handle(LocalReposChannel.RemoveSource, (_, id: string) => removeSource(String(id)))
@@ -67,18 +67,19 @@ subscribe((snapshot) => {
   `add-sources.use-case.ts`, `remove-source.use-case.ts`, `scan-sources.use-case.ts`), exporting
   one function. `index.ts` re-exports them all.
 - A use case decides _what_ happens (e.g. "removing a source deletes repos nothing covers") and
-  calls the table `queries.ts` functions, domain code and the service. When several writes must
+  calls the table `queries.ts` functions, domain code and `sync/`. When several writes must
   happen together it wraps them in `transaction(() => …)` from `db/connection.ts`. Never `await`
   inside a transaction (`better-sqlite3` is synchronous and rejects async callbacks).
 - Values that are derived rather than stored (e.g. which sources cover a repo) are computed here,
   from small pure helpers, not added to the shared types.
 - User actions return the new snapshot for the UI.
 
-### `<name>-service.ts`: runtime state
+### `sync/`: runtime state
 
-- Owns mutable state (job queue, in-flight counters, progress, throttling, watchers, last-run
-  times) and exposes it as plain functions (`getSnapshot`, `subscribe(listener) → unsubscribe`,
-  `notify`, `enqueue`, `start<Name>Service()`). Knows nothing about IPC or windows.
+- Owns mutable state, one concern per file (`job-queue.ts`, `live-sync.ts`, `snapshot.ts`), and
+  exposes it from `index.ts` as plain functions (`getSnapshot`, `subscribe(listener) → unsubscribe`,
+  `notify`, `enqueue`, `startSync()`). Knows nothing about IPC or windows. Files don't import each
+  other in a cycle: lower files emit events and `index.ts` wires them.
 - Holds no business rules: the jobs it runs are use cases.
 - Returns a whole snapshot that the UI can render directly, instead of many small getters.
 
@@ -143,7 +144,8 @@ subscribe((snapshot) => {
 
 ## File conventions
 
-- Docs live next to the code they describe (`README.md` in that folder). `docs/` only holds
+- Docs live next to the code they describe (`README.md` in that folder). Every folder of a feature
+  gets one: what it does, a table of its files, and the call chain with file names. `docs/` only holds
   cross-cutting guides and the index (`docs/README.md`).
 
 - Every file starts with a short `/** … */` summary: what it does and, if it isn't obvious, why it
@@ -174,7 +176,7 @@ npm run typecheck        # typecheck:node + typecheck:web
 npm run db:generate      # only after changing a Drizzle table
 ```
 
-Main-process code (scanner, use cases, DB, the service with real watchers) can run from Node
+Main-process code (scanner, use cases, DB, `sync` with real watchers) can run from Node
 against real git repos: bundle a small script with `esbuild --bundle --platform=node
 --alias:electron=./electron-stub.ts --external:better-sqlite3` (the stub only needs
 `app.getPath('home')` and `app.on`), set `HOME` to a temp folder, and run it with

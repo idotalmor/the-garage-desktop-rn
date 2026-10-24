@@ -1,7 +1,7 @@
 /**
  * Re-reads repos after a file change inside them. A repo whose git dir is gone is deleted, and so
  * is one no source covers anymore (e.g. its only checkout inside a source was removed). Run on
- * `scan-service`'s queue.
+ * `sync/job-queue`'s queue.
  */
 import type { LocalRepo, LocalWorktree, ScannedRepo } from '../../../shared/local-repos/types'
 import { transaction } from '../db/connection'
