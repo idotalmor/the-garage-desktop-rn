@@ -1,6 +1,12 @@
-import { Ellipsis, GitBranch, GitCommit, MessageCircle, Plus } from 'lucide-react'
+import { ArrowDown, ArrowUp, Ellipsis, GitBranch, MessageCircle, Plus, Trash2 } from 'lucide-react'
 import { Button, Dropdown } from '@heroui/react'
-import { GithubIcon, IdePicker, type GitHubCardSpec } from './GitHubCard'
+import {
+  CheckoutActions,
+  FooterAction,
+  GithubIcon,
+  SyncChip,
+  type GitHubCardSpec
+} from './GitHubCard'
 import type { CiStatus, PullRequest, Repository, Worktree } from './types'
 
 const favoritePeople = ['Maya Chen', 'Ava Patel', 'Noah Williams']
@@ -145,6 +151,33 @@ const ciSurfaceClass: Record<CiStatus, string> = {
   none: ''
 }
 
+/**
+ * The branch part of the tracked remote (`origin/devin/xyz` → `devin/xyz`), shown only when the
+ * remote branch name differs from the local one — otherwise the title already says it.
+ */
+function remoteBranch(worktree: Worktree): string | null {
+  if (!worktree.upstream) return null
+  const remote = worktree.upstream.split('/').slice(1).join('/')
+  return remote === worktree.branch ? null : remote
+}
+
+/** "3m ago", "2h ago", "5d ago" or a short date for older timestamps. */
+function timeAgo(timestamp: number): string {
+  const minutes = Math.floor((Date.now() - timestamp) / 60_000)
+  if (minutes < 1) return 'just now'
+  if (minutes < 60) return `${minutes}m ago`
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) return `${hours}h ago`
+  const days = Math.floor(hours / 24)
+  if (days < 7) return `${days}d ago`
+  return new Date(timestamp).toLocaleDateString()
+}
+
+/** Tooltip for the latest-commit button: "Latest commit · 2h ago". */
+function latestCommitHint(timestamp?: number): string {
+  return `Latest commit${timestamp ? ` · ${timeAgo(timestamp)}` : ''}`
+}
+
 const prStatusStyle: Record<string, string> = {
   'Changes requested': 'text-danger',
   Approved: 'text-success',
@@ -161,7 +194,10 @@ export function buildRepositoryCards({
   onHistory,
   onLinkTask,
   onOpenWorktree,
-  onBabysitter
+  onBabysitter,
+  onOpenIde,
+  onOpenFolder,
+  onDelete
 }: {
   repository: Repository
   selectedRecipient: string
@@ -172,52 +208,63 @@ export function buildRepositoryCards({
   onLinkTask: (key: string) => void
   onOpenWorktree: (worktree: Worktree) => void
   onBabysitter: (number: number) => void
+  onOpenIde: (ide: string, path: string) => void
+  onOpenFolder: (path: string) => void
+  onDelete: (worktree: Worktree) => void
 }): GitHubCardSpec[] {
   // The main clone usually has the default branch checked out; show that as one card, not two.
   const mainCheckout = repository.worktrees.find(
     (tree) => tree.isMain && tree.branch === repository.defaultBranch
   )
+  const actions = { onOpenIde, onOpenFolder, onDelete }
   return [
-    branchCard(repository, onHistory, mainCheckout),
+    branchCard(repository, onHistory, mainCheckout, actions),
     ...repository.prs.map((pr) =>
       prCard(pr, repository.detail, {
         selectedRecipient,
         linkedTask: linkedTasks[`pr-${pr.number}`],
+        linkedWorktree: repository.worktrees.find((tree) => tree.prNumber === pr.number),
         isBabysitter: Boolean(babysitter[pr.number]),
         onRecipientChange,
         onHistory,
         onLinkTask: () => onLinkTask(`pr-${pr.number}`),
-        onBabysitter: () => onBabysitter(pr.number)
+        onBabysitter: () => onBabysitter(pr.number),
+        onDelete
       })
     ),
     ...repository.worktrees
       .filter((tree) => tree !== mainCheckout)
-      .map((tree) => worktreeCard(tree, repository.detail, () => onOpenWorktree(tree), onHistory))
+      .map((tree) =>
+        worktreeCard(tree, repository.detail, () => onOpenWorktree(tree), onHistory, actions)
+      )
   ]
 }
 
-/** The default branch. When `mainCheckout` is given, it also shows that folder's local state. */
+/**
+ * The default branch — always the first card, even when no checkout of it exists on this Mac.
+ * When `mainCheckout` is given, it also shows that folder's local state and actions.
+ */
 function branchCard(
   repository: Repository,
   onHistory: (title: string, hasUncommitted?: boolean) => void,
-  mainCheckout?: Worktree
+  mainCheckout: Worktree | undefined,
+  actions: {
+    onOpenIde: (ide: string, path: string) => void
+    onOpenFolder: (path: string) => void
+    onDelete: (worktree: Worktree) => void
+  }
 ): GitHubCardSpec {
   const historyKey = `${repository.name}/${repository.defaultBranch}`
   const hasUncommitted = mainCheckout?.hasUncommitted
   return {
     key: `branch-${repository.id ?? repository.name}`,
     title: repository.defaultBranch,
+    titleClass: 'text-accent',
     surfaceClass: ciSurfaceClass[repository.masterCi],
     overflowVisible: Boolean(mainCheckout),
     history: { hasUncommitted, onOpen: () => onHistory(historyKey, hasUncommitted) },
     body: (
       <>
-        <span className="line-clamp-2 flex items-center gap-1 text-xs text-accent">
-          <GitBranch size={13} /> Default branch
-          {mainCheckout && (
-            <span className="text-muted">· Main checkout · {mainCheckout.name}</span>
-          )}
-        </span>
         {mainCheckout && (
           <p className="line-clamp-2 text-xs text-muted" title={mainCheckout.path}>
             {mainCheckout.changes}
@@ -225,26 +272,17 @@ function branchCard(
         )}
         <button
           type="button"
+          title={latestCommitHint(repository.masterCommits[0]?.committedAt)}
           className="line-clamp-2 w-fit cursor-pointer rounded-md border border-transparent px-1.5 py-0.5 text-left text-xs text-muted transition-colors hover:border-border hover:text-foreground"
           onClick={() => onHistory(historyKey, hasUncommitted)}
         >
-          Latest commit {repository.masterCommits[0]?.message ?? 'No recent commits'}
+          {repository.masterCommits[0]?.message ?? 'No recent commits'}
         </button>
       </>
     ),
-    footer: (
-      <>
-        <Button
-          size="sm"
-          variant="ghost"
-          className="h-7 rounded-lg text-xs"
-          onPress={() => onHistory(historyKey, hasUncommitted)}
-        >
-          <GitCommit size={13} /> History
-        </Button>
-        {mainCheckout && <IdePicker worktreeName={mainCheckout.name} />}
-      </>
-    )
+    footer: mainCheckout?.path ? (
+      <CheckoutActions worktree={mainCheckout} {...actions} />
+    ) : undefined
   }
 }
 
@@ -254,19 +292,23 @@ function prCard(
   {
     selectedRecipient,
     linkedTask,
+    linkedWorktree,
     isBabysitter,
     onRecipientChange,
     onHistory,
     onLinkTask,
-    onBabysitter
+    onBabysitter,
+    onDelete
   }: {
     selectedRecipient: string
     linkedTask?: string
+    linkedWorktree?: Worktree
     isBabysitter: boolean
     onRecipientChange: (value: string) => void
     onHistory: (title: string, hasUncommitted?: boolean) => void
     onLinkTask: () => void
     onBabysitter: () => void
+    onDelete: (worktree: Worktree) => void
   }
 ): GitHubCardSpec {
   const isMerged = pr.status === 'Merged'
@@ -380,6 +422,15 @@ function prCard(
             </Dropdown.Menu>
           </Dropdown.Popover>
         </Dropdown>
+        {linkedWorktree?.path && !linkedWorktree.isMain && (
+          <FooterAction
+            label={`Delete ${linkedWorktree.name}`}
+            danger
+            onPress={() => onDelete(linkedWorktree)}
+          >
+            <Trash2 size={13} />
+          </FooterAction>
+        )}
       </>
     )
   }
@@ -389,36 +440,53 @@ function worktreeCard(
   worktree: Worktree,
   repoDetail: string,
   onOpen: () => void,
-  onHistory: (title: string, hasUncommitted?: boolean) => void
+  onHistory: (title: string, hasUncommitted?: boolean) => void,
+  actions: {
+    onOpenIde: (ide: string, path: string) => void
+    onOpenFolder: (path: string) => void
+    onDelete: (worktree: Worktree) => void
+  }
 ): GitHubCardSpec {
   return {
     key: `worktree-${worktree.path ?? worktree.name}`,
     title: worktree.branch,
     overflowVisible: true,
-    aside: worktree.prNumber ? (
-      <Button
-        isIconOnly
-        size="sm"
-        variant="ghost"
-        className="size-6 min-h-6 text-muted hover:text-foreground"
-        onPress={() =>
-          window.open(`https://github.com/${repoDetail}/pull/${worktree.prNumber}`, '_blank')
-        }
-        aria-label={`Open PR #${worktree.prNumber} on GitHub`}
-      >
-        <GithubIcon size={14} />
-      </Button>
-    ) : (
-      <Button
-        isIconOnly
-        size="sm"
-        variant="ghost"
-        className="size-6 min-h-6 text-muted hover:text-foreground"
-        onPress={onOpen}
-        aria-label="Create pull request"
-      >
-        <Plus size={14} />
-      </Button>
+    aside: (
+      <>
+        {worktree.prNumber ? (
+          <Button
+            isIconOnly
+            size="sm"
+            variant="ghost"
+            className="size-6 min-h-6 text-muted hover:text-foreground"
+            onPress={() =>
+              window.open(`https://github.com/${repoDetail}/pull/${worktree.prNumber}`, '_blank')
+            }
+            aria-label={`Open PR #${worktree.prNumber} on GitHub`}
+          >
+            <GithubIcon size={14} />
+          </Button>
+        ) : (
+          <Button
+            isIconOnly
+            size="sm"
+            variant="ghost"
+            className="size-6 min-h-6 text-muted hover:text-foreground"
+            onPress={onOpen}
+            aria-label="Create pull request"
+          >
+            <Plus size={14} />
+          </Button>
+        )}
+        {worktree.behind ? (
+          <span className="self-center">
+            <SyncChip hint={`${worktree.behind} commits behind upstream — pull`}>
+              <ArrowDown size={10} aria-hidden="true" />
+              {worktree.behind}
+            </SyncChip>
+          </span>
+        ) : null}
+      </>
     ),
     history: {
       hasUncommitted: worktree.hasUncommitted,
@@ -429,12 +497,42 @@ function worktreeCard(
         <span className="line-clamp-2 flex items-center gap-1 text-xs text-muted">
           <GitBranch size={13} /> {worktree.isMain ? 'Main checkout' : 'Local worktree'} ·{' '}
           {worktree.name}
+          {remoteBranch(worktree) && ` → ${remoteBranch(worktree)}`}
         </span>
-        <p className="line-clamp-2 text-xs text-muted" title={worktree.path}>
-          {[worktree.author, worktree.changes].filter(Boolean).join(' · ')}
-        </p>
+        {Boolean(worktree.ahead || worktree.isPrunable || worktree.changedFiles) && (
+          <span className="flex flex-wrap items-center gap-1">
+            {worktree.ahead ? (
+              <SyncChip hint={`${worktree.ahead} commits ahead of upstream — push`}>
+                <ArrowUp size={10} aria-hidden="true" />
+                {worktree.ahead}
+              </SyncChip>
+            ) : null}
+            {worktree.isPrunable && (
+              <SyncChip danger hint="Folder is gone from disk">
+                missing
+              </SyncChip>
+            )}
+            {worktree.changedFiles ? (
+              <span className="text-[10px] text-muted">
+                {worktree.changedFiles === 1
+                  ? '1 changed file'
+                  : `${worktree.changedFiles} changed files`}
+              </span>
+            ) : null}
+          </span>
+        )}
+        {worktree.lastCommitMessage && (
+          <button
+            type="button"
+            title={latestCommitHint(worktree.lastCommitAt)}
+            className="line-clamp-2 w-fit cursor-pointer rounded-md border border-transparent px-1.5 py-0.5 text-left text-xs text-muted transition-colors hover:border-border hover:text-foreground"
+            onClick={() => onHistory(worktree.branch, worktree.hasUncommitted)}
+          >
+            {worktree.lastCommitMessage}
+          </button>
+        )}
       </>
     ),
-    footer: <IdePicker worktreeName={worktree.name} />
+    footer: worktree.path ? <CheckoutActions worktree={worktree} {...actions} /> : undefined
   }
 }

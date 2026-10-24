@@ -12,6 +12,9 @@ export function useLocalRepositories(): {
   rescan: (sourceId?: string) => Promise<void>
   reset: () => Promise<void>
   setOrder: (ids: string[]) => Promise<void>
+  openIde: (ide: string, path: string) => Promise<void>
+  openFolder: (path: string) => Promise<void>
+  deleteWorktree: (path: string, deleteRemote: boolean) => Promise<void>
 } {
   const [snapshot, setSnapshot] = useState<LocalReposSnapshot | null>(null)
 
@@ -42,6 +45,12 @@ export function useLocalRepositories(): {
     removeFolder: (id) => invoke(LocalReposChannel.RemoveSource, id),
     rescan: (sourceId) => invoke(LocalReposChannel.Rescan, sourceId),
     reset: () => invoke(LocalReposChannel.Reset),
+    openIde: (ide, path) =>
+      window.electron.ipcRenderer.invoke(LocalReposChannel.OpenIde, ide, path) as Promise<void>,
+    openFolder: (path) =>
+      window.electron.ipcRenderer.invoke(LocalReposChannel.OpenFolder, path) as Promise<void>,
+    deleteWorktree: (path, deleteRemote) =>
+      invoke(LocalReposChannel.DeleteWorktree, path, deleteRemote),
     setOrder: async (ids) => {
       // Reorder right away so a dropped card doesn't jump back while the DB saves.
       setSnapshot((current) => {

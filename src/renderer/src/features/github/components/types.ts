@@ -4,6 +4,8 @@ export type Commit = {
   hash: string
   message: string
   ciStatus: CiStatus
+  /** Commit time (epoch ms). */
+  committedAt?: number
 }
 
 export type PullRequest = {
@@ -29,8 +31,16 @@ export type Worktree = {
   path?: string
   isMain?: boolean
   isDetached?: boolean
+  /** The checkout folder is gone from disk; `git worktree prune` would drop it. */
+  isPrunable?: boolean
+  /** Remote branch the local branch tracks (e.g. `origin/feat-x`), when it has one. */
+  upstream?: string | null
+  /** Uncommitted modified, staged, renamed, conflicted or untracked files in the checkout. */
+  changedFiles?: number
   ahead?: number | null
   behind?: number | null
+  /** First line of the last commit's message on HEAD. */
+  lastCommitMessage?: string
   lastCommitAt?: number
 }
 

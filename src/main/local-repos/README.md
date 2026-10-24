@@ -29,4 +29,6 @@ Dependencies point down: `ipc → use-cases → sync → scanner / watcher / db 
 
 **User removes a source / resets / reorders**: `ipc.ts` → `remove-source` / `reset-local-data` / `set-repo-order` use case → queries → `notify`.
 
+**User opens or deletes a checkout** (card footer): `ipc.ts` → `open-ide` (`open -a`), `open-folder` (`shell.openPath`) or `delete-worktree` (`shell.trashItem` → `worktree prune` → `enqueue(refreshRepos)`).
+
 **Startup**: `ipc.ts initLocalReposIpc` → `sync/index.ts startSync` (watchers, initial full scan, rescan on window focus).

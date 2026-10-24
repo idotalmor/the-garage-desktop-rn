@@ -16,6 +16,7 @@ import { useState } from 'react'
 import { Button, Dropdown } from '@heroui/react'
 import { CommitHistoryModal } from '../../github/components/CommitHistoryModal'
 import { CreatePrModal } from '../../github/components/CreatePrModal'
+import { DeleteWorktreeModal } from '../../github/components/DeleteWorktreeModal'
 import { GitHubCard } from '../../github/components/GitHubCard'
 import { buildRepositoryCards } from '../../github/components/repository-cards'
 import { SortableRepository } from '../../github/components/SortableRepository'
@@ -31,8 +32,17 @@ import {
 import { buildJiraCards } from './jira-cards'
 
 export function DashboardHome(): React.JSX.Element {
-  const { snapshot, repositories, addFolders, removeFolder, reset, setOrder } =
-    useLocalRepositories()
+  const {
+    snapshot,
+    repositories,
+    addFolders,
+    removeFolder,
+    reset,
+    setOrder,
+    openIde,
+    openFolder,
+    deleteWorktree
+  } = useLocalRepositories()
   const { mode, sortBy, move } = useRepositoryOrder(repositories, setOrder)
   const dragSensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
@@ -49,6 +59,9 @@ export function DashboardHome(): React.JSX.Element {
     repo: Repository
     worktree: Worktree
   } | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<Worktree | null>(null)
+  const [deleting, setDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
 
   const openContext = (): void => {
     window.open('?view=artifactory', '_blank', 'width=900,height=600')
@@ -58,6 +71,20 @@ export function DashboardHome(): React.JSX.Element {
     setCollapsed((current) => ({ ...current, [key]: !current[key] }))
   const linkTask = (key: string): void =>
     setLinkedTasks((current) => ({ ...current, [key]: current[key] ? '' : 'DEV-192' }))
+
+  const confirmDelete = async (deleteRemote: boolean): Promise<void> => {
+    if (!deleteTarget?.path) return
+    setDeleting(true)
+    setDeleteError(null)
+    try {
+      await deleteWorktree(deleteTarget.path, deleteRemote)
+      setDeleteTarget(null)
+    } catch (error) {
+      setDeleteError(error instanceof Error ? error.message : String(error))
+    } finally {
+      setDeleting(false)
+    }
+  }
 
   return (
     <main className="mx-auto w-full max-w-[1600px] px-3 pb-8 pt-14 sm:px-5 lg:px-6 lg:pt-16">
@@ -88,7 +115,7 @@ export function DashboardHome(): React.JSX.Element {
               {snapshot.progress ? ` · ${snapshot.progress.reposFound} repos` : '…'}
             </span>
           )}
-          <div className="ml-auto flex items-center gap-1">
+          <div className="ml-auto flex min-w-0 items-center gap-1">
             {repositories.length > 1 && (
               <Dropdown>
                 <Dropdown.Trigger
@@ -207,7 +234,19 @@ export function DashboardHome(): React.JSX.Element {
                               onLinkTask: linkTask,
                               onOpenWorktree: (worktree) => setSelectedWorktree({ repo, worktree }),
                               onBabysitter: (number) =>
-                                setBabysitter({ ...babysitter, [number]: !babysitter[number] })
+                                setBabysitter({ ...babysitter, [number]: !babysitter[number] }),
+                              onOpenIde: (ide, path) =>
+                                void openIde(ide, path).catch((error) =>
+                                  console.warn('[open-ide]', error)
+                                ),
+                              onOpenFolder: (path) =>
+                                void openFolder(path).catch((error) =>
+                                  console.warn('[open-folder]', error)
+                                ),
+                              onDelete: (worktree) => {
+                                setDeleteError(null)
+                                setDeleteTarget(worktree)
+                              }
                             }).map(({ key, ...card }) => (
                               <GitHubCard key={key} {...card} />
                             ))}
@@ -264,6 +303,15 @@ export function DashboardHome(): React.JSX.Element {
           worktree={selectedWorktree.worktree}
           onClose={() => setSelectedWorktree(null)}
           onContext={openContext}
+        />
+      )}
+      {deleteTarget && (
+        <DeleteWorktreeModal
+          worktree={deleteTarget}
+          deleting={deleting}
+          error={deleteError}
+          onDelete={(remote) => void confirmDelete(remote)}
+          onClose={() => setDeleteTarget(null)}
         />
       )}
     </main>

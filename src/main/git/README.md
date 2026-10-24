@@ -15,7 +15,7 @@ parsers/        pure functions: raw git output → typed data (no I/O, easy to u
   remote-url.ts remote URL → host/owner/repo/slug (also used to match GitHub repos)
 queries/        one file per topic: run git + parse → typed answer
   repository.ts resolveCommonDir, isBareRepository
-  worktrees.ts  listWorktrees
+  worktrees.ts  listWorktrees, pruneWorktrees
   status.ts     readStatus
   log.ts        lastCommit
   remotes.ts    readRemotes

@@ -1,11 +1,20 @@
-import { ChevronDown, CodeXml, GitBranch, GitCommitHorizontal, Terminal } from 'lucide-react'
+import {
+  ChevronDown,
+  CodeXml,
+  GitBranch,
+  GitCommitHorizontal,
+  Terminal,
+  Trash2
+} from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@heroui/react'
 import { Widget } from '@heroui-pro/react'
+import type { Worktree } from './types'
 
 export interface GitHubCardSpec {
   key: string
   title: React.ReactNode
+  titleClass?: string
   surfaceClass?: string
   overflowVisible?: boolean
   aside?: React.ReactNode
@@ -20,6 +29,7 @@ export interface GitHubCardSpec {
 
 export function GitHubCard({
   title,
+  titleClass,
   surfaceClass,
   overflowVisible,
   aside,
@@ -36,7 +46,7 @@ export function GitHubCard({
         className={`m-1 flex min-h-[140px] flex-col gap-1 p-2.5 ${overflowVisible ? 'overflow-visible' : ''}`}
       >
         <div className="flex items-start justify-between gap-2">
-          <h3 className="line-clamp-3 min-w-0 text-sm font-semibold">
+          <h3 className={`line-clamp-3 min-w-0 text-sm font-semibold ${titleClass ?? ''}`}>
             <GitBranch
               size={13}
               className="mr-1.5 inline-block align-[-0.15em] text-muted"
@@ -106,13 +116,39 @@ function CursorLogo({ size = 12 }: { size?: number }): React.JSX.Element {
   )
 }
 
+export function FinderIcon({ size = 14 }: { size?: number }): React.JSX.Element {
+  return (
+    <svg viewBox="0 0 24 24" width={size} height={size} aria-hidden="true">
+      <rect x="2" y="2" width="20" height="20" rx="4.5" fill="#eceef1" />
+      <path d="M6.5 2H12v20H6.5A4.5 4.5 0 0 1 2 17.5v-11A4.5 4.5 0 0 1 6.5 2z" fill="#4ea1f8" />
+      <path d="M12 2v20" stroke="#d4d4d8" strokeWidth="0.75" />
+      <path d="M8.5 6.5v3M15.5 6.5v3" stroke="#1d1d1f" strokeWidth="1.3" strokeLinecap="round" />
+      <path
+        d="M7.5 14.5c1.2 1.4 2.8 2 4.5 2s3.3-.6 4.5-2"
+        stroke="#1d1d1f"
+        strokeWidth="1.3"
+        fill="none"
+        strokeLinecap="round"
+      />
+    </svg>
+  )
+}
+
 const ides = [
   { id: 'cursor', name: 'Cursor', icon: <CursorLogo size={12} /> },
   { id: 'vscode', name: 'VS Code', icon: <CodeXml size={12} /> },
   { id: 'terminal', name: 'Terminal', icon: <Terminal size={12} /> }
 ] as const
 
-export function IdePicker({ worktreeName }: { worktreeName: string }): React.JSX.Element {
+export function IdePicker({
+  worktreeName,
+  path,
+  onOpen
+}: {
+  worktreeName: string
+  path: string
+  onOpen: (ide: string, path: string) => void
+}): React.JSX.Element {
   const [selectedIde, setSelectedIde] = useState<(typeof ides)[number]['id']>('cursor')
   const [isOpen, setIsOpen] = useState(false)
   const selected = ides.find((ide) => ide.id === selectedIde) ?? ides[0]
@@ -122,7 +158,7 @@ export function IdePicker({ worktreeName }: { worktreeName: string }): React.JSX
         type="button"
         aria-label={`Open ${worktreeName} in ${selected.name}`}
         className="flex items-center gap-1.5 rounded-l-lg px-2 hover:bg-surface-secondary"
-        onClick={() => {}}
+        onClick={() => onOpen(selected.id, path)}
       >
         {selected.icon}
       </button>
@@ -165,5 +201,87 @@ export function IdePicker({ worktreeName }: { worktreeName: string }): React.JSX
         </div>
       )}
     </div>
+  )
+}
+
+/** Small pill for a worktree's sync state (behind, ahead, unpushed, missing). */
+export function SyncChip({
+  hint,
+  danger,
+  children
+}: {
+  hint: string
+  danger?: boolean
+  children: React.ReactNode
+}): React.JSX.Element {
+  return (
+    <span
+      title={hint}
+      className={`inline-flex items-center gap-0.5 rounded-full px-1.5 py-px text-[10px] font-medium ${
+        danger ? 'bg-danger/15 text-danger' : 'bg-surface-secondary text-muted'
+      }`}
+    >
+      {children}
+    </span>
+  )
+}
+
+/** Icon-only button in a card footer (open in Finder, delete). */
+export function FooterAction({
+  label,
+  onPress,
+  danger,
+  className = '',
+  children
+}: {
+  label: string
+  onPress: () => void
+  danger?: boolean
+  className?: string
+  children: React.ReactNode
+}): React.JSX.Element {
+  return (
+    <Button
+      isIconOnly
+      size="sm"
+      variant="ghost"
+      className={`size-7 min-h-7 ${danger ? 'text-muted hover:text-danger' : 'text-muted hover:text-foreground'} ${className}`}
+      onPress={onPress}
+      aria-label={label}
+    >
+      {children}
+    </Button>
+  )
+}
+
+/** The checkout actions a card with a local folder gets: IDE picker, Finder, delete (not for the main checkout). */
+export function CheckoutActions({
+  worktree,
+  onOpenIde,
+  onOpenFolder,
+  onDelete
+}: {
+  worktree: Worktree
+  onOpenIde: (ide: string, path: string) => void
+  onOpenFolder: (path: string) => void
+  onDelete: (worktree: Worktree) => void
+}): React.JSX.Element {
+  return (
+    <>
+      <IdePicker worktreeName={worktree.name} path={worktree.path ?? ''} onOpen={onOpenIde} />
+      <FooterAction label="Open in Finder" onPress={() => onOpenFolder(worktree.path ?? '')}>
+        <FinderIcon size={14} />
+      </FooterAction>
+      {!worktree.isMain && (
+        <FooterAction
+          label={`Delete ${worktree.name}`}
+          danger
+          className="ml-auto"
+          onPress={() => onDelete(worktree)}
+        >
+          <Trash2 size={13} />
+        </FooterAction>
+      )}
+    </>
   )
 }

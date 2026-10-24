@@ -7,3 +7,8 @@ import type { GitWorktreeEntry } from '../types'
 export async function listWorktrees(dir: string): Promise<GitWorktreeEntry[]> {
   return parseWorktreeList(await git(dir, ['worktree', 'list', '--porcelain']))
 }
+
+/** Drops worktree admin entries whose checkout folder is gone (e.g. one was moved to Trash). */
+export function pruneWorktrees(dir: string): Promise<string> {
+  return git(dir, ['worktree', 'prune'])
+}

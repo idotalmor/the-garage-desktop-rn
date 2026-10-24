@@ -41,8 +41,12 @@ export function toUiWorktree(tree: LocalWorktree): Worktree {
     path: tree.path,
     isMain: tree.isMain,
     isDetached: tree.isDetached,
+    isPrunable: tree.isPrunable,
+    upstream: tree.upstream,
+    changedFiles: tree.changedFiles,
     ahead: tree.ahead,
     behind: tree.behind,
+    lastCommitMessage: tree.lastCommit?.message,
     lastCommitAt: tree.lastCommit?.committedAt
   }
 }
@@ -59,7 +63,14 @@ export function toUiRepository(repo: LocalRepo): Repository {
     defaultBranch: repo.defaultBranch ?? main?.branch ?? 'HEAD',
     masterCi: 'none',
     masterCommits: commit
-      ? [{ hash: commit.hash.slice(0, 7), message: commit.message, ciStatus: 'none' }]
+      ? [
+          {
+            hash: commit.hash.slice(0, 7),
+            message: commit.message,
+            ciStatus: 'none',
+            committedAt: commit.committedAt
+          }
+        ]
       : [],
     prs: [],
     worktrees: repo.worktrees.map(toUiWorktree),

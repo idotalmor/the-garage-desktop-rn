@@ -5,7 +5,16 @@
 import { BrowserWindow, dialog, ipcMain, type IpcMainInvokeEvent } from 'electron'
 import { LocalReposChannel } from '../../shared/local-repos/channels'
 import { getSnapshot, startSync, subscribe } from './sync'
-import { addSources, removeSource, rescan, resetLocalData, setRepoOrder } from './use-cases'
+import {
+  addSources,
+  deleteWorktree,
+  openFolder,
+  openIde,
+  removeSource,
+  rescan,
+  resetLocalData,
+  setRepoOrder
+} from './use-cases'
 
 export function initLocalReposIpc(): void {
   ipcMain.handle(LocalReposChannel.GetSnapshot, () => getSnapshot())
@@ -20,6 +29,13 @@ export function initLocalReposIpc(): void {
   ipcMain.handle(LocalReposChannel.Reset, () => resetLocalData())
   ipcMain.handle(LocalReposChannel.SetOrder, (_, ids: unknown) =>
     setRepoOrder(Array.isArray(ids) ? ids.map(String) : [])
+  )
+  ipcMain.handle(LocalReposChannel.OpenIde, (_, ide: string, path: string) =>
+    openIde(String(ide), String(path))
+  )
+  ipcMain.handle(LocalReposChannel.OpenFolder, (_, path: string) => openFolder(String(path)))
+  ipcMain.handle(LocalReposChannel.DeleteWorktree, (_, path: string, remote: boolean) =>
+    deleteWorktree(String(path), Boolean(remote))
   )
 
   subscribe((snapshot) => {

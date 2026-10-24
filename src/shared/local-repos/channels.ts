@@ -12,6 +12,12 @@ export const LocalReposChannel = {
   Reset: 'local-repos:reset',
   /** Saves the repo order shown in the UI: an array of repo ids, first = top. */
   SetOrder: 'local-repos:set-order',
+  /** Opens a checkout folder in an IDE or Terminal (`open -a`), args: ide id, absolute path. */
+  OpenIde: 'local-repos:open-ide',
+  /** Opens a checkout folder in Finder, arg: absolute path. */
+  OpenFolder: 'local-repos:open-folder',
+  /** Moves a checkout folder to the Trash and refreshes its repo, args: path, alsoDeleteRemote. */
+  DeleteWorktree: 'local-repos:delete-worktree',
   /** Main → renderer push with a fresh `LocalReposSnapshot` whenever anything changes. */
   Changed: 'local-repos:changed'
 } as const

@@ -3,6 +3,9 @@
  * business rules for it. `ipc.ts` calls the user actions; `sync/job-queue` runs the jobs on its queue.
  */
 export { addSources } from './add-sources.use-case'
+export { deleteWorktree } from './delete-worktree.use-case'
+export { openFolder } from './open-folder.use-case'
+export { openIde } from './open-ide.use-case'
 export { refreshRepos } from './refresh-repos.use-case'
 export { removeSource } from './remove-source.use-case'
 export { rescan } from './rescan.use-case'
