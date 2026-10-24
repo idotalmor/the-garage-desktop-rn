@@ -21,7 +21,19 @@ service → domain/db` layers, Drizzle tables in one folder per table (`schema`/
   the tables directly; after a schema change the user presses **Reset local data**.
   Every column in a Drizzle table (`tables/<table>/schema.ts`) gets a comment saying what it means and where the value comes from.
   After changing a table, run `npm run db:generate` (regenerates `create-tables.generated.ts`), then Reset local data.
-- Naming (brand vs code names): [NAMING.md](NAMING.md)
+- **Types**: types the renderer receives (snapshots, domain types, IPC channel names) go in
+  `src/shared/<feature>/`; main-only types stay next to their code. The renderer never imports from
+  `src/main`. Shared types use the same camelCase field names as the Drizzle columns, so DB rows
+  are returned as-is (no mapper functions). Every field and column gets a `/** */` comment.
+- **What to store**: keep every fact read from git or the filesystem, even if no UI uses it yet
+  (e.g. `remoteUrl`, `remotes`, `isLocked`). Don't store or send values we invent or can compute
+  (e.g. which sources cover a repo): compute them where a use case needs them.
+- **Naming**: one word per concept everywhere (main, shared, renderer, SQL, channels): `repo` not
+  `repository` (`LocalRepo`, `listRepos`, `saveRepo`), `source` for a scanned folder. DB row types are
+  `<Name>DbEntity`; use-case files are `<action>.use-case.ts`. Brand vs code names: [NAMING.md](NAMING.md)
+- **Dependencies**: prefer a well-known library over hand-written plumbing (e.g. Drizzle instead of
+  row mappers and SQL strings). Pin a release that is at least a few weeks old (`--save-exact`), and
+  check that `npm install` only adds lockfile entries.
 - UI components: `.agents/skills/gravity-ui/SKILL.md`
 - Feature plans live at the repo root as `*-plan.md` (e.g. `github-integration-plan.md`).
 

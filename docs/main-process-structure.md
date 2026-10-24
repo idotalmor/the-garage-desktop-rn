@@ -33,7 +33,7 @@ src/main/<feature>/
 
 src/main/<library>/   code shared by features, with no IPC and no state: e.g.
   git/                typed git CLI questions (run.ts, parsers/, queries/, index.ts)
-  sqlite/             openDatabase (better-sqlite3 + Drizzle)
+  sqlite/             openDatabase → { getDb, resetDb, transaction } (better-sqlite3 + Drizzle)
 src/shared/<library>/ types from a library that the renderer also sees (e.g. shared/git/types.ts)
 ```
 
@@ -67,8 +67,11 @@ subscribe((snapshot) => {
   `add-sources.use-case.ts`, `remove-source.use-case.ts`, `scan-sources.use-case.ts`), exporting
   one function. `index.ts` re-exports them all.
 - A use case decides _what_ happens (e.g. "removing a source deletes repos nothing covers") and
-  calls the DB API, domain code and the service. When several writes must happen together it wraps
-  them in `db.transaction(() => …)`.
+  calls the table `queries.ts` functions, domain code and the service. When several writes must
+  happen together it wraps them in `transaction(() => …)` from `db/connection.ts`. Never `await`
+  inside a transaction (`better-sqlite3` is synchronous and rejects async callbacks).
+- Values that are derived rather than stored (e.g. which sources cover a repo) are computed here,
+  from small pure helpers, not added to the shared types.
 - User actions return the new snapshot for the UI.
 
 ### `<name>-service.ts`: runtime state
@@ -96,8 +99,9 @@ subscribe((snapshot) => {
   Exactly one place spawns a given process or calls a given API.
 - Types the renderer also sees go in `src/shared/<library>/types.ts`; main-only types stay in the
   library's `types.ts`.
-- Current libraries: [`src/main/git`](../src/main/git/README.md) (git CLI) and
-  [`src/main/sqlite`](../src/main/sqlite/README.md) (opening feature DBs, JSON columns).
+- Current libraries: [`src/main/git`](../src/main/git/README.md) (git CLI: `run.ts`, `parsers/`,
+  `queries/`, `types.ts`, `index.ts`) and [`src/main/sqlite`](../src/main/sqlite/README.md)
+  (`openDatabase` for a feature DB with Drizzle).
 
 ### `db/`: SQLite persistence
 
@@ -114,7 +118,8 @@ subscribe((snapshot) => {
      so rows come back in app shape and need no mapper. Every column gets a `/** */` comment saying
      what it means and where the value comes from.
   2. `queries.ts`: the table's reads and writes in app types (e.g. `listRepos()`, `saveRepo(repo)`).
-     They call `getDb()` themselves; a write that spans tables (a repo and its worktrees) wraps
+     They call `getDb()` themselves (always the same single connection, so calls made inside a
+     `transaction` are part of it); a write that spans tables (a repo and its worktrees) wraps
      itself in `transaction`. No business rules: those are in use cases.
      Relations between tables go in `tables/relations.ts`. `connection.ts` imports only `schema.ts`
      files, never `queries.ts`, so there are no import cycles.
@@ -161,6 +166,12 @@ subscribe((snapshot) => {
 npx prettier --write <changed files>
 npx eslint <changed files>
 npm run typecheck        # typecheck:node + typecheck:web
+npm run db:generate      # only after changing a Drizzle table
 ```
 
-Pure parsers and DB code can be exercised from Node with `npx tsx` by stubbing `electron`.
+Main-process code (scanner, use cases, DB, the service with real watchers) can run from Node
+against real git repos: bundle a small script with `esbuild --bundle --platform=node
+--alias:electron=./electron-stub.ts --external:better-sqlite3` (the stub only needs
+`app.getPath('home')` and `app.on`), set `HOME` to a temp folder, and run it with
+`NODE_PATH=<repo>/node_modules`. Use this to check the DB README's scenarios table after changing a
+write flow, and assert there are no duplicate rows.
