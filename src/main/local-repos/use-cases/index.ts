@@ -3,7 +3,7 @@
  * business rules for it. `ipc.ts` calls the user actions; `scan-service` runs the jobs on its queue.
  */
 export { addSources } from './add-sources.use-case'
-export { refreshRepositories } from './refresh-repositories.use-case'
+export { refreshRepos } from './refresh-repos.use-case'
 export { removeSource } from './remove-source.use-case'
 export { rescan } from './rescan.use-case'
 export { resetLocalData } from './reset-local-data.use-case'

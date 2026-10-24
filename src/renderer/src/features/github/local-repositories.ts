@@ -1,4 +1,4 @@
-import type { LocalRepository, LocalWorktree } from '../../../../shared/local-repos/types'
+import type { LocalRepo, LocalWorktree } from '../../../../shared/local-repos/types'
 import type { Repository, Worktree } from './components/types'
 
 const REPO_COLORS = [
@@ -48,7 +48,7 @@ export function toUiWorktree(tree: LocalWorktree): Worktree {
 }
 
 /** Maps a scanned clone to the dashboard `Repository` shape (no PR/CI data until GitHub is connected). */
-export function toUiRepository(repo: LocalRepository): Repository {
+export function toUiRepository(repo: LocalRepo): Repository {
   const main = repo.worktrees.find((tree) => tree.isMain)
   const commit = repo.defaultBranchCommit
   return {

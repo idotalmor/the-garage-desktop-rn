@@ -1,40 +1,33 @@
-/** Queries on `sources`. Each takes the open DB as its first argument. */
+/** Reads and writes of `sources`. Rows come back as the app's `Source`. */
 import { randomUUID } from 'crypto'
 import { eq } from 'drizzle-orm'
-import type { LocalReposDb } from '../../types'
-import { sources, type SourceDbEntity } from './schema'
+import type { Source } from '../../../../../shared/local-repos/types'
+import { getDb } from '../../connection'
+import { sources } from './schema'
 
 /** How many folder levels a new source is searched by default. */
 export const DEFAULT_MAX_DEPTH = 4
 
-export function listSourceDbEntities(db: LocalReposDb): SourceDbEntity[] {
-  return db.select().from(sources).orderBy(sources.addedAt).all()
+/** Every source, oldest first. */
+export function listSources(): Source[] {
+  return getDb().select().from(sources).orderBy(sources.addedAt).all()
 }
 
-/** Inserts the paths that aren't saved yet. Returns the ids of the newly inserted rows. */
-export function insertSources(
-  db: LocalReposDb,
-  paths: string[],
-  maxDepth = DEFAULT_MAX_DEPTH
-): string[] {
+/** Saves the paths that aren't saved yet. Returns only the new sources. */
+export function insertSources(paths: string[], maxDepth = DEFAULT_MAX_DEPTH): Source[] {
   if (paths.length === 0) return []
   const rows = paths.map((path) => ({ id: randomUUID(), path, maxDepth, addedAt: Date.now() }))
-  return db
-    .insert(sources)
-    .values(rows)
-    .onConflictDoNothing()
-    .returning({ id: sources.id })
-    .all()
-    .map((row) => row.id)
+  return getDb().insert(sources).values(rows).onConflictDoNothing().returning().all()
 }
 
-export function deleteSource(db: LocalReposDb, id: string): void {
-  db.delete(sources).where(eq(sources.id, id)).run()
+export function deleteSource(id: string): void {
+  getDb().delete(sources).where(eq(sources.id, id)).run()
 }
 
 /** Records the end of a scan: `error` is null when it succeeded. */
-export function markSourceScanned(db: LocalReposDb, id: string, error: string | null): void {
-  db.update(sources)
+export function markSourceScanned(id: string, error: string | null): void {
+  getDb()
+    .update(sources)
     .set({ lastScannedAt: Date.now(), lastError: error })
     .where(eq(sources.id, id))
     .run()

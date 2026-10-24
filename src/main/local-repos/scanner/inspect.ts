@@ -1,13 +1,13 @@
 /**
- * Step 2 of a scan: turn one discovered repo into a `LocalRepository` with all its checkouts.
+ * Step 2 of a scan: turn one discovered repo into a `LocalRepo` with all its checkouts.
  *
  * Asks git for the repo's checkouts, remotes and default branch, then reads branch/status/last
- * commit of each checkout. `reinspectRepository` re-runs this for one stored repo after a change.
+ * commit of each checkout. `reinspectRepo` re-runs this for one stored repo after a change.
  */
 import { createHash } from 'crypto'
 import { promises as fs } from 'fs'
 import { basename, dirname } from 'path'
-import type { LocalWorktree, ScannedRepository } from '../../../shared/local-repos/types'
+import type { LocalWorktree, ScannedRepo } from '../../../shared/local-repos/types'
 import {
   isBareRepository,
   lastCommit,
@@ -21,10 +21,7 @@ import {
 import { GIT_CONCURRENCY, mapLimit } from '../utils/concurrency'
 import type { Candidate } from './discover'
 
-export async function inspectRepository(
-  commonDir: string,
-  candidate: Candidate
-): Promise<ScannedRepository> {
+export async function inspectRepo(commonDir: string, candidate: Candidate): Promise<ScannedRepo> {
   const [listed, remotes, isBare] = await Promise.all([
     listWorktrees(candidate.dir),
     readRemotes(candidate.dir),
@@ -61,9 +58,7 @@ export async function inspectRepository(
 }
 
 /** Re-reads a repo that is already stored (after a file change). Returns null if it is gone. */
-export async function reinspectRepository(
-  repo: ScannedRepository
-): Promise<ScannedRepository | null> {
+export async function reinspectRepo(repo: ScannedRepo): Promise<ScannedRepo | null> {
   const exists = await fs.access(repo.commonDir).then(
     () => true,
     () => false
@@ -71,7 +66,7 @@ export async function reinspectRepository(
   if (!exists) return null
   const main = repo.worktrees.find((tree) => tree.isMain && !tree.isPrunable)
   const dir = main && (await fs.stat(main.path).catch(() => null))?.isDirectory()
-  return inspectRepository(repo.commonDir, {
+  return inspectRepo(repo.commonDir, {
     dir: dir && main ? main.path : repo.commonDir,
     kind: repo.isBare ? 'bare' : 'worktree'
   })

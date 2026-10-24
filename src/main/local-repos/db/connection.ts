@@ -3,7 +3,10 @@ import { openDatabase } from '../../sqlite'
 import { CREATE_TABLES_SQL } from './create-tables.generated'
 import * as schema from './schema'
 
-export const { getDb, resetDb } = openDatabase('local-repos', {
+export const { getDb, resetDb, transaction } = openDatabase('local-repos', {
   schema,
   createTablesSql: CREATE_TABLES_SQL
 })
+
+/** The typed Drizzle handle of this DB (a TypeScript type only). */
+export type LocalReposDb = ReturnType<typeof getDb>

@@ -9,17 +9,17 @@
  *   Noise (`node_modules`, build output, `.git/objects`, lock files…) is ignored.
  */
 import { basename, sep } from 'path'
-import type { LocalRepository, Source } from '../../../shared/local-repos/types'
+import type { LocalRepo, Source } from '../../../shared/local-repos/types'
 import { ALLOWED_HIDDEN_DIRS, SKIP_DIRS } from '../scanner/discover'
 import { isInside } from '../utils/coverage'
 
 /** What a changed path requires. */
 export type Change = { kind: 'repo'; repoId: string } | { kind: 'source'; sourceIds: string[] }
 
-export function watchTargets(sources: Source[], repositories: LocalRepository[]): string[] {
+export function watchTargets(sources: Source[], repos: LocalRepo[]): string[] {
   const paths = [
     ...sources.map((folder) => folder.path),
-    ...repositories.flatMap((repo) => [
+    ...repos.flatMap((repo) => [
       repo.commonDir,
       ...repo.worktrees.filter((tree) => !tree.isPrunable).map((tree) => tree.path)
     ])
@@ -31,15 +31,11 @@ export function watchTargets(sources: Source[], repositories: LocalRepository[])
   return targets
 }
 
-export function classifyChange(
-  path: string,
-  sources: Source[],
-  repositories: LocalRepository[]
-): Change | null {
+export function classifyChange(path: string, sources: Source[], repos: LocalRepo[]): Change | null {
   if (basename(path) === '.DS_Store') return null
 
   let match: { repoId: string; base: string; isGitDir: boolean } | null = null
-  for (const repo of repositories) {
+  for (const repo of repos) {
     const bases = [
       { base: repo.commonDir, isGitDir: true },
       ...repo.worktrees.map((tree) => ({ base: tree.path, isGitDir: false }))

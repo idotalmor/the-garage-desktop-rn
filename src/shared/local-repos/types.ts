@@ -47,7 +47,7 @@ export type LocalWorktree = {
 }
 
 /** One repo on disk with all of its checkouts. Checkouts are grouped by their shared git directory. */
-export type LocalRepository = {
+export type LocalRepo = {
   /** Stable id (hash of `commonDir`). */
   id: string
   /** Display name: the remote repo name, or the folder name when there is no remote. */
@@ -84,7 +84,7 @@ export type LocalRepository = {
 }
 
 /** A repo as the scanner reads it from disk: everything but the user's `position`, which only sorting and dragging set. */
-export type ScannedRepository = Omit<LocalRepository, 'position'>
+export type ScannedRepo = Omit<LocalRepo, 'position'>
 
 /** Live progress of the scan that is currently running. */
 export type ScanProgress = {
@@ -101,7 +101,7 @@ export type LocalReposSnapshot = {
   /** Folders the user chose to scan. */
   sources: Source[]
   /** Repos found across all sources. */
-  repositories: LocalRepository[]
+  repos: LocalRepo[]
   /** True while a scan is queued or running. */
   scanning: boolean
   /** Progress of the running scan, or null when idle. */

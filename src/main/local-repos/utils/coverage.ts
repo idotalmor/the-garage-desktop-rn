@@ -5,7 +5,7 @@
  * when the repo's git dir or one of its existing checkouts is inside the folder.
  */
 import { sep } from 'path'
-import type { LocalRepository, LocalWorktree, Source } from '../../../shared/local-repos/types'
+import type { LocalRepo, LocalWorktree, Source } from '../../../shared/local-repos/types'
 
 export function isInside(path: string, dir: string): boolean {
   return path === dir || path.startsWith(dir.endsWith(sep) ? dir : dir + sep)
@@ -25,8 +25,8 @@ export function coveringSourceIds(
 }
 
 /** Repos no source covers anymore; these get deleted. */
-export function uncoveredRepoIds(repositories: LocalRepository[], sources: Source[]): string[] {
-  return repositories
+export function uncoveredRepoIds(repos: LocalRepo[], sources: Source[]): string[] {
+  return repos
     .filter((repo) => coveringSourceIds(repo, sources).length === 0)
     .map((repo) => repo.id)
 }

@@ -1,14 +1,15 @@
-/** Queries on `local_repos` (with their worktrees). Each takes the open DB as its first argument. */
+/** Reads and writes of `local_repos` (with their worktrees). Rows come back as the app's `LocalRepo`. */
 import { asc, eq, inArray, sql } from 'drizzle-orm'
-import type { LocalRepository, ScannedRepository } from '../../../../../shared/local-repos/types'
-import type { LocalReposDb } from '../../types'
+import type { LocalRepo, ScannedRepo } from '../../../../../shared/local-repos/types'
+import { getDb, transaction } from '../../connection'
 import { localWorktrees } from '../local-worktrees/schema'
+import { replaceRepoWorktrees } from '../local-worktrees/queries'
 import { localRepos } from './schema'
 
 /** Every repo with its checkouts, in the user's order (unplaced repos last, by name). */
-export function listLocalReposWithWorktrees(db: LocalReposDb): LocalRepository[] {
-  return db.query.localRepos
-    .findMany({
+export function listRepos(): LocalRepo[] {
+  return getDb()
+    .query.localRepos.findMany({
       orderBy: [
         sql`${localRepos.position} IS NULL`,
         asc(localRepos.position),
@@ -24,35 +25,41 @@ export function listLocalReposWithWorktrees(db: LocalReposDb): LocalRepository[]
     .sync()
 }
 
+export function hasRepo(id: string): boolean {
+  return !!getDb().select({ id: localRepos.id }).from(localRepos).where(eq(localRepos.id, id)).get()
+}
+
 /**
- * Inserts or updates a repo by id. Only table columns are written (`worktrees` is ignored), and
- * `position` isn't in a scan result, so scans never change the user's order. `updatedAt` never
- * moves backwards.
+ * Upserts a repo by id (so never twice) and replaces its worktrees, in one transaction. Only table
+ * columns go into `local_repos` (`worktrees` go to their own table), and a scan result has no
+ * `position`, so scans never change the user's order. `updatedAt` never moves backwards.
  */
-export function upsertLocalRepo(db: LocalReposDb, repo: ScannedRepository): void {
-  db.insert(localRepos)
-    .values(repo)
-    .onConflictDoUpdate({
-      target: localRepos.id,
-      set: { ...repo, updatedAt: sql`MAX(excluded.updated_at, ${localRepos.updatedAt})` }
-    })
-    .run()
-}
-
-/** Saves the user's order: `ids[0]` gets position 0. Repos not listed go back to unplaced (null). */
-export function setLocalRepoPositions(db: LocalReposDb, ids: string[]): void {
-  db.update(localRepos).set({ position: null }).run()
-  ids.forEach((id, index) =>
-    db.update(localRepos).set({ position: index }).where(eq(localRepos.id, id)).run()
-  )
-}
-
-export function hasLocalRepo(db: LocalReposDb, id: string): boolean {
-  return !!db.select({ id: localRepos.id }).from(localRepos).where(eq(localRepos.id, id)).get()
+export function saveRepo(repo: ScannedRepo): void {
+  transaction(() => {
+    getDb()
+      .insert(localRepos)
+      .values(repo)
+      .onConflictDoUpdate({
+        target: localRepos.id,
+        set: { ...repo, updatedAt: sql`MAX(excluded.updated_at, ${localRepos.updatedAt})` }
+      })
+      .run()
+    replaceRepoWorktrees(repo.id, repo.worktrees)
+  })
 }
 
 /** Deletes repos by id. Their worktrees cascade. */
-export function deleteLocalRepos(db: LocalReposDb, ids: string[]): void {
+export function deleteRepos(ids: string[]): void {
   if (ids.length === 0) return
-  db.delete(localRepos).where(inArray(localRepos.id, ids)).run()
+  getDb().delete(localRepos).where(inArray(localRepos.id, ids)).run()
+}
+
+/** Saves the user's order: `ids[0]` gets position 0. Repos not listed go back to unplaced (null). */
+export function saveRepoPositions(ids: string[]): void {
+  transaction(() => {
+    getDb().update(localRepos).set({ position: null }).run()
+    ids.forEach((id, index) =>
+      getDb().update(localRepos).set({ position: index }).where(eq(localRepos.id, id)).run()
+    )
+  })
 }

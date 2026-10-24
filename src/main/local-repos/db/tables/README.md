@@ -7,8 +7,8 @@ The machine-local SQLite database behind the GitHub section's "local repositorie
   and `queries.ts` (Drizzle queries); links between tables in [relations.ts](relations.ts):
   [sources/](sources/),
   [local-repos/](local-repos/), [local-worktrees/](local-worktrees/)
-- DB API used by the use cases: [../index.ts](../index.ts) · opening the file:
-  [../connection.ts](../connection.ts) (via [`src/main/sqlite`](../../../sqlite/README.md))
+- Opening the file, `transaction`, `resetDb`: [../connection.ts](../connection.ts) (via
+  [`src/main/sqlite`](../../../sqlite/README.md)). Use cases import the table `queries.ts` directly.
 - Business rules that write these tables: [../../use-cases/](../../use-cases/)
 - App-facing types: [src/shared/local-repos/types.ts](../../../../shared/local-repos/types.ts)
 
@@ -124,7 +124,7 @@ flowchart TD
   W[file changed under a watched folder] --> N{"noise?<br/>node_modules, build dirs,<br/>.git/objects, .git/logs, *.lock"}
   N -- yes --> X[ignored]
   N -- no --> K{"inside a known checkout<br/>or a repo's .git?"}
-  K -- yes --> R["refreshRepositories: re-check that repo only<br/>(git worktree list + status)"]
+  K -- yes --> R["refreshRepos: re-check that repo only<br/>(git worktree list + status)"]
   R --> R1[(local_repos upsert<br/>local_worktrees replaced<br/>deleted if no source covers it now)]
   R -- common_dir is gone --> D[(local_repos<br/>delete the repo)]
   D --> U
@@ -283,7 +283,7 @@ One checkout of a repo: the main checkout (`is_main: 1`) or a linked worktree cr
 
 ## What the UI receives
 
-`listRepositories()` joins the tables into `LocalRepository` objects
+`listRepos()` joins the tables into `LocalRepo` objects
 (`src/shared/local-repos/types.ts`): one `local_repos` row + its `worktrees` (from
 `local_worktrees`), camelCased and with JSON parsed (one Drizzle relational query). Which sources
 cover a repo isn't sent; use cases compute it when they need it. The UI gets them inside `LocalReposSnapshot { sources, repositories, scanning, progress }`.

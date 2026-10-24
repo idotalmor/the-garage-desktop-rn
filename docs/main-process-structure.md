@@ -21,14 +21,12 @@ src/main/<feature>/
   <name>-service.ts   runtime state only (queues, progress, timers, watchers, subscriptions)
   <domain>/           feature-specific work, split by concern (e.g. scanner/, watcher/)
   db/                 SQLite persistence (only if the feature stores data)
-    connection.ts     one `openDatabase(...)` call (src/main/sqlite)
+    connection.ts     `getDb`, `resetDb`, `transaction` from one `openDatabase(...)` call, + `<Feature>Db` type
     schema.ts         re-exports every table + relations (for Drizzle and drizzle-kit)
-    types.ts          `<Feature>Db`, the typed Drizzle handle
     drizzle.config.ts drizzle-kit config for this DB
     create-tables.generated.ts  CREATE TABLE IF NOT EXISTS …, from `npm run db:generate`
-    index.ts          the DB API the use cases call
     tables/<table>/schema.ts    Drizzle table + `<Name>DbEntity` (inferred)
-    tables/<table>/queries.ts   Drizzle queries
+    tables/<table>/queries.ts   reads/writes in app types (call `getDb()`); use cases import these
     tables/relations.ts         how tables link, for relational queries
     tables/README.md  what each table is + diagrams (see below)
   utils/              small pure helpers with no feature state (path rules, concurrency)
@@ -105,7 +103,7 @@ subscribe((snapshot) => {
 
 - Database: `better-sqlite3` wrapped with **Drizzle ORM**, file `~/.devflow/<feature>.db`, opened in
   `db/connection.ts` with `openDatabase(name, { schema, createTablesSql })` from `src/main/sqlite`
-  (`export const { getDb, resetDb } = openDatabase(…)`). It sets the pragmas (`foreign_keys = ON`),
+  (`export const { getDb, resetDb, transaction } = openDatabase(…)`). It sets the pragmas (`foreign_keys = ON`),
   runs the generated `CREATE TABLE IF NOT EXISTS` script and closes on `before-quit`.
 - No migrations or schema versions: after changing a table, run `npm run db:generate` (writes
   `db/create-tables.generated.ts` via `drizzle-kit export`), then Reset local data.
@@ -115,11 +113,13 @@ subscribe((snapshot) => {
      `integer(…, { mode: 'boolean' })` and nested objects `text(…, { mode: 'json' }).$type<T>()`,
      so rows come back in app shape and need no mapper. Every column gets a `/** */` comment saying
      what it means and where the value comes from.
-  2. `queries.ts`: Drizzle queries that take the feature's `<Feature>Db` as the first argument.
-     Relations between tables go in `tables/relations.ts`. Table files don't import `connection.ts`.
-- `index.ts`: the feature's DB API in app types. It calls `getDb()`, composes table queries, adds
-  nested results (e.g. a repo with its worktrees), and exposes `transaction(fn)` so use cases can group writes. Use
-  cases import `./db`, never `./db/tables/*`.
+  2. `queries.ts`: the table's reads and writes in app types (e.g. `listRepos()`, `saveRepo(repo)`).
+     They call `getDb()` themselves; a write that spans tables (a repo and its worktrees) wraps
+     itself in `transaction`. No business rules: those are in use cases.
+     Relations between tables go in `tables/relations.ts`. `connection.ts` imports only `schema.ts`
+     files, never `queries.ts`, so there are no import cycles.
+- There is no `db/index.ts`: use cases import `db/tables/<table>/queries.ts` and, to group writes
+  or reset, `transaction`/`resetDb` from `db/connection.ts`.
 - **Document the database** in `db/tables/README.md`, next to the table files (example:
   `src/main/local-repos/db/tables/README.md`), and list it in `docs/README.md`:
   - what one row of each table represents and which flow creates/updates/deletes it

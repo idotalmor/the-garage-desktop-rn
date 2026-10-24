@@ -1,4 +1,4 @@
-/** Git types the renderer also sees (through feature types like `LocalRepository`). */
+/** Git types the renderer also sees (through feature types like `LocalRepo`). */
 
 /** Where a repo's remote is hosted: GitHub, another host (GitLab, Bitbucket…), or no remote at all. */
 export type GitProvider = 'github' | 'other' | 'none'

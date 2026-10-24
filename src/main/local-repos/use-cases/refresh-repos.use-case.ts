@@ -3,39 +3,37 @@
  * is one no source covers anymore (e.g. its only checkout inside a source was removed). Run on
  * `scan-service`'s queue.
  */
-import type {
-  LocalRepository,
-  LocalWorktree,
-  ScannedRepository
-} from '../../../shared/local-repos/types'
-import * as db from '../db'
-import { reinspectRepository } from '../scanner/inspect'
+import type { LocalRepo, LocalWorktree, ScannedRepo } from '../../../shared/local-repos/types'
+import { transaction } from '../db/connection'
+import { deleteRepos, hasRepo, listRepos, saveRepo } from '../db/tables/local-repos/queries'
+import { listSources } from '../db/tables/sources/queries'
+import { reinspectRepo } from '../scanner/inspect'
 import { uncoveredRepoIds } from '../utils/coverage'
 
-export async function refreshRepositories(repoIds: string[]): Promise<void> {
+export async function refreshRepos(repoIds: string[]): Promise<void> {
   const gone: string[] = []
-  for (const repo of db.listRepositories().filter((repo) => repoIds.includes(repo.id))) {
-    const fresh = await reinspectRepository(repo).catch((error) => {
+  for (const repo of listRepos().filter((repo) => repoIds.includes(repo.id))) {
+    const fresh = await reinspectRepo(repo).catch((error) => {
       console.error('[local-repos] refresh failed for', repo.commonDir, error)
       return undefined
     })
     if (fresh === null) gone.push(repo.id)
     else if (fresh) saveRefreshed(withActivity(repo, fresh))
   }
-  db.deleteRepositories(gone)
+  deleteRepos(gone)
 }
 
 /** Skipped if the repo was deleted meanwhile (e.g. its source was removed during the refresh). */
-function saveRefreshed(repo: ScannedRepository): void {
-  db.transaction(() => {
-    if (!db.hasRepository(repo.id)) return
-    db.saveRepository(repo)
-    db.deleteRepositories(uncoveredRepoIds(db.listRepositories(), db.listSources()))
+function saveRefreshed(repo: ScannedRepo): void {
+  transaction(() => {
+    if (!hasRepo(repo.id)) return
+    saveRepo(repo)
+    deleteRepos(uncoveredRepoIds(listRepos(), listSources()))
   })
 }
 
 /** A live change that altered a checkout (commit, branch, changed files, worktrees) marks the repo updated now. */
-function withActivity(before: LocalRepository, after: ScannedRepository): ScannedRepository {
+function withActivity(before: LocalRepo, after: ScannedRepo): ScannedRepo {
   const changed = worktreeState(before.worktrees) !== worktreeState(after.worktrees)
   return { ...after, updatedAt: changed ? Date.now() : Math.max(before.updatedAt, after.updatedAt) }
 }

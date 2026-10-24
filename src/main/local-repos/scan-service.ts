@@ -14,12 +14,13 @@
 import { app } from 'electron'
 import type {
   LocalReposSnapshot,
-  LocalRepository,
+  LocalRepo,
   ScanProgress,
   Source
 } from '../../shared/local-repos/types'
-import * as db from './db'
-import { refreshRepositories } from './use-cases/refresh-repositories.use-case'
+import { listRepos } from './db/tables/local-repos/queries'
+import { listSources } from './db/tables/sources/queries'
+import { refreshRepos } from './use-cases/refresh-repos.use-case'
 import { scanSources } from './use-cases/scan-sources.use-case'
 import { closeAllWatchers, syncWatchers } from './watcher/fs-watchers'
 import { classifyChange, watchTargets } from './watcher/watch-targets'
@@ -41,9 +42,9 @@ let lastFullScanAt = 0
 let lastProgressNotifyAt = 0
 
 /** What the watchers currently cover, cached so file events don't hit the DB. */
-let watched: { sources: Source[]; repositories: LocalRepository[] } = {
+let watched: { sources: Source[]; repos: LocalRepo[] } = {
   sources: [],
-  repositories: []
+  repos: []
 }
 const changedRepoIds = new Set<string>()
 const changedSourceIds = new Set<string>()
@@ -53,8 +54,8 @@ let firstChangeAt = 0
 /** Current sources, repos and scan state. */
 export function getSnapshot(): LocalReposSnapshot {
   return {
-    sources: db.listSources(),
-    repositories: db.listRepositories(),
+    sources: listSources(),
+    repos: listRepos(),
     scanning: pendingScans > 0,
     progress
   }
@@ -103,8 +104,8 @@ export function enqueue(job: () => Promise<void>, visible: boolean): Promise<voi
 
 /** Points the watchers at the current sources and repos. Run after every DB change. */
 export function syncWatching(): void {
-  watched = { sources: db.listSources(), repositories: db.listRepositories() }
-  syncWatchers(watchTargets(watched.sources, watched.repositories), onPathChanged)
+  watched = { sources: listSources(), repos: listRepos() }
+  syncWatchers(watchTargets(watched.sources, watched.repos), onPathChanged)
 }
 
 /** Drops file changes that are waiting to be processed (e.g. before a reset). */
@@ -120,12 +121,12 @@ export function startScanService(): void {
   app.on('browser-window-focus', rescanIfStale)
   app.on('before-quit', closeAllWatchers)
   syncWatching()
-  if (db.listSources().length > 0) enqueueScan()
+  if (listSources().length > 0) enqueueScan()
 }
 
 function rescanIfStale(): void {
   if (pendingScans > 0 || Date.now() - lastFullScanAt < FOCUS_RESCAN_INTERVAL_MS) return
-  if (db.listSources().length > 0) enqueueScan()
+  if (listSources().length > 0) enqueueScan()
 }
 
 function onProgress(next: ScanProgress): void {
@@ -137,7 +138,7 @@ function onProgress(next: ScanProgress): void {
 }
 
 function onPathChanged(path: string): void {
-  const change = classifyChange(path, watched.sources, watched.repositories)
+  const change = classifyChange(path, watched.sources, watched.repos)
   if (!change) return
   if (change.kind === 'repo') changedRepoIds.add(change.repoId)
   else change.sourceIds.forEach((id) => changedSourceIds.add(id))
@@ -156,5 +157,5 @@ function flushChanges(): void {
   changedSourceIds.clear()
   changedRepoIds.clear()
   if (sourceIds.length > 0) enqueue(() => scanSources(sourceIds), false)
-  if (repoIds.length > 0) enqueue(() => refreshRepositories(repoIds), false)
+  if (repoIds.length > 0) enqueue(() => refreshRepos(repoIds), false)
 }

@@ -35,7 +35,7 @@ export function initLocalReposIpc(): void {
 async function pickFolders(event: IpcMainInvokeEvent): Promise<string[]> {
   const parent = BrowserWindow.fromWebContents(event.sender)
   const options: Electron.OpenDialogOptions = {
-    title: 'Choose folders with repositories',
+    title: 'Choose folders with repos',
     buttonLabel: 'Scan',
     properties: ['openDirectory', 'multiSelections']
   }

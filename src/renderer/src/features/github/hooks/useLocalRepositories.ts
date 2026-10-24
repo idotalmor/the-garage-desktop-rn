@@ -33,10 +33,7 @@ export function useLocalRepositories(): {
     setSnapshot((await window.electron.ipcRenderer.invoke(channel, ...args)) as LocalReposSnapshot)
   }, [])
 
-  const repositories = useMemo(
-    () => (snapshot?.repositories ?? []).map(toUiRepository),
-    [snapshot?.repositories]
-  )
+  const repositories = useMemo(() => (snapshot?.repos ?? []).map(toUiRepository), [snapshot?.repos])
 
   return {
     snapshot,
@@ -50,10 +47,10 @@ export function useLocalRepositories(): {
       setSnapshot((current) => {
         if (!current) return current
         const rank = new Map(ids.map((id, index) => [id, index]))
-        const repositories = [...current.repositories].sort(
+        const repositories = [...current.repos].sort(
           (a, b) => (rank.get(a.id) ?? ids.length) - (rank.get(b.id) ?? ids.length)
         )
-        return { ...current, repositories }
+        return { ...current, repos: repositories }
       })
       await invoke(LocalReposChannel.SetOrder, ids)
     }

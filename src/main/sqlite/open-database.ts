@@ -15,6 +15,8 @@ export type SqliteDatabase<TSchema extends Record<string, unknown>> = {
   getDb: () => BetterSQLite3Database<TSchema> & { $client: Database.Database }
   /** Drops every table in the file and creates the current ones again, empty. */
   resetDb: () => void
+  /** Runs `fn` in one transaction: every write inside it is saved together or not at all. Nests. */
+  transaction: <T>(fn: () => T) => T
 }
 
 export function openDatabase<TSchema extends Record<string, unknown>>(
@@ -60,5 +62,7 @@ export function openDatabase<TSchema extends Record<string, unknown>>(
     }
   }
 
-  return { getDb, resetDb }
+  const transaction = <T>(fn: () => T): T => getDb().$client.transaction(fn)()
+
+  return { getDb, resetDb, transaction }
 }
