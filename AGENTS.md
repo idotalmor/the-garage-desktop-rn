@@ -36,6 +36,8 @@ sync → domain/db` layers, Drizzle tables in one folder per table (`schema`/`qu
   row mappers and SQL strings). Pin a release that is at least a few weeks old (`--save-exact`), and
   check that `npm install` only adds lockfile entries.
 - UI components: `.agents/skills/gravity-ui/SKILL.md`
+- Explaining a PR for review: `.agents/skills/pr-review-guide/SKILL.md` (structure, names, signatures,
+  use cases, utils, call flow, mermaid diagrams)
 - Feature plans live at the repo root as `*-plan.md` (e.g. `github-integration-plan.md`).
 
 ## Commands
