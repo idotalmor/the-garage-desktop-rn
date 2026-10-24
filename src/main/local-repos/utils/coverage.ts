@@ -25,6 +25,8 @@ export function coveringSourceIds(
 }
 
 /** Repos no source covers anymore; these get deleted. */
-export function uncoveredRepoIds(repositories: LocalRepository[]): string[] {
-  return repositories.filter((repo) => repo.sourceIds.length === 0).map((repo) => repo.id)
+export function uncoveredRepoIds(repositories: LocalRepository[], sources: Source[]): string[] {
+  return repositories
+    .filter((repo) => coveringSourceIds(repo, sources).length === 0)
+    .map((repo) => repo.id)
 }

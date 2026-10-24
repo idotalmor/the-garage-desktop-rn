@@ -30,7 +30,7 @@ function saveRefreshed(repo: ScannedRepository): void {
   db.transaction(() => {
     if (!db.hasRepository(repo.id)) return
     db.saveRepository(repo)
-    db.deleteRepositories(uncoveredRepoIds(db.listRepositories()))
+    db.deleteRepositories(uncoveredRepoIds(db.listRepositories(), db.listSources()))
   })
 }
 

@@ -118,7 +118,7 @@ subscribe((snapshot) => {
   2. `queries.ts`: Drizzle queries that take the feature's `<Feature>Db` as the first argument.
      Relations between tables go in `tables/relations.ts`. Table files don't import `connection.ts`.
 - `index.ts`: the feature's DB API in app types. It calls `getDb()`, composes table queries, adds
-  computed fields (e.g. `sourceIds`), and exposes `transaction(fn)` so use cases can group writes. Use
+  nested results (e.g. a repo with its worktrees), and exposes `transaction(fn)` so use cases can group writes. Use
   cases import `./db`, never `./db/tables/*`.
 - **Document the database** in `db/tables/README.md`, next to the table files (example:
   `src/main/local-repos/db/tables/README.md`), and list it in `docs/README.md`:

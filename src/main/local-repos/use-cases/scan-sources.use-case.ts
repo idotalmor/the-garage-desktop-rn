@@ -6,6 +6,7 @@ import { promises as fs } from 'fs'
 import type { ScannedRepository, ScanProgress } from '../../../shared/local-repos/types'
 import * as db from '../db'
 import { scanSource } from '../scanner/scan-source'
+import { coveringSourceIds } from '../utils/coverage'
 
 export type ScanSourcesOptions = {
   /** Called while a source is walked (full scans only, to show progress). */
@@ -48,9 +49,13 @@ function saveSourceResult(
     for (const repo of repositories) db.saveRepository(repo)
     db.markSourceScanned(sourceId, error)
     const found = new Set(repositories.map((repo) => repo.id))
+    const sources = db.listSources()
     const stale = db
       .listRepositories()
-      .filter((repo) => !found.has(repo.id) && repo.sourceIds.every((id) => id === sourceId))
+      .filter(
+        (repo) =>
+          !found.has(repo.id) && coveringSourceIds(repo, sources).every((id) => id === sourceId)
+      )
     db.deleteRepositories(stale.map((repo) => repo.id))
   })
 }

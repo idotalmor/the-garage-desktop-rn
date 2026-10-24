@@ -5,10 +5,9 @@
  *
  * `sources` is the list of folders to scan and watch. `local_repos` and `local_worktrees` are
  * the result, keyed by path so a repo or checkout is stored once however many folders find it.
- * Which folders cover a repo is worked out from paths (`coveringSourceIds`), not stored.
+ * Which folders cover a repo is not stored; use cases work it out from paths (`utils/coverage.ts`).
  */
 import type { LocalRepository, ScannedRepository, Source } from '../../../shared/local-repos/types'
-import { coveringSourceIds } from '../utils/coverage'
 import { getDb, resetDb } from './connection'
 import {
   deleteLocalRepos,
@@ -76,11 +75,7 @@ export function setRepositoryOrder(ids: string[]): void {
   transaction(() => setLocalRepoPositions(getDb(), ids))
 }
 
-/** All repos with their covering source ids and worktrees, in the user's order (unplaced ones last, by name). */
+/** All repos with their worktrees, in the user's order (unplaced ones last, by name). */
 export function listRepositories(): LocalRepository[] {
-  const sources = listSources()
-  return listLocalReposWithWorktrees(getDb()).map((repo) => ({
-    ...repo,
-    sourceIds: coveringSourceIds(repo, sources)
-  }))
+  return listLocalReposWithWorktrees(getDb())
 }

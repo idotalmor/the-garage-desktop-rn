@@ -284,6 +284,6 @@ One checkout of a repo: the main checkout (`is_main: 1`) or a linked worktree cr
 ## What the UI receives
 
 `listRepositories()` joins the tables into `LocalRepository` objects
-(`src/shared/local-repos/types.ts`): one `local_repos` row + its `sourceIds` (worked out
-from paths, see above) + its `worktrees` (from `local_worktrees`), camelCased and with JSON
-parsed. The UI gets them inside `LocalReposSnapshot { sources, repositories, scanning, progress }`.
+(`src/shared/local-repos/types.ts`): one `local_repos` row + its `worktrees` (from
+`local_worktrees`), camelCased and with JSON parsed (one Drizzle relational query). Which sources
+cover a repo isn't sent; use cases compute it when they need it. The UI gets them inside `LocalReposSnapshot { sources, repositories, scanning, progress }`.

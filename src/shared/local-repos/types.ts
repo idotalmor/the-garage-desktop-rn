@@ -70,8 +70,6 @@ export type LocalRepository = {
   defaultBranch: string | null
   /** Latest commit on the default branch. */
   defaultBranchCommit: CommitSummary | null
-  /** Ids of the sources that contain this repo's git dir or one of its checkouts. Worked out from paths, not stored. */
-  sourceIds: string[]
   /** Every checkout of this repo, main checkout first. */
   worktrees: LocalWorktree[]
   /** When this repo was last inspected (epoch ms). */
@@ -85,8 +83,8 @@ export type LocalRepository = {
   position: number | null
 }
 
-/** A repo as the scanner reads it from disk, before the DB adds `sourceIds`. */
-export type ScannedRepository = Omit<LocalRepository, 'sourceIds' | 'position'>
+/** A repo as the scanner reads it from disk: everything but the user's `position`, which only sorting and dragging set. */
+export type ScannedRepository = Omit<LocalRepository, 'position'>
 
 /** Live progress of the scan that is currently running. */
 export type ScanProgress = {

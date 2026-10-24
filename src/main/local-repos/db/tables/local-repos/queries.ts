@@ -6,9 +6,7 @@ import { localWorktrees } from '../local-worktrees/schema'
 import { localRepos } from './schema'
 
 /** Every repo with its checkouts, in the user's order (unplaced repos last, by name). */
-export function listLocalReposWithWorktrees(
-  db: LocalReposDb
-): Omit<LocalRepository, 'sourceIds'>[] {
+export function listLocalReposWithWorktrees(db: LocalReposDb): LocalRepository[] {
   return db.query.localRepos
     .findMany({
       orderBy: [

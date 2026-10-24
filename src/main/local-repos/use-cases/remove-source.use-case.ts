@@ -7,7 +7,7 @@ import { uncoveredRepoIds } from '../utils/coverage'
 export function removeSource(id: string): LocalReposSnapshot {
   db.transaction(() => {
     db.deleteSource(id)
-    db.deleteRepositories(uncoveredRepoIds(db.listRepositories()))
+    db.deleteRepositories(uncoveredRepoIds(db.listRepositories(), db.listSources()))
   })
   syncWatching()
   notify()
