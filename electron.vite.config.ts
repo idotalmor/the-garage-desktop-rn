@@ -4,7 +4,10 @@ import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 
 export default defineConfig({
-  main: {},
+  main: {
+    // p-queue is ESM-only; bundle it into the CommonJS main build instead of require()-ing it
+    build: { externalizeDeps: { exclude: ['p-queue'] } }
+  },
   preload: {},
   renderer: {
     resolve: {

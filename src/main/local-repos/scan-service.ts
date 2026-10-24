@@ -11,7 +11,10 @@
  *
  * It knows nothing about IPC or windows; `ipc.ts` subscribes and forwards snapshots to the UI.
  */
+import { EventEmitter } from 'events'
 import { app } from 'electron'
+import debounce from 'lodash.debounce'
+import PQueue from 'p-queue'
 import type {
   LocalReposSnapshot,
   LocalRepo,
@@ -34,10 +37,11 @@ const CHANGE_MAX_WAIT_MS = 5000
 
 type Listener = (snapshot: LocalReposSnapshot) => void
 
-const listeners = new Set<Listener>()
+const events = new EventEmitter()
+/** One job at a time: scans and refreshes never overlap. */
+const queue = new PQueue({ concurrency: 1 })
 let pendingScans = 0
 let progress: ScanProgress | null = null
-let queue: Promise<void> = Promise.resolve()
 let lastFullScanAt = 0
 let lastProgressNotifyAt = 0
 
@@ -48,8 +52,7 @@ let watched: { sources: Source[]; repos: LocalRepo[] } = {
 }
 const changedRepoIds = new Set<string>()
 const changedSourceIds = new Set<string>()
-let changeTimer: NodeJS.Timeout | null = null
-let firstChangeAt = 0
+const flushChangesSoon = debounce(flushChanges, CHANGE_QUIET_MS, { maxWait: CHANGE_MAX_WAIT_MS })
 
 /** Current sources, repos and scan state. */
 export function getSnapshot(): LocalReposSnapshot {
@@ -63,14 +66,13 @@ export function getSnapshot(): LocalReposSnapshot {
 
 /** Calls `listener` with a new snapshot whenever anything changes. Returns an unsubscribe function. */
 export function subscribe(listener: Listener): () => void {
-  listeners.add(listener)
-  return () => listeners.delete(listener)
+  events.on('changed', listener)
+  return () => events.off('changed', listener)
 }
 
 /** Sends the current snapshot to every subscriber. */
 export function notify(): void {
-  const snapshot = getSnapshot()
-  for (const listener of listeners) listener(snapshot)
+  events.emit('changed', getSnapshot())
 }
 
 /** Queues a full scan of the given sources (all when omitted), with progress shown in the UI. */
@@ -90,16 +92,18 @@ export function enqueue(job: () => Promise<void>, visible: boolean): Promise<voi
     pendingScans++
     notify()
   }
-  queue = queue
-    .then(job)
-    .catch((error) => console.error('[local-repos] job failed', error))
-    .finally(() => {
+  return queue.add(async () => {
+    try {
+      await job()
+    } catch (error) {
+      console.error('[local-repos] job failed', error)
+    } finally {
       if (visible) pendingScans--
       if (pendingScans === 0) progress = null
       syncWatching()
       notify()
-    })
-  return queue
+    }
+  })
 }
 
 /** Points the watchers at the current sources and repos. Run after every DB change. */
@@ -110,8 +114,7 @@ export function syncWatching(): void {
 
 /** Drops file changes that are waiting to be processed (e.g. before a reset). */
 export function cancelPendingChanges(): void {
-  if (changeTimer) clearTimeout(changeTimer)
-  changeTimer = null
+  flushChangesSoon.cancel()
   changedRepoIds.clear()
   changedSourceIds.clear()
 }
@@ -142,16 +145,10 @@ function onPathChanged(path: string): void {
   if (!change) return
   if (change.kind === 'repo') changedRepoIds.add(change.repoId)
   else change.sourceIds.forEach((id) => changedSourceIds.add(id))
-
-  const now = Date.now()
-  if (changeTimer) clearTimeout(changeTimer)
-  else firstChangeAt = now
-  const wait = Math.min(CHANGE_QUIET_MS, Math.max(0, firstChangeAt + CHANGE_MAX_WAIT_MS - now))
-  changeTimer = setTimeout(flushChanges, wait)
+  flushChangesSoon()
 }
 
 function flushChanges(): void {
-  changeTimer = null
   const sourceIds = [...changedSourceIds]
   const repoIds = [...changedRepoIds]
   changedSourceIds.clear()

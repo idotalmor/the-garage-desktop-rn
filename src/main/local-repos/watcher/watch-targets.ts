@@ -10,7 +10,7 @@
  */
 import { basename, sep } from 'path'
 import type { LocalRepo, Source } from '../../../shared/local-repos/types'
-import { ALLOWED_HIDDEN_DIRS, SKIP_DIRS } from '../scanner/discover'
+import { ALLOWED_HIDDEN_DIRS, SKIP_DIRS } from '../scanner'
 import { isInside } from '../utils/coverage'
 
 /** What a changed path requires. */
@@ -73,7 +73,7 @@ function isGitNoise(parts: string[]): boolean {
   return parts.includes('objects') || parts.includes('logs') || !!parts.at(-1)?.endsWith('.lock')
 }
 
-/** Same limits as `discover`: deep enough, and not in a skipped or hidden folder. */
+/** Same limits as `findRepoFolders`: deep enough, and not in a skipped or hidden folder. */
 function couldContainNewRepo(parts: string[], maxDepth: number): boolean {
   if (parts.length > maxDepth + 2) return false
   return parts

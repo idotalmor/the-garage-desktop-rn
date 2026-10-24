@@ -1,8 +1,9 @@
 /**
- * Step 2 of a scan: turn one discovered repo into a `LocalRepo` with all its checkouts.
+ * Step 2 of a scan: read one repo from git into a `ScannedRepo` with all its checkouts. This is
+ * where linked worktrees outside the source are found (`git worktree list`).
  *
  * Asks git for the repo's checkouts, remotes and default branch, then reads branch/status/last
- * commit of each checkout. `reinspectRepo` re-runs this for one stored repo after a change.
+ * commit of each checkout. `rereadRepo` re-runs this for one stored repo after a change.
  */
 import { createHash } from 'crypto'
 import { promises as fs } from 'fs'
@@ -18,13 +19,13 @@ import {
   resolveDefaultBranch,
   type GitWorktreeEntry
 } from '../../git'
-import { GIT_CONCURRENCY, mapLimit } from '../utils/concurrency'
-import type { Candidate } from './discover'
+import { GIT_CONCURRENCY, mapLimit } from './concurrency'
+import type { RepoFolder } from './find-repo-folders'
 
-export async function inspectRepo(commonDir: string, candidate: Candidate): Promise<ScannedRepo> {
+export async function readRepo(commonDir: string, folder: RepoFolder): Promise<ScannedRepo> {
   const [listed, remotes, isBare] = await Promise.all([
-    listWorktrees(candidate.dir),
-    readRemotes(candidate.dir),
+    listWorktrees(folder.dir),
+    readRemotes(folder.dir),
     isBareRepository(commonDir)
   ])
   const primary = remotes.find((remote) => remote.name === 'origin') ?? remotes[0] ?? null
@@ -32,12 +33,12 @@ export async function inspectRepo(commonDir: string, candidate: Candidate): Prom
   const worktrees = (
     await mapLimit(listed, GIT_CONCURRENCY, async (entry, index) => {
       if (entry.isBare) return null
-      return inspectWorktree(entry, index === 0 && !isBare)
+      return readWorktree(entry, index === 0 && !isBare)
     })
   ).filter((tree): tree is LocalWorktree => tree !== null)
 
-  const { defaultBranch, defaultRef } = await resolveDefaultBranch(candidate.dir, primary?.name)
-  const defaultBranchCommit = defaultRef ? await lastCommit(candidate.dir, defaultRef) : null
+  const { defaultBranch, defaultRef } = await resolveDefaultBranch(folder.dir, primary?.name)
+  const defaultBranchCommit = defaultRef ? await lastCommit(folder.dir, defaultRef) : null
 
   return {
     id: createHash('sha1').update(commonDir).digest('hex').slice(0, 16),
@@ -58,7 +59,7 @@ export async function inspectRepo(commonDir: string, candidate: Candidate): Prom
 }
 
 /** Re-reads a repo that is already stored (after a file change). Returns null if it is gone. */
-export async function reinspectRepo(repo: ScannedRepo): Promise<ScannedRepo | null> {
+export async function rereadRepo(repo: ScannedRepo): Promise<ScannedRepo | null> {
   const exists = await fs.access(repo.commonDir).then(
     () => true,
     () => false
@@ -66,13 +67,13 @@ export async function reinspectRepo(repo: ScannedRepo): Promise<ScannedRepo | nu
   if (!exists) return null
   const main = repo.worktrees.find((tree) => tree.isMain && !tree.isPrunable)
   const dir = main && (await fs.stat(main.path).catch(() => null))?.isDirectory()
-  return inspectRepo(repo.commonDir, {
+  return readRepo(repo.commonDir, {
     dir: dir && main ? main.path : repo.commonDir,
     kind: repo.isBare ? 'bare' : 'worktree'
   })
 }
 
-async function inspectWorktree(entry: GitWorktreeEntry, isMain: boolean): Promise<LocalWorktree> {
+async function readWorktree(entry: GitWorktreeEntry, isMain: boolean): Promise<LocalWorktree> {
   const base: LocalWorktree = {
     path: entry.path,
     name: basename(entry.path),

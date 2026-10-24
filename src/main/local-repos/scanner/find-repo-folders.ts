@@ -1,15 +1,15 @@
 /**
- * Step 1 of a scan: walk a source and find every place that looks like a git repo.
+ * Step 1 of a scan: walk a source and find every folder that looks like a git repo.
  *
- * A directory is a candidate when it has a `.git` folder (normal repo), a `.git` file (linked
- * worktree), or is itself a bare repo. The walk stops descending at a candidate; other checkouts
+ * A directory is a repo folder when it has a `.git` folder (normal repo), a `.git` file (linked
+ * worktree), or is itself a bare repo. The walk stops descending at a folder; other checkouts
  * of the same repo are found later through `git worktree list`.
  */
 import { promises as fs, type Dirent } from 'fs'
 import { join } from 'path'
 import type { ScanProgress } from '../../../shared/local-repos/types'
 import { isBareRepository } from '../../git'
-import { mapLimit } from '../utils/concurrency'
+import { mapLimit } from './concurrency'
 
 /** Folders that never contain repos worth showing, or are too large to walk. */
 export const SKIP_DIRS = new Set([
@@ -32,16 +32,16 @@ export const ALLOWED_HIDDEN_DIRS = new Set(['.worktrees', '.claude', '.devin', '
 const FS_CONCURRENCY = 16
 
 /** A directory that looks like a checkout (`worktree`) or a bare repo. */
-export type Candidate = { dir: string; kind: 'worktree' | 'bare' }
+export type RepoFolder = { dir: string; kind: 'worktree' | 'bare' }
 
 /** Breadth-first walk of `sourcePath` up to `maxDepth` levels, reporting progress per level. */
-export async function discover(
+export async function findRepoFolders(
   sourcePath: string,
   maxDepth: number,
   progress: ScanProgress,
   onProgress?: (progress: ScanProgress) => void
-): Promise<Candidate[]> {
-  const candidates: Candidate[] = []
+): Promise<RepoFolder[]> {
+  const folders: RepoFolder[] = []
   const seen = new Set<string>()
   let queue: { dir: string; depth: number }[] = [{ dir: sourcePath, depth: 0 }]
 
@@ -65,10 +65,10 @@ export async function discover(
         return
       }
 
-      const candidate = await classify(dir, entries)
-      if (candidate) {
-        candidates.push(candidate)
-        progress.reposFound = candidates.length
+      const folder = await toRepoFolder(dir, entries)
+      if (folder) {
+        folders.push(folder)
+        progress.reposFound = folders.length
         return
       }
       if (depth >= maxDepth) return
@@ -83,11 +83,11 @@ export async function discover(
     onProgress?.({ ...progress })
     queue = next
   }
-  return candidates
+  return folders
 }
 
 /** Decides whether `dir` is a checkout, a bare repo, or neither. Submodules are ignored. */
-async function classify(dir: string, entries: Dirent[]): Promise<Candidate | null> {
+async function toRepoFolder(dir: string, entries: Dirent[]): Promise<RepoFolder | null> {
   const dotGit = entries.find((entry) => entry.name === '.git')
   if (dotGit?.isDirectory()) return { dir, kind: 'worktree' }
   if (dotGit?.isFile()) {

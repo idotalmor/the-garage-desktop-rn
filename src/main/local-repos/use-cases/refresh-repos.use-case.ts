@@ -7,13 +7,13 @@ import type { LocalRepo, LocalWorktree, ScannedRepo } from '../../../shared/loca
 import { transaction } from '../db/connection'
 import { deleteRepos, hasRepo, listRepos, saveRepo } from '../db/tables/local-repos/queries'
 import { listSources } from '../db/tables/sources/queries'
-import { reinspectRepo } from '../scanner/inspect'
+import { rereadRepo } from '../scanner'
 import { uncoveredRepoIds } from '../utils/coverage'
 
 export async function refreshRepos(repoIds: string[]): Promise<void> {
   const gone: string[] = []
   for (const repo of listRepos().filter((repo) => repoIds.includes(repo.id))) {
-    const fresh = await reinspectRepo(repo).catch((error) => {
+    const fresh = await rereadRepo(repo).catch((error) => {
       console.error('[local-repos] refresh failed for', repo.commonDir, error)
       return undefined
     })

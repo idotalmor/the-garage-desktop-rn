@@ -1,4 +1,4 @@
-/** Small concurrency helpers so scans don't spawn hundreds of git processes at once. */
+/** Concurrency limits for the scanner, so a scan doesn't spawn hundreds of git processes at once. */
 
 /** Max parallel git processes per scan. */
 export const GIT_CONCURRENCY = 6

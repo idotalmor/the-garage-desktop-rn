@@ -7,7 +7,7 @@ import type { ScannedRepo, ScanProgress } from '../../../shared/local-repos/type
 import { transaction } from '../db/connection'
 import { deleteRepos, listRepos, saveRepo } from '../db/tables/local-repos/queries'
 import { listSources, markSourceScanned } from '../db/tables/sources/queries'
-import { scanSource } from '../scanner/scan-source'
+import { scanSource } from '../scanner'
 import { coveringSourceIds } from '../utils/coverage'
 
 export type ScanSourcesOptions = {

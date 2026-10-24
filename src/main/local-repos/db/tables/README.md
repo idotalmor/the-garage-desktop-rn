@@ -96,12 +96,12 @@ cascades to its worktrees.
 flowchart TD
   A[User presses + next to the source chips → picks folders] --> B[(sources<br/>insert one row per new path)]
   B --> C[addSources use case → scan-service queues scanSources]
-  C --> D["discover: walk folder (depth ≤ max_depth)<br/>skip node_modules, hidden, symlinks"]
+  C --> D["findRepoFolders: walk folder (depth ≤ max_depth)<br/>skip node_modules, hidden, symlinks"]
   D --> E{"dir has .git dir / .git file<br/>or is a bare repo?"}
   E -- no --> D
-  E -- yes --> F[candidate]
-  F --> G["group candidates by<br/>git rev-parse --git-common-dir"]
-  G --> H["inspect each repo:<br/>git worktree list, remotes,<br/>default branch, status per checkout"]
+  E -- yes --> F[repo folder]
+  F --> G["group repo folders by<br/>git rev-parse --git-common-dir"]
+  G --> H["readRepo for each repo:<br/>git worktree list, remotes,<br/>default branch, status per checkout"]
   H --> I[["scanSources: save one source (one transaction)"]]
   I --> I2[(local_repos<br/>upsert each repo by common_dir)]
   I2 --> I4[(local_worktrees<br/>replace repo's checkouts by path)]

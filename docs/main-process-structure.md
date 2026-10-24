@@ -29,7 +29,7 @@ src/main/<feature>/
     tables/<table>/queries.ts   reads/writes in app types (call `getDb()`); use cases import these
     tables/relations.ts         how tables link, for relational queries
     tables/README.md  what each table is + diagrams (see below)
-  utils/              small pure helpers with no feature state (path rules, concurrency)
+  utils/              small pure helpers with no feature state (e.g. path rules)
 
 src/main/<library>/   code shared by features, with no IPC and no state: e.g.
   git/                typed git CLI questions (run.ts, parsers/, queries/, index.ts)
@@ -86,8 +86,13 @@ subscribe((snapshot) => {
 
 - Feature-specific work split by concern: e.g. `scanner/` (filesystem walk), `watcher/`
   (`fs.watch` handles + pure rules for what a change means).
-- Multi-step pipelines get one file per step plus an entry file
-  (`discover.ts → scan-source.ts → inspect.ts`).
+- A domain folder's public API is its `index.ts` (e.g. `scanner/index.ts`: `scanSource`,
+  `rereadRepo`); other folders import only that. Multi-step pipelines get one internal file per
+  step (`find-repo-folders.ts → read-repo.ts`), and helpers used only by that folder live in it
+  (`scanner/concurrency.ts`).
+- Runtime plumbing uses small well-known packages instead of hand-written code: `p-queue` for the
+  job queue, `lodash.debounce` (`maxWait`) for batching file changes, Node's `EventEmitter` for
+  subscribers.
 
 ### Libraries: code more than one feature can use
 
