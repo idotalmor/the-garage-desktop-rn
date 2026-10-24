@@ -142,6 +142,44 @@ subscribe((snapshot) => {
     folders, deleted repo…) and the rows it leaves in each table, checked by running the code
     Update it in the same change whenever a table, column or write flow changes.
 
+## Creating a new feature (checklist)
+
+Copy the shape of `src/main/local-repos/` (read its [README](../src/main/local-repos/README.md) first).
+
+1. **Name it** after the domain, kebab-case (`<feature>`), one word per concept everywhere
+   (main, shared, renderer, SQL, channels). Agree on names before writing code.
+2. **Contract** in `src/shared/<feature>/`: `types.ts` (what the renderer receives, every field
+   commented, field names = Drizzle column names in camelCase) and `channels.ts`
+   (`<Feature>Channel`, `'<feature>:<action>'`, one comment each, plus a `Changed` push channel).
+3. **DB** (if it stores data) in `src/main/<feature>/db/`:
+   - `tables/<table>/schema.ts`: Drizzle `sqliteTable`, every column commented (meaning + where the
+     value comes from), `export type <Name>DbEntity = typeof <table>.$inferSelect`.
+   - `tables/<table>/queries.ts`: reads/writes in app types, calling `getDb()`; `tables/relations.ts`
+     if tables link.
+   - `schema.ts` re-exporting tables + relations, `drizzle.config.ts`, add the config to
+     `scripts/generate-db-schema.mjs`, run `npm run db:generate`.
+   - `connection.ts`: `export const { getDb, resetDb, transaction } = openDatabase('<feature>', …)`.
+   - `tables/README.md` (purposes, JSON example rows, commented ER diagram, write flow, verified
+     scenarios) and `db/README.md` (files + queries).
+   - Store every fact you read from the source system; don't store values you invent or can
+     compute. No migrations: after a schema change, regenerate and Reset.
+4. **Domain folders** for the actual work (e.g. `scanner/`, `watcher/`, `api/`), each with an
+   `index.ts` public API and internal step files. Reusable code with no feature types goes in a
+   library (`src/main/<library>/`, e.g. `git`, `sqlite`) instead.
+5. **Use cases** in `use-cases/<action>.use-case.ts`, one exported function each, plus `index.ts`.
+   All business rules live here; group writes with `transaction` (no `await` inside).
+6. **Runtime state** (only if needed: queues, watchers, timers, subscribers) in `sync/` or a
+   similarly named folder, one concern per file, `index.ts` as API and `start…()` to wire it.
+   Prefer small well-known packages (`p-queue`, `lodash.debounce`, `EventEmitter`).
+7. **IPC** in `ipc.ts`: `init<Feature>Ipc()` (called from `src/main/index.ts`), each handler calls
+   one use case; forward snapshots to all windows. Expose it in `src/preload` if needed.
+8. **Renderer**: `features/<feature>/hooks/use<Thing>.ts` (get snapshot + subscribe), a separate
+   mapper file to UI view models, components. Keep existing mock fixtures (stop importing them).
+9. **Docs**: a `README.md` in every folder of the feature (what it does, file table, call chain
+   with file names), all listed in `docs/README.md`; a summary comment atop every file.
+10. **Check**: Prettier, ESLint, `npm run typecheck`, and run the main-process code from Node
+    against real data (see "Before pushing") to verify the scenarios table.
+
 ## File conventions
 
 - Docs live next to the code they describe (`README.md` in that folder). Every folder of a feature

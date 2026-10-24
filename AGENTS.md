@@ -9,7 +9,8 @@ bridge, `src/renderer` the React UI, `src/shared` the types and IPC channel name
   [docs/main-process-structure.md](docs/main-process-structure.md). That covers the `ipc → use-cases →
 sync → domain/db` layers, Drizzle tables in one folder per table (`schema`/`queries`), shared
   libraries (`src/main/git`, `src/main/sqlite`), and summary comments at the top of each file.
-  Refactor code you touch to that structure without being asked.
+  Refactor code you touch to that structure without being asked. **Adding a feature?** Follow
+  the "Creating a new feature (checklist)" section there step by step.
 - **Docs live next to the code they describe**, as a `README.md` in that folder. Each one is listed in
   [docs/README.md](docs/README.md). When you add or change code that has a README, update it in the
   same change. When you add a new doc, add it to the index.
