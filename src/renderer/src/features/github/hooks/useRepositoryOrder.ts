@@ -1,5 +1,5 @@
 import { arrayMove } from '@dnd-kit/sortable'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { Repository } from '../components/types'
 
 export const REPO_SORTS = [
@@ -9,7 +9,7 @@ export const REPO_SORTS = [
 ] as const
 
 export type RepoSort = (typeof REPO_SORTS)[number]['id']
-/** What the sort menu shows: a sort, or `custom` after the user dragged a repo. */
+/** What the sort menu shows: a sort, or `custom` after the user saved a manual order. */
 export type RepoOrderMode = RepoSort | 'custom'
 
 const STORAGE_KEY = 'the-garage.local-repos.sort'
@@ -32,18 +32,27 @@ function readSavedMode(): RepoOrderMode {
 
 /**
  * The user's repo order. `repositories` already arrive in the saved order (`local_repos.position`),
- * so live updates never move them. Picking a sort or dragging a repo saves a new order; repos that
- * were never placed (e.g. just found) go last. The first time repos appear unplaced, they are sorted once.
+ * so live updates never move them. Picking a sort saves that order right away; "manual" enters an
+ * edit mode where every repo shows a drag grip and drags only stage `pending` keys until Save
+ * (persist + mode `custom`) or Cancel (discard). Repos never placed go last; the first time all
+ * repos appear unplaced, they are sorted once.
  */
 export function useRepositoryOrder(
   repositories: Repository[],
   saveOrder: (ids: string[]) => Promise<void>
 ): {
   mode: RepoOrderMode
+  manual: boolean
+  ordered: Repository[]
   sortBy: (sort: RepoSort) => void
   move: (activeKey: string, overKey: string) => void
+  startManual: () => void
+  saveManual: () => void
+  cancelManual: () => void
 } {
   const [mode, setMode] = useState<RepoOrderMode>(readSavedMode)
+  const [manual, setManual] = useState(false)
+  const [pending, setPending] = useState<string[] | null>(null)
   const sortedOnce = useRef(false)
 
   const changeMode = useCallback((next: RepoOrderMode) => {
@@ -51,25 +60,51 @@ export function useRepositoryOrder(
     setMode(next)
   }, [])
 
+  const exitManual = useCallback(() => {
+    setManual(false)
+    setPending(null)
+  }, [])
+
   const sortBy = useCallback(
     (sort: RepoSort) => {
+      exitManual()
       changeMode(sort)
       void saveOrder([...repositories].sort(compare[sort]).map(repoKey))
     },
-    [changeMode, repositories, saveOrder]
+    [changeMode, exitManual, repositories, saveOrder]
   )
+
+  const startManual = useCallback(() => {
+    setPending(repositories.map(repoKey))
+    setManual(true)
+  }, [repositories])
+
+  const saveManual = useCallback(() => {
+    if (!pending) return
+    changeMode('custom')
+    void saveOrder(pending)
+    exitManual()
+  }, [changeMode, exitManual, pending, saveOrder])
 
   const move = useCallback(
     (activeKey: string, overKey: string) => {
-      const keys = repositories.map(repoKey)
-      const from = keys.indexOf(activeKey)
-      const to = keys.indexOf(overKey)
+      if (!pending) return
+      const from = pending.indexOf(activeKey)
+      const to = pending.indexOf(overKey)
       if (from < 0 || to < 0 || from === to) return
-      changeMode('custom')
-      void saveOrder(arrayMove(keys, from, to))
+      setPending(arrayMove(pending, from, to))
     },
-    [changeMode, repositories, saveOrder]
+    [pending]
   )
+
+  // In manual mode the list follows the staged keys; anything not staged (new repo mid-edit) goes last.
+  const ordered = useMemo(() => {
+    if (!manual || !pending) return repositories
+    const rank = new Map(pending.map((key, index) => [key, index]))
+    return [...repositories].sort(
+      (a, b) => (rank.get(repoKey(a)) ?? pending.length) - (rank.get(repoKey(b)) ?? pending.length)
+    )
+  }, [manual, pending, repositories])
 
   useEffect(() => {
     if (sortedOnce.current || repositories.length === 0) return
@@ -81,5 +116,5 @@ export function useRepositoryOrder(
     }
   }, [mode, repositories, saveOrder])
 
-  return { mode, sortBy, move }
+  return { mode, manual, ordered, sortBy, move, startManual, saveManual, cancelManual: exitManual }
 }

@@ -11,7 +11,7 @@ import {
   sortableKeyboardCoordinates,
   verticalListSortingStrategy
 } from '@dnd-kit/sortable'
-import { ArrowDownUp, ChevronDown, FolderPlus, Loader2 } from 'lucide-react'
+import { ArrowDownUp, Check, ChevronDown, FolderPlus, Loader2, X } from 'lucide-react'
 import { useState } from 'react'
 import { Button, Dropdown } from '@heroui/react'
 import { CommitHistoryModal } from '../../github/components/CommitHistoryModal'
@@ -43,7 +43,8 @@ export function DashboardHome(): React.JSX.Element {
     openFolder,
     deleteWorktree
   } = useLocalRepositories()
-  const { mode, sortBy, move } = useRepositoryOrder(repositories, setOrder)
+  const { mode, manual, ordered, sortBy, move, startManual, saveManual, cancelManual } =
+    useRepositoryOrder(repositories, setOrder)
   const dragSensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
@@ -117,29 +118,59 @@ export function DashboardHome(): React.JSX.Element {
           )}
           <div className="ml-auto flex min-w-0 items-center gap-1">
             {repositories.length > 1 && (
-              <Dropdown>
-                <Dropdown.Trigger
-                  className="flex h-7 items-center gap-1.5 rounded-lg px-2 text-xs text-muted hover:bg-surface-secondary hover:text-foreground"
-                  aria-label="Sort repositories"
-                >
-                  <ArrowDownUp size={13} aria-hidden="true" />
-                  {mode === 'custom'
-                    ? 'Custom'
-                    : REPO_SORTS.find((option) => option.id === mode)?.label}
-                </Dropdown.Trigger>
-                <Dropdown.Popover placement="bottom end">
-                  <Dropdown.Menu
+              <>
+                <Dropdown>
+                  <Dropdown.Trigger
+                    className="flex size-7 items-center justify-center rounded-lg text-muted hover:bg-surface-secondary hover:text-foreground"
                     aria-label="Sort repositories"
-                    onAction={(key) => sortBy(key as RepoSort)}
                   >
-                    {REPO_SORTS.map((option) => (
-                      <Dropdown.Item key={option.id} id={option.id}>
-                        {option.label}
+                    <ArrowDownUp size={14} aria-hidden="true" />
+                  </Dropdown.Trigger>
+                  <Dropdown.Popover placement="bottom end">
+                    <Dropdown.Menu
+                      aria-label="Sort repositories"
+                      onAction={(key) =>
+                        key === 'manual' ? startManual() : sortBy(key as RepoSort)
+                      }
+                    >
+                      {REPO_SORTS.map((option) => (
+                        <Dropdown.Item key={option.id} id={option.id} className="text-xs">
+                          <span className="flex items-center gap-2">
+                            {option.label}
+                            {mode === option.id && (
+                              <Check size={11} className="text-muted" aria-hidden="true" />
+                            )}
+                          </span>
+                        </Dropdown.Item>
+                      ))}
+                      <Dropdown.Item id="manual" className="text-xs">
+                        Manual order
                       </Dropdown.Item>
-                    ))}
-                  </Dropdown.Menu>
-                </Dropdown.Popover>
-              </Dropdown>
+                    </Dropdown.Menu>
+                  </Dropdown.Popover>
+                </Dropdown>
+                {manual && (
+                  <div className="flex h-7 items-stretch rounded-full border border-border bg-surface">
+                    <button
+                      type="button"
+                      aria-label="Save order"
+                      className="flex items-center rounded-l-full px-2 text-success hover:bg-surface-secondary"
+                      onClick={saveManual}
+                    >
+                      <Check size={13} aria-hidden="true" />
+                    </button>
+                    <span className="w-px bg-separator" aria-hidden="true" />
+                    <button
+                      type="button"
+                      aria-label="Cancel order changes"
+                      className="flex items-center rounded-r-full px-2 text-muted hover:bg-surface-secondary hover:text-foreground"
+                      onClick={cancelManual}
+                    >
+                      <X size={13} aria-hidden="true" />
+                    </button>
+                  </div>
+                )}
+              </>
             )}
             <SourceChips
               sources={snapshot?.sources ?? []}
@@ -184,29 +215,26 @@ export function DashboardHome(): React.JSX.Element {
                 if (over) move(String(active.id), String(over.id))
               }}
             >
-              <SortableContext
-                items={repositories.map(repoKey)}
-                strategy={verticalListSortingStrategy}
-              >
-                {repositories.map((repo) => (
+              <SortableContext items={ordered.map(repoKey)} strategy={verticalListSortingStrategy}>
+                {ordered.map((repo) => (
                   <SortableRepository key={repoKey(repo)} id={repoKey(repo)} label={repo.name}>
                     {(handle) => (
                       <>
-                        <h3 className="group/title flex items-center gap-2 text-sm font-semibold">
-                          {handle}
+                        <h3 className="group/title relative flex items-center gap-2 pr-7 text-sm font-semibold">
+                          {manual && handle}
                           <button
                             type="button"
                             onClick={() => toggleCollapsed(repo.id ?? repo.name)}
                             aria-expanded={!collapsed[repo.id ?? repo.name]}
-                            className="flex items-center gap-1.5"
+                            className="flex min-w-0 items-center gap-1.5"
                           >
                             <ChevronDown
                               size={13}
-                              className={`text-muted transition-transform ${collapsed[repo.id ?? repo.name] ? '-rotate-90' : ''}`}
+                              className={`shrink-0 text-muted transition-transform ${collapsed[repo.id ?? repo.name] ? '-rotate-90' : ''}`}
                               aria-hidden="true"
                             />
-                            <span className={`size-3 rounded-full ${repo.color}`} />
-                            {repo.name}
+                            <span className={`size-3 shrink-0 rounded-full ${repo.color}`} />
+                            <span className="truncate">{repo.name}</span>
                           </button>
                           <span
                             className="truncate text-xs font-normal text-muted"

@@ -3,8 +3,8 @@ import { CSS } from '@dnd-kit/utilities'
 import { GripVertical } from 'lucide-react'
 
 /**
- * One draggable repo group. `children` gets the drag handle to place in the title: it shows on
- * title hover (or keyboard focus); drag it, or focus it and press Space then the arrow keys.
+ * One draggable repo group. `children` gets the drag handle for the title's right end — render it
+ * only in manual sort mode. Drag it, or focus it and press Space then the arrow keys.
  */
 export function SortableRepository({
   id,
@@ -30,11 +30,11 @@ export function SortableRepository({
       ref={setActivatorNodeRef}
       type="button"
       aria-label={`Reorder ${label}`}
-      className="-ml-1 flex size-5 cursor-grab touch-none items-center justify-center rounded text-muted opacity-0 transition-opacity hover:text-foreground focus-visible:opacity-100 active:cursor-grabbing group-hover/title:opacity-100"
+      className="absolute right-0 top-1/2 flex size-6 -translate-y-1/2 cursor-grab touch-none items-center justify-center rounded text-muted transition-colors hover:text-foreground active:cursor-grabbing"
       {...attributes}
       {...listeners}
     >
-      <GripVertical size={13} aria-hidden="true" />
+      <GripVertical size={15} aria-hidden="true" />
     </button>
   )
 
