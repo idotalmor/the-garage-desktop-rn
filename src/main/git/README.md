@@ -23,6 +23,7 @@ queries/        one file per topic: run git + parse → typed answer
   branches.ts   resolveDefaultBranch, forkPoint (where a branch left the main line), branchStart (reflog)
 commands/       git commands that change the repo (not questions)
   pull.ts       pull (git pull --no-edit, 2 min timeout)
+  checkout.ts   validateBranch, cloneRepo, addWorktree (no force/reset; process-only HTTP auth)
 index.ts        public API
 ```
 

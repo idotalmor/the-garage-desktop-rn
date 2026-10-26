@@ -5,6 +5,7 @@
  */
 export { GitError } from './run'
 export { pull } from './commands/pull'
+export { cloneRepo, addWorktree, validateBranch } from './commands/checkout'
 export type { BranchStatus, GitWorktreeEntry } from './types'
 export type {
   CommitCursor,

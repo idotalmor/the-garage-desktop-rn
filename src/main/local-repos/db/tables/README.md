@@ -18,6 +18,20 @@ No migrations and no backwards compatibility: the app has no users yet. Tables a
 they're missing and never altered. After a schema change, press the trash icon next to the source
 chips (**Reset local data**): it drops every table in the file and creates the current ones again empty.
 
+## Checkout creation integration
+
+`git-sources/create-checkout.use-case.ts` registers a successful first clone through `addSources([checkoutPath])`. This uses the existing source/scan pipeline; no tables/columns or new row mappers are added. A linked checkout reuses the same Git common directory and triggers `rescan()`, without creating another source. A canceled picker or rejected destination makes no DB writes.
+
+`node scripts/check-git-sources.mjs` runs real Git + scanner + SQLite scenarios in a temporary home:
+
+| Action                                                     | sources                      | local_repos               | local_worktrees                                       |
+| ---------------------------------------------------------- | ---------------------------- | ------------------------- | ----------------------------------------------------- |
+| New clone, register its source and scan                    | One row for the clone folder | One shared-common-dir row | One main checkout row                                 |
+| Add a sibling linked worktree and scan the original source | Same one source              | Same one repo row         | Main + sibling, discovered even outside the source    |
+| Scan again                                                 | No duplicate sources         | No duplicate repos        | Replaced by current Git facts, no duplicate checkouts |
+
+Original checkout `git status --porcelain` remains empty after sibling creation and remote-branch fetching. Nested/symlinked-into-repo parents and pre-existing destinations are rejected before Git writes. OAuth/network and native folder dialogs are not exercised by these local tests.
+
 ## Tables at a glance
 
 | Table             | One row is…                                               | Created/updated by                       |

@@ -18,7 +18,7 @@ import { CommitHistoryModal } from '../../github/components/CommitHistoryModal'
 import { CreatePrModal } from '../../github/components/CreatePrModal'
 import { DeleteWorktreeModal } from '../../github/components/DeleteWorktreeModal'
 import { PullErrorModal } from '../../github/components/PullErrorModal'
-import { GitHubCard } from '../../github/components/GitHubCard'
+import { GitHubCard, GitHubLink } from '../../github/components/GitHubCard'
 import { buildRepositoryCards } from '../../github/components/repository-cards'
 import { SortableRepository } from '../../github/components/SortableRepository'
 import { SourceChips } from '../../github/components/SourceChips'
@@ -31,26 +31,59 @@ import {
   type RepoSort
 } from '../../github/hooks/useRepositoryOrder'
 import { buildJiraCards } from './jira-cards'
+import { GitSourcesPanel, GitSourcesSettingsButton } from '../../git-sources/GitSourcesPanel'
+import { useGitSources } from '../../git-sources/useGitSources'
+import { useGitRepositories } from '../../git-sources/useGitRepositories'
 
 export function DashboardHome(): React.JSX.Element {
   const {
     snapshot,
-    repositories,
     addFolders,
     removeFolder,
     reset,
-    setOrder,
+    setOrder: setLocalOrder,
     openIde,
     openFolder,
     deleteWorktree,
     pull
   } = useLocalRepositories()
+  const gitSources = useGitSources()
+  const [gitSettingsOpen, setGitSettingsOpen] = useState(false)
+  const [dismissedGitNotice, setDismissedGitNotice] = useState<string | null>(null)
+  const gitSettingsNotice = gitSources.error ?? gitSources.snapshot?.authorization?.userCode ?? null
+  const gitSettingsVisible =
+    gitSettingsOpen || Boolean(gitSettingsNotice && gitSettingsNotice !== dismissedGitNotice)
+  const { repositories, setOrder } = useGitRepositories(
+    snapshot,
+    gitSources.snapshot,
+    setLocalOrder
+  )
   const { mode, manual, ordered, sortBy, move, startManual, saveManual, cancelManual } =
     useRepositoryOrder(repositories, setOrder)
   const dragSensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   )
+  const [checkoutPending, setCheckoutPending] = useState<string | null>(null)
+  const startCheckout = async (repo: Repository, branch: string | null): Promise<void> => {
+    if (checkoutPending || (!repo.isLocal && !repo.gitSourceRepo)) return
+    setCheckoutPending(repoKey(repo))
+    try {
+      await gitSources.createCheckout({
+        repo:
+          repo.isLocal && repo.id
+            ? { kind: 'local', id: repo.id }
+            : {
+                kind: 'remote',
+                sourceId: repo.gitSourceRepo!.sourceId,
+                externalId: repo.gitSourceRepo!.externalId
+              },
+        branch
+      })
+    } finally {
+      setCheckoutPending(null)
+    }
+  }
   const [selectedRecipient, setSelectedRecipient] = useState('Default · #eng-review')
   const [linkedTasks, setLinkedTasks] = useState<Record<string, string>>({})
   const [babysitter, setBabysitter] = useState<Record<number, boolean>>({})
@@ -137,9 +170,16 @@ export function DashboardHome(): React.JSX.Element {
                 className={`text-muted transition-transform ${collapsed['github'] ? '-rotate-90' : ''}`}
                 aria-hidden="true"
               />
-              GitHub
+              Git
             </button>
           </h2>
+          <GitSourcesSettingsButton
+            expanded={gitSettingsVisible}
+            onToggle={() => {
+              setGitSettingsOpen(!gitSettingsVisible)
+              setDismissedGitNotice(gitSettingsVisible ? gitSettingsNotice : null)
+            }}
+          />
           {snapshot?.scanning && (
             <span className="flex items-center gap-1 text-xs text-muted">
               <Loader2 size={12} className="animate-spin" aria-hidden="true" />
@@ -211,6 +251,9 @@ export function DashboardHome(): React.JSX.Element {
             />
           </div>
         </div>
+        <div id="git-settings-panel" hidden={!gitSettingsVisible}>
+          <GitSourcesPanel connection={gitSources} />
+        </div>
         {!collapsed['github'] && (
           <div id="github-section" className="space-y-4">
             {snapshot && repositories.length === 0 && (
@@ -253,6 +296,11 @@ export function DashboardHome(): React.JSX.Element {
                       <>
                         <h3 className="group/title relative flex items-center gap-2 pr-7 text-sm font-semibold">
                           {manual && handle}
+                          <span className={`size-3 shrink-0 rounded-full ${repo.color}`} />
+                          <GitHubLink
+                            url={repo.githubUrl}
+                            label={`Open ${repo.detail} on GitHub`}
+                          />
                           <button
                             type="button"
                             onClick={() => toggleCollapsed(repo.id ?? repo.name)}
@@ -264,7 +312,6 @@ export function DashboardHome(): React.JSX.Element {
                               className={`shrink-0 text-muted transition-transform ${collapsed[repo.id ?? repo.name] ? '-rotate-90' : ''}`}
                               aria-hidden="true"
                             />
-                            <span className={`size-3 shrink-0 rounded-full ${repo.color}`} />
                             <span className="truncate">{repo.name}</span>
                           </button>
                           <span
@@ -273,7 +320,7 @@ export function DashboardHome(): React.JSX.Element {
                           >
                             {[
                               repo.detail,
-                              repo.isLocal ? null : `${repo.prs.length} PRs`,
+                              repo.gitSourceRepo ? 'GitHub' : null,
                               `${repo.worktrees.length} worktrees`
                             ]
                               .filter(Boolean)
@@ -284,6 +331,12 @@ export function DashboardHome(): React.JSX.Element {
                           <div className="flex flex-wrap gap-2">
                             {buildRepositoryCards({
                               repository: repo,
+                              cloning: checkoutPending === repoKey(repo),
+                              checkoutDisabled: checkoutPending !== null || gitSources.busy,
+                              onClone:
+                                repo.isLocal || repo.gitSourceRepo
+                                  ? (branch) => void startCheckout(repo, branch)
+                                  : undefined,
                               selectedRecipient,
                               linkedTasks,
                               babysitter,

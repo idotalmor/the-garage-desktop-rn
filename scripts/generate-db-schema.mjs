@@ -7,7 +7,10 @@ import { execFileSync } from 'child_process'
 import { writeFileSync } from 'fs'
 import { dirname, join } from 'path'
 
-const CONFIGS = ['src/main/local-repos/db/drizzle.config.ts']
+const CONFIGS = [
+  'src/main/local-repos/db/drizzle.config.ts',
+  'src/main/git-sources/db/drizzle.config.ts'
+]
 
 for (const config of CONFIGS) {
   const sql = execFileSync('npx', ['drizzle-kit', 'export', '--config', config], {

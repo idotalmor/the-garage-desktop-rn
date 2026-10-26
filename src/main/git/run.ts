@@ -31,12 +31,22 @@ export class GitError extends Error {
 }
 
 /** Runs `git -C <cwd> <args>` and resolves with stdout. Rejects with `GitError` on failure. */
-export function git(cwd: string, args: string[], timeoutMs = 15_000): Promise<string> {
+export function git(
+  cwd: string,
+  args: string[],
+  timeoutMs = 15_000,
+  env: NodeJS.ProcessEnv = {}
+): Promise<string> {
   return new Promise((resolve, reject) => {
     execFile(
       gitBinary,
       ['-C', cwd, ...args],
-      { env: GIT_ENV, timeout: timeoutMs, maxBuffer: 16 * 1024 * 1024, windowsHide: true },
+      {
+        env: { ...GIT_ENV, ...env },
+        timeout: timeoutMs,
+        maxBuffer: 16 * 1024 * 1024,
+        windowsHide: true
+      },
       (error, stdout, stderr) => {
         if (error) {
           const code = typeof error.code === 'number' ? error.code : null

@@ -48,6 +48,7 @@ npm run dev              # run the app
 npm run lint
 npm run typecheck        # node + web
 npx prettier --write <files>
+node scripts/check-git-sources.mjs  # isolated SQLite/device-flow/mapper checks (mocked HTTP/keychain)
 ```
 
 `@heroui-pro/*` needs `HEROUI_AUTH_TOKEN` at install time. Without it, `typecheck:web` and the

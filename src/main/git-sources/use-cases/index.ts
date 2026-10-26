@@ -1,0 +1,11 @@
+/** Public Git source actions; IPC contains no business rules. */
+export { openUrl } from './open-url.use-case'
+export { connect } from './connect.use-case'
+export { completeConnection } from './complete-connection.use-case'
+export { cancelConnection } from './cancel-connection.use-case'
+export { listRepos } from './list-repos.use-case'
+export { setFavorite } from './set-favorite.use-case'
+export { disconnect } from './disconnect.use-case'
+export { refresh } from './refresh.use-case'
+export { prepareCheckout } from './prepare-checkout.use-case'
+export { createCheckout } from './create-checkout.use-case'

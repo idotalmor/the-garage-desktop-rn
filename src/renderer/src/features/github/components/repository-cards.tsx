@@ -2,14 +2,17 @@ import { ArrowUp, Ellipsis, GitBranch, MessageCircle, Plus, Trash2 } from 'lucid
 import { Button, Dropdown } from '@heroui/react'
 import {
   ChangesChip,
+  CloneAction,
   CheckoutActions,
   FooterAction,
   GithubIcon,
+  GitHubLink,
   PullChip,
   SyncChip,
   type GitHubCardSpec
 } from './GitHubCard'
 import { timeAgo } from '../time-ago'
+import { openGitHubUrl } from '../../git-sources/open-url'
 import type { CiStatus, OnHistory, PullRequest, Repository, Worktree } from './types'
 
 const favoritePeople = ['Maya Chen', 'Ava Patel', 'Noah Williams']
@@ -190,7 +193,10 @@ export function buildRepositoryCards({
   onOpenFolder,
   onDelete,
   pulling,
-  onPull
+  onPull,
+  cloning = false,
+  checkoutDisabled = false,
+  onClone
 }: {
   repository: Repository
   selectedRecipient: string
@@ -207,14 +213,34 @@ export function buildRepositoryCards({
   /** Checkout paths with a pull running. */
   pulling: Record<string, boolean>
   onPull: (worktree: Worktree) => void
+  cloning?: boolean
+  checkoutDisabled?: boolean
+  onClone?: (branch: string | null) => void
 }): GitHubCardSpec[] {
   // The main clone usually has the default branch checked out; show that as one card, not two.
-  const mainCheckout = repository.worktrees.find(
-    (tree) => tree.isMain && tree.branch === repository.defaultBranch
-  )
+  const mainCheckout =
+    repository.worktrees.find(
+      (tree) =>
+        tree.isMain && tree.path && !tree.isPrunable && tree.branch === repository.defaultBranch
+    ) ??
+    repository.worktrees.find(
+      (tree) => tree.path && !tree.isPrunable && tree.branch === repository.defaultBranch
+    )
   const actions = { onOpenIde, onOpenFolder, onDelete }
+  const clone =
+    !mainCheckout && onClone ? (
+      <CloneAction
+        linked={!!repository.isLocal}
+        busy={cloning}
+        disabled={checkoutDisabled}
+        onClone={() =>
+          onClone(repository.defaultBranch === 'HEAD' ? null : repository.defaultBranch)
+        }
+      />
+    ) : undefined
+  if (!repository.isLocal && repository.gitSourceRepo) return [remoteRepoCard(repository, clone)]
   return [
-    branchCard(repository, onHistory, mainCheckout, actions),
+    branchCard(repository, onHistory, mainCheckout, actions, clone),
     ...repository.prs.map((pr) =>
       prCard(pr, repository.detail, {
         selectedRecipient,
@@ -231,12 +257,45 @@ export function buildRepositoryCards({
     ...repository.worktrees
       .filter((tree) => tree !== mainCheckout)
       .map((tree) =>
-        worktreeCard(tree, repository, () => onOpenWorktree(tree), onHistory, actions, {
-          pulling: Boolean(tree.path && pulling[tree.path]),
-          onPull: () => onPull(tree)
-        })
+        worktreeCard(
+          tree,
+          repository,
+          () => onOpenWorktree(tree),
+          onHistory,
+          actions,
+          {
+            pulling: Boolean(tree.path && pulling[tree.path]),
+            onPull: () => onPull(tree)
+          },
+          onClone && !tree.isDetached && (!tree.path || tree.isPrunable) ? (
+            <CloneAction
+              linked={!!repository.isLocal}
+              busy={cloning}
+              disabled={checkoutDisabled}
+              onClone={() => onClone(tree.branch)}
+            />
+          ) : undefined
+        )
       )
   ]
+}
+
+function remoteRepoCard(repository: Repository, clone?: React.ReactNode): GitHubCardSpec {
+  return {
+    key: `branch-${repository.id ?? repository.name}`,
+    title: repository.defaultBranch,
+    titleClass: 'text-accent',
+    aside: <GitHubLink url={repository.githubUrl} label={`Open ${repository.detail} on GitHub`} />,
+    body: (
+      <>
+        <p className="line-clamp-2 text-xs text-muted">
+          {repository.gitSourceRepo?.description ?? repository.detail}
+        </p>
+        <p className="text-xs text-muted">Favorite · Not cloned locally</p>
+      </>
+    ),
+    footer: clone
+  }
 }
 
 /**
@@ -251,7 +310,8 @@ function branchCard(
     onOpenIde: (ide: string, path: string) => void
     onOpenFolder: (path: string) => void
     onDelete: (worktree: Worktree) => void
-  }
+  },
+  clone?: React.ReactNode
 ): GitHubCardSpec {
   const historyKey = `${repository.name}/${repository.defaultBranch}`
   const hasUncommitted = mainCheckout?.hasUncommitted
@@ -264,11 +324,16 @@ function branchCard(
     surfaceClass: ciSurfaceClass[repository.masterCi],
     overflowVisible: Boolean(mainCheckout),
     history: { onOpen: openHistory },
-    aside: mainCheckout?.changedFiles ? (
-      <span className="self-center">
-        <ChangesChip count={mainCheckout.changedFiles} />
-      </span>
-    ) : undefined,
+    aside: (
+      <>
+        <GitHubLink url={repository.githubUrl} label={`Open ${repository.detail} on GitHub`} />
+        {mainCheckout?.changedFiles ? (
+          <span className="self-center">
+            <ChangesChip count={mainCheckout.changedFiles} />
+          </span>
+        ) : null}
+      </>
+    ),
     body: (
       <>
         {mainCheckout && (
@@ -286,9 +351,7 @@ function branchCard(
         </button>
       </>
     ),
-    footer: mainCheckout?.path ? (
-      <CheckoutActions worktree={mainCheckout} {...actions} />
-    ) : undefined
+    footer: mainCheckout?.path ? <CheckoutActions worktree={mainCheckout} {...actions} /> : clone
   }
 }
 
@@ -329,9 +392,7 @@ function prCard(
           size="sm"
           variant="ghost"
           className="size-6 min-h-6 text-muted hover:text-foreground"
-          onPress={() =>
-            window.open(`https://github.com/${repoDetail}/pull/${pr.number}`, '_blank')
-          }
+          onPress={() => openGitHubUrl(`https://github.com/${repoDetail}/pull/${pr.number}`)}
           aria-label={`Open PR #${pr.number} on GitHub`}
         >
           <GithubIcon size={14} />
@@ -449,7 +510,8 @@ function worktreeCard(
     onOpenFolder: (path: string) => void
     onDelete: (worktree: Worktree) => void
   },
-  pull: { pulling: boolean; onPull: () => void }
+  pull: { pulling: boolean; onPull: () => void },
+  clone?: React.ReactNode
 ): GitHubCardSpec {
   const repoDetail = repository.detail
   const source =
@@ -470,7 +532,7 @@ function worktreeCard(
             variant="ghost"
             className="size-6 min-h-6 text-muted hover:text-foreground"
             onPress={() =>
-              window.open(`https://github.com/${repoDetail}/pull/${worktree.prNumber}`, '_blank')
+              openGitHubUrl(`https://github.com/${repoDetail}/pull/${worktree.prNumber}`)
             }
             aria-label={`Open PR #${worktree.prNumber} on GitHub`}
           >
@@ -540,6 +602,11 @@ function worktreeCard(
         )}
       </>
     ),
-    footer: worktree.path ? <CheckoutActions worktree={worktree} {...actions} /> : undefined
+    footer:
+      worktree.path && !worktree.isPrunable ? (
+        <CheckoutActions worktree={worktree} {...actions} />
+      ) : (
+        clone
+      )
   }
 }

@@ -1,3 +1,5 @@
+import type { GitSourceRepo } from '../../../../../shared/git-sources/types'
+
 export type CiStatus = 'passing' | 'failing' | 'in-progress' | 'none'
 
 export type Commit = {
@@ -45,6 +47,10 @@ export type Worktree = {
 }
 
 export type Repository = {
+  /** GitHub repo root from provider metadata or the normalized local primary remote, if known. */
+  githubUrl?: string
+  /** Provider metadata matched by canonical primary remote, or a remote-only favorite. */
+  gitSourceRepo?: GitSourceRepo
   id?: string
   name: string
   detail: string
