@@ -1,3 +1,4 @@
-provider: generic
-url: https://example.com/auto-updates
+provider: github
+owner: idotalmor
+repo: the-garage-desktop-rn
 updaterCacheDirName: devflow-updater

@@ -19,6 +19,7 @@ import { FocusModePage } from '../features/focus-mode/components/FocusModePage'
 import { ArtifactoryPage } from '../features/artifactory/pages/artifactory-page'
 import { RecordingPage } from '../features/recording/components/RecordingPage'
 import { AuthControl } from '../features/auth/components/AuthControl'
+import { UpdateControl } from '../features/app-updates/components/UpdateControl'
 import { WindowChannel, type OpenWindow } from '../../../shared/window-channels'
 import { WindowDragRegion } from '../shared/components/WindowDragRegion'
 
@@ -136,6 +137,7 @@ export function AppShell(): React.JSX.Element {
             </Button>
           )}
           <RecordingControl onOpen={() => setView('recording')} />
+          <UpdateControl />
         </div>
         <div
           className={`window-prompt-bar flex h-7 min-w-0 items-center gap-1.5 rounded-md border border-border/60 bg-transparent px-2 text-xs ${

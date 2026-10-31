@@ -1,8 +1,8 @@
 import { app, shell, BrowserWindow } from 'electron'
 import { join } from 'path'
-import { is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 import type { OpenWindow } from '../shared/window-channels'
+import { loadRenderer } from './app-updates/windows'
 
 let mainWindow: BrowserWindow | null = null
 const appWindows = new Set<BrowserWindow>()
@@ -16,17 +16,6 @@ function configureWindow(window: BrowserWindow): BrowserWindow {
   appWindows.add(window)
   window.on('closed', () => appWindows.delete(window))
   return window
-}
-
-function loadRenderer(window: BrowserWindow, query = ''): void {
-  if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
-    window.loadURL(`${process.env['ELECTRON_RENDERER_URL']}${query}`)
-  } else {
-    const params = new URLSearchParams(query)
-    window.loadFile(join(__dirname, '../renderer/index.html'), {
-      query: Object.fromEntries(params.entries())
-    })
-  }
 }
 
 function createWorkspaceWindow(): BrowserWindow {

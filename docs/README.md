@@ -41,6 +41,19 @@ one.
 - [Shared contracts](../src/shared/git-sources/README.md)
 - [Desktop UI and mapper](../src/renderer/src/features/git-sources/README.md)
 
+## App updates
+
+- [Main feature](../src/main/app-updates/README.md): JS bundles and new .dmg releases from GitHub
+- [Use cases](../src/main/app-updates/use-cases/README.md)
+- [Runtime sync](../src/main/app-updates/sync/README.md)
+- [Releases](../src/main/app-updates/releases/README.md)
+- [Database](../src/main/app-updates/db/README.md)
+- [Database tables and scenarios](../src/main/app-updates/db/tables/README.md)
+- [Utils](../src/main/app-updates/utils/README.md)
+- [Shared contracts](../src/shared/app-updates/README.md)
+- [Update chip UI](../src/renderer/src/features/app-updates/README.md)
+- [Release scripts and CI setup](../scripts/release/README.md)
+
 ## Review guides
 
 - [Git sources connection](reviews/pr-git-sources.md): file structure, signatures, actions, data flow, diagrams and verification gaps.

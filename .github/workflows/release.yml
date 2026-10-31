@@ -1,0 +1,100 @@
+# Ships every push to main. If the native fingerprint changed (Electron, main/preload code, the
+# packages they load, packaging config) it publishes a new base release with a .dmg; otherwise it
+# adds a signed JS bundle to the current base release, which installed apps load without reinstalling.
+# Setup and secrets: scripts/release/README.md
+name: Release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      force_base:
+        description: Publish a new .dmg even if the native fingerprint did not change
+        type: boolean
+        default: false
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: macos-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      VERSION: 1.0.${{ github.run_number }}
+      BUILD: ${{ github.run_number }}
+      COMMIT: ${{ github.sha }}
+      BUNDLE_SIGNING_KEY: ${{ secrets.BUNDLE_SIGNING_KEY }}
+      HEROUI_AUTH_TOKEN: ${{ secrets.HEROUI_AUTH_TOKEN }}
+      APP_ENV_FILE: ${{ secrets.APP_ENV_FILE }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check secrets
+        run: |
+          missing=0
+          for name in BUNDLE_SIGNING_KEY HEROUI_AUTH_TOKEN APP_ENV_FILE; do
+            if [ -z "${!name}" ]; then echo "::error::Missing secret $name (see scripts/release/README.md)"; missing=1; fi
+          done
+          exit $missing
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      - name: Set version
+        run: |
+          npm version "$VERSION" --no-git-tag-version
+          printf '%s\n' "$APP_ENV_FILE" > .env
+
+      - name: Build
+        run: |
+          export MAIN_VITE_BUNDLE_PUBLIC_KEY="$(node scripts/release/public-key.mjs)"
+          echo "MAIN_VITE_BUNDLE_PUBLIC_KEY=$MAIN_VITE_BUNDLE_PUBLIC_KEY" >> "$GITHUB_ENV"
+          npm run build
+
+      - name: Base or bundle?
+        id: plan
+        run: |
+          FINGERPRINT=$(node scripts/release/fingerprint.mjs)
+          BASE_TAG=$(gh release view --json tagName --jq .tagName 2>/dev/null || true)
+          PREVIOUS=""
+          if [ -n "$BASE_TAG" ] && gh release download "$BASE_TAG" --pattern base.json --output previous-base.json; then
+            PREVIOUS=$(node -p 'require("./previous-base.json").fingerprint')
+          fi
+          if [ "${{ inputs.force_base }}" = "true" ] || [ -z "$PREVIOUS" ] || [ "$FINGERPRINT" != "$PREVIOUS" ]; then
+            KIND=base
+          else
+            KIND=bundle
+          fi
+          echo "Fingerprint $FINGERPRINT, latest base $BASE_TAG ($PREVIOUS) → $KIND" | tee -a "$GITHUB_STEP_SUMMARY"
+          echo "kind=$KIND" >> "$GITHUB_OUTPUT"
+          echo "fingerprint=$FINGERPRINT" >> "$GITHUB_OUTPUT"
+          echo "base_tag=$BASE_TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Publish base release (.dmg)
+        if: steps.plan.outputs.kind == 'base'
+        env:
+          FINGERPRINT: ${{ steps.plan.outputs.fingerprint }}
+        run: |
+          npx electron-builder --mac --publish never
+          node scripts/release/write-base-info.mjs
+          gh release create "v$VERSION" dist/*.dmg dist/base.json \
+            --target "$COMMIT" --title "The Garage $VERSION" --generate-notes
+
+      - name: Publish JS bundle
+        if: steps.plan.outputs.kind == 'bundle'
+        env:
+          BASE_TAG: ${{ steps.plan.outputs.base_tag }}
+        run: |
+          BASE_VERSION="${BASE_TAG#v}" node scripts/release/pack-bundle.mjs
+          gh release upload "$BASE_TAG" "dist/bundle-$VERSION.tar.gz" dist/bundle-manifest.json --clobber
+          echo "Bundle $VERSION added to $BASE_TAG" >> "$GITHUB_STEP_SUMMARY"
