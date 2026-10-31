@@ -19,6 +19,7 @@ import { initRecordingIpc } from './recording'
 import { initFocusModeIpc } from './focus-mode'
 import { initLocalReposIpc } from './local-repos/ipc'
 import { initGitSourcesIpc } from './git-sources/ipc'
+import { initAppUpdatesIpc } from './app-updates/ipc'
 
 const APP_NAME = 'The Garage'
 app.setName(APP_NAME)
@@ -86,6 +87,7 @@ app.whenReady().then(() => {
   initFocusModeIpc()
   initLocalReposIpc()
   initGitSourcesIpc()
+  initAppUpdatesIpc()
   createTray()
   createMainWindow()
 })

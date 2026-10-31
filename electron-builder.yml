@@ -28,6 +28,13 @@ mac:
     NSMicrophoneUsageDescription: Application requests access to the device's microphone.
     NSDocumentsFolderUsageDescription: Application requests access to the user's Documents folder.
     NSDownloadsFolderUsageDescription: Application requests access to the user's Downloads folder.
+  target:
+    - target: dmg
+      arch: [arm64]
+  # Ad-hoc signed until there is an Apple Developer ID: macOS runs it, but Gatekeeper blocks the
+  # downloaded .dmg until `xattr -cr` and Squirrel auto-install can't be used (scripts/release/README.md).
+  identity: '-'
+  hardenedRuntime: false
   notarize: false
 dmg:
   artifactName: ${name}-${version}.${ext}
@@ -42,5 +49,6 @@ appImage:
   artifactName: ${name}-${version}.${ext}
 npmRebuild: false
 publish:
-  provider: generic
-  url: https://example.com/auto-updates
+  provider: github
+  owner: idotalmor
+  repo: the-garage-desktop-rn

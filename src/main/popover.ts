@@ -1,6 +1,6 @@
 import { app, BrowserWindow, Menu, Tray, nativeImage, screen } from 'electron'
 import { join } from 'path'
-import { is } from '@electron-toolkit/utils'
+import { loadRenderer } from './app-updates/windows'
 import trayIconSource from '../../resources/tray-icon.png?asset'
 import {
   createDuplicateWindow,
@@ -48,11 +48,7 @@ function createPopoverWindow(): void {
     popoverWindow.setWindowButtonVisibility(false)
   }
 
-  if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
-    popoverWindow.loadURL(process.env['ELECTRON_RENDERER_URL'])
-  } else {
-    popoverWindow.loadFile(join(__dirname, '../renderer/index.html'))
-  }
+  loadRenderer(popoverWindow)
 
   popoverWindow.on('closed', () => {
     stopPopoverAnimation()

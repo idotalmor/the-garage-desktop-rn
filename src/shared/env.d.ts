@@ -1,4 +1,6 @@
 interface ImportMetaEnv {
+  /** Public key (base64 SPKI DER, ed25519) that JS bundles must be signed with; set by CI, empty = updates off. */
+  readonly MAIN_VITE_BUNDLE_PUBLIC_KEY?: string
   readonly MAIN_VITE_GITHUB_CLIENT_ID?: string
   readonly MAIN_VITE_GOOGLE_CLIENT_ID?: string
   readonly MAIN_VITE_GOOGLE_CLIENT_SECRET?: string
